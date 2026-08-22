@@ -1,0 +1,9 @@
+# Mesh pipeline (Phase B). Pinned loosely for now; pin hard before any deploy.
+numpy>=2.0
+scipy>=1.13
+trimesh>=4.4
+networkx>=3.3
+manifold3d>=2.5
+pymeshfix>=0.17
+lxml>=5.2          # trimesh needs it to read .3mf input
+pytest>=8.0
