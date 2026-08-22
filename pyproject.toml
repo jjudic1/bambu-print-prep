@@ -8,6 +8,9 @@ version = "0.1.0"
 description = "Mesh in, print-ready project 3mf out."
 requires-python = ">=3.12"
 
+[project.scripts]
+prep = "prep.cli:main"
+
 [tool.setuptools]
 packages = ["prep"]
 
