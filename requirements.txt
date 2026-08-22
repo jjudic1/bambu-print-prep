@@ -9,4 +9,6 @@ lxml>=5.2          # trimesh needs it to read .3mf input
 scikit-image>=0.24   # trimesh marching cubes, for the voxel-remesh fallback
 embreex>=4.0         # fast ray casting for wall-thickness sampling
 rtree>=1.3
+shapely>=2.0        # cross-section areas for the orientation stress test
+fast-simplification>=0.1  # decimation for the orientation solver proxy mesh
 pytest>=8.0
