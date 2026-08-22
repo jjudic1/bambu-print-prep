@@ -10,8 +10,14 @@ Full specification: [docs/print-prep-service-spec.md](docs/print-prep-service-sp
 
 **Phase B — the pipeline works end to end.**
 
+**Easiest way to use it: drag a model onto `Prepare for printing.bat`.**
+It asks which printer you have (once, then remembers), asks how big, and opens
+the folder with the finished file. No terminal needed.
+
+From a shell, the same thing:
+
 ```powershell
-.venv\Scripts\python.exe -m prep.cli model.stl --size 80mm
+.venv\Scripts\prep.exe model.stl --size 80mm
 ```
 
 | Milestone | State |
