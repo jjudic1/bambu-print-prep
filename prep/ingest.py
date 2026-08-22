@@ -19,6 +19,11 @@ SUPPORTED = {".stl", ".obj", ".3mf", ".glb", ".gltf", ".ply"}
 MAX_BYTES = 200 * 1024 * 1024     # §5.1
 MAX_TRIANGLES = 5_000_000
 
+# What an oversized model gets decimated to when the user accepts the offer.
+# A 0.4 mm nozzle cannot resolve anything finer than this on a hand-sized print,
+# so the detail being discarded was never going to survive the slicer anyway.
+SIMPLIFY_TARGET_FACES = 500_000
+
 # Printed objects live in a fairly narrow band. These bracket "plausible in mm"
 # and drive the unit guess.
 PLAUSIBLE_MM = (5.0, 400.0)
@@ -45,6 +50,7 @@ class Ingested:
     scale_applied: float             # what we multiplied by to reach millimetres
     native_extents_mm: tuple         # extents after that scaling
     shell_count: int
+    simplified_from: int | None = None   # original triangle count, if decimated
 
 
 def _largest_dimension(mesh) -> float:
@@ -74,10 +80,14 @@ def guess_units(mesh) -> tuple[str, float]:
     return "unknown", 1.0             # very large: probably mm from a scan
 
 
-def load(path, *, assume_units: str | None = None) -> Ingested:
+def load(path, *, assume_units: str | None = None,
+         simplify: bool = False) -> Ingested:
     """Load a mesh file and normalise it to millimetres at the origin.
 
     ``assume_units`` overrides the guess, for when the user has told us.
+    ``simplify`` accepts the decimation offer §5.1 makes for oversized files --
+    without it, a model over the ceiling raises TooLarge rather than being
+    silently reduced.
     """
     path = Path(path)
     if not path.is_file():
@@ -90,7 +100,7 @@ def load(path, *, assume_units: str | None = None) -> Ingested:
         )
 
     size = path.stat().st_size
-    if size > MAX_BYTES:
+    if size > MAX_BYTES and not simplify:
         raise TooLarge(
             f"{path.name} is {size / 1e6:.0f} MB, which is too big to work with. "
             "I can simplify it first if you want.",
@@ -105,7 +115,10 @@ def load(path, *, assume_units: str | None = None) -> Ingested:
     if not isinstance(loaded, trimesh.Trimesh) or loaded.is_empty:
         raise IngestError(f"There's no 3D shape inside {path.name}.")
 
-    if len(loaded.faces) > MAX_TRIANGLES:
+    original_faces = len(loaded.faces)
+    if original_faces > MAX_TRIANGLES and simplify:
+        loaded = loaded.simplify_quadric_decimation(face_count=SIMPLIFY_TARGET_FACES)
+    elif original_faces > MAX_TRIANGLES:
         raise TooLarge(
             f"{path.name} has {len(loaded.faces) / 1e6:.1f} million triangles, which is "
             "more detail than a printer can use. I can simplify it first.",
@@ -132,6 +145,7 @@ def load(path, *, assume_units: str | None = None) -> Ingested:
         scale_applied=factor,
         native_extents_mm=tuple(float(v) for v in loaded.extents),
         shell_count=shells,
+        simplified_from=original_faces if len(loaded.faces) < original_faces else None,
     )
 
 

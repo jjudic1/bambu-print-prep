@@ -179,7 +179,7 @@ def _rels(thumbnail: bool) -> str:
 
 def write_project_3mf(path, mesh, printer: Printer, *, title: str = "model",
                       orientation=None, process=None, filament=None,
-                      thumbnail_png=None) -> ProjectFile:
+                      thumbnail_png=None, supports: bool = True) -> ProjectFile:
     """Write ``mesh`` as a print-ready project 3mf for ``printer``.
 
     ``orientation`` is the rotation chosen by the orientation solver, in the
@@ -194,7 +194,7 @@ def write_project_3mf(path, mesh, printer: Printer, *, title: str = "model",
     placed.apply_transform(matrix)
     size = tuple(float(v) for v in placed.extents)
 
-    settings = project_settings(printer, process, filament)
+    settings = project_settings(printer, process, filament, supports=supports)
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
