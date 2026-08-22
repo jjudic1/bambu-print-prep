@@ -9,5 +9,6 @@ spikes/out/
 .DS_Store
 
 output/
-my-printer.txt   # which printer you picked, saved on first run
+# which printer you picked, saved on first run
+my-printer.txt
 dbg.bat
