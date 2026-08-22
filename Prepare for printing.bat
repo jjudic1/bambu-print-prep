@@ -122,12 +122,27 @@ if "%~n1"=="" (
     for %%F in ("!model!") do set "out=output\%%~nF.3mf"
 )
 
+set "extra="
+
+:run
 echo.
 echo ------------------------------------------------------
-"%PREP%" -m prep.cli "!model!" --printer "!printer!" !sizearg! --out "!out!"
+"%PREP%" -m prep.cli "!model!" --printer "!printer!" !sizearg! !extra! --out "!out!"
 set "code=!errorlevel!"
 echo ------------------------------------------------------
 echo.
+
+rem Exit 4 means the model is usable but far too detailed. Offer to simplify
+rem rather than dead-ending, which is what spec 5.1 asks for.
+if "!code!"=="4" if not defined extra (
+    echo This model has far more detail than a printer can use.
+    set "yn="
+    set /p "yn=Simplify it and carry on? [Y/n]: "
+    if /i not "!yn!"=="n" (
+        set "extra=--simplify"
+        goto run
+    )
+)
 
 if not "!code!"=="0" (
     if "!code!"=="1" (

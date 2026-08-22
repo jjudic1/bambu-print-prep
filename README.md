@@ -14,6 +14,18 @@ Full specification: [docs/print-prep-service-spec.md](docs/print-prep-service-sp
 It asks which printer you have (once, then remembers), asks how big, and opens
 the folder with the finished file. No terminal needed.
 
+Every model also gets, by default:
+
+- **a levelled bottom** if it was sculpted resting on a curve, so it stands on
+  the plate instead of rocking on a point. The cut is the smallest one that
+  gives a real footprint, capped at 8% of the model's height, and it tells you
+  how much it took.
+- **automatic supports** (`tree(auto)`), because Bambu's stock profiles ship
+  with supports off and an overhanging model then prints into thin air. Auto
+  means a model that needs none still gets none.
+
+Turn either off with `--no-flatten` / `--no-supports`.
+
 From a shell, the same thing:
 
 ```powershell

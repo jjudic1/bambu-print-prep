@@ -228,8 +228,24 @@ _BOOKKEEPING = {
 }
 
 
+# Supports are on by default, set to automatic. Bambu's stock profiles ship with
+# enable_support = "0", which means an overhanging model silently prints into
+# thin air -- the single most likely way a first print fails for someone who
+# cannot inspect a preview. "tree(auto)" rather than "normal(auto)" because the
+# target models are sculpted busts and figurines: tree supports scar the surface
+# far less and come off by hand. Both are *auto*, so a model that needs no
+# support still gets none.
+SUPPORT_DEFAULTS = {
+    "enable_support": "1",
+    "support_type": "tree(auto)",
+    "support_threshold_angle": "30",
+    "support_on_build_plate_only": "0",
+}
+
+
 def project_settings(printer: Printer, process: str, filament: str,
-                     vendor: str = DEFAULT_VENDOR) -> dict:
+                     vendor: str = DEFAULT_VENDOR, *,
+                     supports: bool = True) -> dict:
     """Flatten machine + process + filament into the blob a project 3mf carries.
 
     Bambu Studio writes ``Metadata/project_settings.config`` as one flat JSON
@@ -244,6 +260,8 @@ def project_settings(printer: Printer, process: str, filament: str,
         merged.update({k: v for k, v in source.items() if k not in _BOOKKEEPING})
 
     merged.pop("name", None)
+    if supports:
+        merged.update(SUPPORT_DEFAULTS)
     merged.update({
         "from": "project",
         "name": "project_settings",
