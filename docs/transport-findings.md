@@ -96,6 +96,49 @@ backfill the 98 missing keys from a resolved reference.
 
 ---
 
+## Milestone 2 — orientation solver vs. naive placement ✅
+
+**Date:** 2026-08-22 · Reproduce with `python bench/orient_bench.py --limit 60`.
+Latest run saved in [orientation-benchmark.txt](orientation-benchmark.txt).
+
+The corpus doubles as a labelled dataset: every project 3mf carries the build
+transform its creator settled on before printing. That is a real human judgement
+about which way up a model goes, and §10 is right that almost nobody else has it.
+
+| | |
+|---|---|
+| agrees with the creator | **54/60 (90%)** |
+| naive "leave it alone" | 50/60 (83%) |
+| arrived already correct | 50/60 (83%) |
+| we fixed a wrong pose | 6 |
+| **we broke a right pose** | **2** |
+
+The second metric is the one that took three attempts to get right. Plain
+agreement hides harm: **83% of real files arrive already oriented**, so a solver
+that re-poses on a hairline margin mostly converts right answers into wrong ones.
+Measured at zero bias it broke 5 poses while fixing 6 — a net gain of one case,
+which is noise. Requiring a real margin before overruling a human keeps the wins
+and drops most of the damage.
+
+Three corrections, each found by measuring rather than by reading the code:
+
+1. **Min-max normalising sub-scores across candidates.** It stretches whatever
+   spread happens to exist, so when every pose is near-equal on support volume it
+   manufactures a large difference out of noise, and a weak signal like height
+   outvotes the two that matter. Scores are now absolute ratios.
+2. **Contact area scored as a gradient.** Let a 3DBenchy balanced on 43 mm² of
+   hull beat the upright pose it is designed for. It is a threshold.
+3. **Yaw left free.** Bringing a face down does not fix rotation about Z, and the
+   arbitrary cross-product axis left a 40×30 box sprawling over 50×49 of plate —
+   and made two candidates for the *same face* score differently.
+
+**Caveat on the label:** the creator's orientation is a strong signal, not ground
+truth. Some of those files were never printed, and a few disagreements are cases
+where the solver is arguably right. Treat 90% as "agrees with an experienced
+human most of the time", not as accuracy.
+
+---
+
 ## A3 — MakerWorld terms ❓ **do this before A2**
 
 Spec §11 Q3, unanswered. Read the Community Guidelines and ToS on

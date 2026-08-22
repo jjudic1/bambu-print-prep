@@ -8,8 +8,23 @@ Full specification: [docs/print-prep-service-spec.md](docs/print-prep-service-sp
 
 ## Status
 
-Phase A — feasibility spikes. Nothing else starts until `docs/transport-findings.md`
-answers the transport question.
+**Phase B — the pipeline works end to end.**
+
+```powershell
+.venv\Scripts\python.exe -m prep.cli model.stl --size 80mm
+```
+
+| Milestone | State |
+|---|---|
+| A1 — write a Bambu-compatible project 3mf | automated checks pass; **awaiting one manual open in Bambu Studio** |
+| A2 — does MakerWorld accept it? | **blocked**: needs a Bambu account, and A3 first |
+| A3 — MakerWorld terms of service | **not started**, and it gates A2 |
+| 1 — CLI pipeline | done |
+| 2 — orientation beats naive | done: 90% vs 83%, breaking 2 poses in 60 |
+
+See [docs/transport-findings.md](docs/transport-findings.md) for the evidence.
+The transport question is still open, and it is still the thing that decides
+whether this is a product.
 
 ## Layout
 

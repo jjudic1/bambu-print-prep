@@ -98,7 +98,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=60)
     ap.add_argument("--tolerance-deg", type=float, default=15.0)
-    ap.add_argument("--max-faces", type=int, default=400_000)
+    ap.add_argument("--max-faces", type=int, default=150_000)
+    ap.add_argument("--progress", type=int, default=10,
+                    help="print a running tally every N cases (0 to disable)")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args(argv)
 
@@ -158,7 +160,12 @@ def main(argv=None) -> int:
         if args.verbose:
             mark = "ok " if we_match else "XX "
             print(f"  {mark} {Path(path).name[:44]:44s} "
-                  f"ours {ours_off:5.1f}deg  naive {naive_off:5.1f}deg")
+                  f"ours {ours_off:5.1f}deg  naive {naive_off:5.1f}deg", flush=True)
+        elif args.progress and tested % args.progress == 0:
+            # A full sweep takes minutes. Emit a running tally so a run that is
+            # cut short still says something.
+            print(f"  ... {tested} cases: ours {agree / tested:.0%}, "
+                  f"naive {naive_agree / tested:.0%}, broke {harmful}", flush=True)
 
     if not tested:
         print("no usable cases found", file=sys.stderr)
