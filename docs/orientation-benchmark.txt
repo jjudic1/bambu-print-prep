@@ -1,0 +1,15 @@
+  ... 10 cases: ours 80%, naive 80%, broke 2
+  ... 20 cases: ours 85%, naive 75%, broke 2
+  ... 30 cases: ours 83%, naive 73%, broke 2
+  ... 40 cases: ours 85%, naive 75%, broke 2
+  ... 50 cases: ours 88%, naive 80%, broke 2
+  ... 60 cases: ours 90%, naive 83%, broke 2
+
+cases: 60   tolerance: 15 deg   median solve 1.69s
+  agrees with the creator :  54/60  (90%)
+  naive 'leave it alone'  :  50/60  (83%)
+  arrived already correct :  50/60  (83%)
+  we fixed a wrong pose   :   6
+  we broke a right pose   :   2   <-- the number that matters
+
+  => solver beats naive by +4 cases
