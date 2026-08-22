@@ -125,7 +125,7 @@ def apply(mesh, report: MeshReport, printer: Printer, *,
 
     warning = None
     if too_thin:
-        warning = ("At this size the thinnest parts get too fine to print — "
+        warning = ("At this size the thinnest parts get too fine to print - "
                    "they'd come out fragile or not at all.")
     elif hit_ceiling:
         warning = "This is as big as your printer can make it."

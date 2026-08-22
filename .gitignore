@@ -7,3 +7,7 @@ spikes/out/
 *.egg-info/
 .env
 .DS_Store
+
+output/
+my-printer.txt   # which printer you picked, saved on first run
+dbg.bat
