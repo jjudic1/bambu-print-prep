@@ -158,3 +158,57 @@ def test_written_file_carries_the_support_setting(printer, tmp_path):
     write_project_3mf(off, box, printer, supports=False)
     settings = json.loads(zipfile.ZipFile(off).read("Metadata/project_settings.config"))
     assert settings["enable_support"] == "0"
+
+
+# --- what makes Bambu Studio actually honour the settings ---------------------
+
+def test_settings_declare_a_client_version(printer):
+    """374 of 375 real Bambu project files carry one; ours carried none.
+
+    A config Bambu Studio cannot version is a config it may discard, falling
+    back to the system profile -- which is how "supports on" silently became
+    "supports off".
+    """
+    settings = project_settings(printer, default_process(printer.name),
+                                default_filament(printer.name))
+    assert "version" in settings
+    assert settings["version"].count(".") == 3
+
+
+def test_every_override_is_declared_to_the_slicer(printer):
+    """Bambu Studio re-applies only the keys named in different_settings_to_system.
+
+    An override missing from that manifest is reverted to the system profile,
+    so the manifest must name every key whose value we changed.
+    """
+    process, filament = default_process(printer.name), default_filament(printer.name)
+    stock = project_settings(printer, process, filament, supports=False)
+    ours = project_settings(printer, process, filament, supports=True)
+
+    declared = set(ours["different_settings_to_system"][0].split(";")) - {""}
+    ignored = {"different_settings_to_system"}
+    actually_changed = {
+        k for k in SUPPORT_DEFAULTS
+        if k not in ignored and stock.get(k) != ours.get(k)
+    }
+    assert actually_changed == declared
+
+
+def test_the_manifest_has_one_slot_per_filament_plus_printer(printer):
+    """Positional list: [print settings, one per filament, printer]."""
+    settings = project_settings(printer, default_process(printer.name),
+                                default_filament(printer.name))
+    manifest = settings["different_settings_to_system"]
+    assert len(manifest) == len(settings["filament_settings_id"]) + 2
+    assert all(entry == "" for entry in manifest[1:])
+
+
+def test_settings_are_roughly_as_complete_as_bambus(printer):
+    """Bambu writes ~320 keys; resolving profiles alone gave only 235.
+
+    The gap is the slicer's compiled-in defaults, which appear in no JSON on
+    disk and are vendored in prep/data/bambu_baseline.json instead.
+    """
+    settings = project_settings(printer, default_process(printer.name),
+                                default_filament(printer.name))
+    assert len(settings) >= 290
