@@ -6,6 +6,28 @@ vocabulary required of the user.
 
 Full specification: [docs/print-prep-service-spec.md](docs/print-prep-service-spec.md)
 
+## The app (Milestones 3-4, in progress)
+
+Two processes. The API wraps `prep/`; the PWA is a client and does no mesh work.
+
+```powershell
+.venv\Scripts\python.exe -m uvicorn api.main:app --port 8141 --reload
+npm install --prefix web
+npm run dev --prefix web
+```
+
+Then open **http://localhost:5174**. Vite proxies `/api` to 8141, so the app
+calls the same paths in development and in production.
+
+The viewer works in the printer's own frame -- millimetres, **Z up**, origin at
+the front-left of the bed. trimesh writes GLB with no Y-up conversion (verified,
+not assumed), so nothing is converted anywhere and the preview cannot mirror.
+
+What the user can do so far: pick their printer and see the real bed, choose
+between the solver's orientations or turn the model in quarter turns, and scale
+against a slider that is hard-clamped to the build volume. Then the same three
+files the launcher produces.
+
 ## Status
 
 **Phase B — the pipeline works end to end.**
