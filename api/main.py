@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import os
 import shutil
 import uuid
 from dataclasses import dataclass, field
@@ -64,7 +65,14 @@ from .geometry import (
 # not throw away an upload. §7 wants every artifact kept anyway: re-printing at
 # a different size must not mean re-uploading, and the repaired mesh is the
 # expensive part.
-JOBS = Path(__file__).resolve().parent.parent / "var" / "jobs"
+#
+# JOBS_ROOT is set in the container, where the only reliably writable place is
+# the tmpfs. Note what that means and does not mean: a job survives for as long
+# as the instance does, which with the six-hour sweep is usually longer than
+# anyone needs -- but an instance recycling mid-flow loses it, and the user has
+# to upload again. Making that never happen means a bucket, not a bigger disk.
+JOBS = Path(os.environ.get("JOBS_ROOT")
+            or Path(__file__).resolve().parent.parent / "var" / "jobs")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -91,9 +99,20 @@ def health():
 # The PWA is served from a different origin in development (Vite on 5174,
 # this on 8141). Tightened to an allowlist rather than "*" because these
 # endpoints accept uploads.
+# In production the PWA is served from Vercel and /api/* is *rewritten* through
+# to here, so the browser only ever sees one origin and none of this applies.
+# It stays for local development, where Vite is on another port, and for anyone
+# pointing a different front end at this. Never "*": these endpoints take
+# uploads.
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get(
+        "ALLOWED_ORIGINS", "http://localhost:5174,http://127.0.0.1:5174",
+    ).split(",") if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5174", "http://127.0.0.1:5174"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
