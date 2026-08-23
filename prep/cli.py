@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
 from . import analyze as analyze_mod
+from . import bambu as bambu_mod
 from . import base as base_mod
 from . import orient as orient_mod
 from . import size as size_mod
@@ -62,6 +64,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-repair", action="store_true")
     p.add_argument("--simplify", action="store_true",
                    help="accept the offer to simplify a very large model")
+    p.add_argument("--no-makerworld", action="store_true",
+                   help="skip the Bambu Studio rewrite that MakerWorld requires")
     p.add_argument("--json", action="store_true", help="machine-readable output")
     p.add_argument("--list-printers", action="store_true")
     return p
@@ -144,6 +148,19 @@ def main(argv=None) -> int:
         supports=not args.no_supports,
     )
 
+    # MakerWorld rejects our own container even though Bambu Studio accepts it,
+    # so hand the finished file back through Bambu Studio as a writer (§2A).
+    makerworld_ready = False
+    makerworld_note = None
+    if not args.no_makerworld:
+        try:
+            bambu_mod.rewrite_for_makerworld(written.path)
+            makerworld_ready = True
+        except bambu_mod.BambuStudioUnavailable as exc:
+            makerworld_note = str(exc)
+        except (bambu_mod.ExportFailed, OSError, subprocess.SubprocessError) as exc:
+            makerworld_note = f"Bambu Studio couldn't rewrite the file: {exc}"
+
     if args.json:
         print(json.dumps({
             "source": ingested.source_name,
@@ -161,17 +178,21 @@ def main(argv=None) -> int:
             "comparison": sizing.comparison,
             "warning": sizing.warning,
             "fits": written.fits,
+            "makerworld_ready": makerworld_ready,
+            "makerworld_note": makerworld_note,
             "output": str(written.path),
         }, indent=2))
         return 0
 
     _report_to_human(ingested, report, repair_log, chosen, flattened, sizing,
-                     written, supports=not args.no_supports)
+                     written, supports=not args.no_supports,
+                     makerworld_ready=makerworld_ready, makerworld_note=makerworld_note)
     return 0 if written.fits else EXIT_TOO_BIG_FOR_BED
 
 
 def _report_to_human(ingested, report, repair_log, chosen, flattened, sizing,
-                     written, *, supports=True):
+                     written, *, supports=True, makerworld_ready=False,
+                     makerworld_note=None):
     print(f"{ingested.source_name}")
     if ingested.simplified_from:
         print(f"  simplified from {ingested.simplified_from / 1e6:.1f} million "
@@ -207,6 +228,11 @@ def _report_to_human(ingested, report, repair_log, chosen, flattened, sizing,
 
     if supports:
         print("  supports: on, added automatically only where they're needed")
+
+    if makerworld_note:
+        print(f"  ! {makerworld_note}")
+    elif makerworld_ready:
+        print("  ready to upload to MakerWorld")
 
     print(f"  wrote {written.path}")
     print(f"    for {written.printer} in {written.filament}")
