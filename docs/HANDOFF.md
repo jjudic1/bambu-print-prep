@@ -35,7 +35,7 @@ model.stl
   -> base      level a curved bottom so it stands (§1)
   -> size      scale + plain-language comparison, clamped to the bed (§6.2)
   -> write3mf  Bambu-compatible project 3mf
-  -> bambu     rewrite via Bambu Studio so MakerWorld accepts it
+  -> render    the plate pictures, in numpy -- no GL, no display
   -> handoff   the how-to-print page that travels with it (§6.5)
 ```
 
@@ -91,8 +91,9 @@ once.
 
 1. Save the `.3mf` to Files on the iPad.
 2. Safari → MakerWorld → Upload → choose the file.
-3. Add the `-preview.png` the tool produces as the gallery image.
-   *(No printed photo needed while the model is private.)*
+3. Add a picture. **MakerWorld will not take the `-preview.png`** — it rejects
+   a render as "not a real photo". Any real photo from the camera roll gets
+   through; swap in a photo of the actual object once it has printed.
 4. Set visibility **Private**, give it a title, Publish.
 5. Bambu Handy → and here there are two routes, both verified:
    - **Long:** *Me* tab → slide the bar with printing history / print queue /
@@ -120,7 +121,7 @@ So every run now writes three files that only mean anything together:
 
 ```
 dragon-80mm.3mf                      the model
-dragon-80mm-preview.png              the picture the upload needs
+dragon-80mm-preview.png              what it will look like, on the page
 dragon-80mm - how to print this.html the six steps above, for the iPad
 ```
 
