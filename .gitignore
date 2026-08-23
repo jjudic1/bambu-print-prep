@@ -12,3 +12,6 @@ output/
 # which printer you picked, saved on first run
 my-printer.txt
 dbg.bat
+var/
+node_modules/
+web/dist/
