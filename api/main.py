@@ -49,7 +49,12 @@ from prep.profiles import (
 from prep.repair import repair
 from prep.write3mf import write_project_3mf
 
-from .geometry import matrix_to_quaternion, preview_glb, quaternion_to_matrix
+from .geometry import (
+    matrix_to_quaternion,
+    preview_glb,
+    quaternion_to_matrix,
+    yaw_matrix,
+)
 
 # Jobs live on disk rather than in memory so a reload during development does
 # not throw away an upload. §7 wants every artifact kept anyway: re-printing at
@@ -78,6 +83,9 @@ class PrepareRequest(BaseModel):
     # a convention mismatch would silently mirror the print.
     orientation: list[float] = Field(default=[0.0, 0.0, 0.0, 1.0], min_length=4,
                                      max_length=4)
+    # A spin on the plate, applied after `orientation`. Separate from it on
+    # purpose -- see the sizing note in prepare().
+    yaw_deg: float = 0.0
     longest_mm: float | None = None
     material: str = "PLA"
     supports: bool = True
@@ -272,9 +280,28 @@ def prepare(job_id: str, req: PrepareRequest):
     if req.flatten_base:
         mesh, flattened = base_mod.flatten_base(mesh)
 
+    # "How big" must mean the object, not its shadow on the plate.
+    #
+    # The obvious implementation measures the longest side of the axis-aligned
+    # bounding box of whatever pose is current. That is wrong the moment a spin
+    # is involved: turning a 40x30 box a quarter of the way round grows its
+    # bounding box to about 49x49, so holding "longest side = 40 mm" shrinks the
+    # actual object to four-fifths of the size the user asked for. They turned
+    # it; they did not ask for it to get smaller.
+    #
+    # So the scale is fixed against the *unspun* pose and the spin is applied
+    # afterwards. The size that comes back still describes the real yawed model,
+    # and the build-volume clamp still measures the real footprint -- only the
+    # thing the slider is proportional to changes.
+    sizing_basis = float(max(mesh.extents))
+
+    if req.yaw_deg:
+        mesh.apply_transform(yaw_matrix(req.yaw_deg))
+        mesh.apply_translation([0, 0, -float(mesh.bounds[0][2])])
+
     if req.longest_mm:
         sizing = size_mod.apply(mesh, report, printer,
-                                target_longest_mm=float(req.longest_mm))
+                                scale=float(req.longest_mm) / sizing_basis)
     else:
         sizing = size_mod.apply(mesh, report, printer, scale=1.0)
 
@@ -286,7 +313,10 @@ def prepare(job_id: str, req: PrepareRequest):
         shutil.rmtree(out_dir)         # re-preparing replaces, never accumulates
     out_dir.mkdir(parents=True)
 
-    stem = f"{job.name}-{round(sizing.longest_mm)}mm"
+    # Named for the size that was asked for, so two spins of the same model
+    # at the same size do not become two differently-named files.
+    asked = req.longest_mm or sizing.longest_mm
+    stem = f"{job.name}-{round(min(asked, sizing.longest_mm))}mm"
     written = write_project_3mf(
         out_dir / f"{stem}.3mf", scaled, printer,
         title=f"{job.name}.stl",
