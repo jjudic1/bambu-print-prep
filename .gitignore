@@ -15,3 +15,6 @@ dbg.bat
 var/
 node_modules/
 web/dist/
+
+.vercel
+.env*
