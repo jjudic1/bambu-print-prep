@@ -27,6 +27,25 @@ DEFAULT_ROOTS = [
 
 DEFAULT_VENDOR = "BBL"
 
+# The Bambu Studio version we present ourselves as. Every genuine project file
+# carries one (374 of 375 in the local corpus); ours carried none, which is a
+# plausible reason Bambu Studio treated the config as unusable.
+CLIENT_VERSION = "01.10.01.50"
+
+# Settings Bambu Studio always writes that exist in no JSON on disk -- they are
+# the slicer's compiled-in defaults, absent from both OrcaSlicer's and Bambu
+# Studio's own profile bundles. Harvested from real project files by
+# spikes/a1_harvest_baseline.py. Without them our config is ~60 keys short of
+# what Bambu Studio produces.
+_BASELINE_PATH = Path(__file__).with_name("data") / "bambu_baseline.json"
+
+
+@lru_cache(maxsize=1)
+def baseline_settings() -> dict:
+    if not _BASELINE_PATH.is_file():
+        return {}
+    return json.loads(_BASELINE_PATH.read_text(encoding="utf-8"))
+
 
 class ProfileError(RuntimeError):
     """A profile could not be found or resolved."""
@@ -255,13 +274,18 @@ def project_settings(printer: Printer, process: str, filament: str,
     proc = resolve(vendor, "process", process)
     fil = resolve(vendor, "filament", filament)
 
-    merged: dict = {}
+    # Lowest priority first: compiled-in slicer defaults, then the resolved
+    # profiles, then our own overrides.
+    merged: dict = dict(baseline_settings())
     for source in (proc, fil, printer.settings):
         merged.update({k: v for k, v in source.items() if k not in _BOOKKEEPING})
 
     merged.pop("name", None)
-    if supports:
-        merged.update(SUPPORT_DEFAULTS)
+
+    overrides = dict(SUPPORT_DEFAULTS) if supports else {}
+    changed = sorted(k for k, v in overrides.items() if merged.get(k) != v)
+    merged.update(overrides)
+
     merged.update({
         "from": "project",
         "name": "project_settings",
@@ -269,5 +293,28 @@ def project_settings(printer: Printer, process: str, filament: str,
         "printer_settings_id": printer.name,
         "filament_settings_id": [filament],
         "curr_bed_type": printer.bed_type,
+        "version": CLIENT_VERSION,
+        # Per-extruder identity Bambu Studio always writes. filament_id comes
+        # from the filament profile; the colour is only a swatch in the UI, and
+        # §6.4 lets the user pick a real one from their own spool list later.
+        "filament_ids": [fil.get("filament_id", "")],
+        "filament_colour": ["#00AE42"],
+        "default_filament_colour": [""],
+        "different_settings_to_system": _override_manifest(changed, filaments=1),
     })
     return merged
+
+
+def _override_manifest(changed_process_keys, *, filaments: int) -> list:
+    """Declare which settings deviate from the named system profiles.
+
+    Bambu Studio does not simply trust the values in project_settings.config.
+    It reloads each named system profile and re-applies only the keys listed
+    here, so an override that is not declared is silently reverted -- which is
+    exactly what happened to enable_support: the file said "1", Bambu Studio
+    showed supports off.
+
+    The list is positional: [print settings, one slot per filament, printer].
+    Observed across the corpus as len(filament_settings_id) + 2 entries.
+    """
+    return [";".join(changed_process_keys)] + [""] * (filaments + 1)

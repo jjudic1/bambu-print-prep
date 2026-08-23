@@ -14,5 +14,8 @@ prep = "prep.cli:main"
 [tool.setuptools]
 packages = ["prep"]
 
+[tool.setuptools.package-data]
+prep = ["data/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
