@@ -192,15 +192,49 @@ Test against the program the user actually runs.
 
 ---
 
-## A3 — MakerWorld terms ❓ **do this before A2**
+## A3 — MakerWorld terms ✅ read, decision recorded
 
-Spec §11 Q3, unanswered. Read the Community Guidelines and ToS on
-bulk / AI-generated / personal-conduit uploads **before** uploading anything.
+**Date:** 2026-08-23. Sources, with the dates they were last revised:
 
-The spec's own framing is the right one: using MakerWorld as a personal file
-conduit is what people already do by hand; scripted or high-volume upload is a
-different thing and could cost a creator account. If the read is ambiguous, stop
-and say so rather than deciding unilaterally.
+- [Terms of Use](https://makerworld.com/en/user-agreement) — Jun 2024
+- [Community Guidelines](https://makerworld.com/en/community-guidelines) — 27 Apr 2026
+- [Model Upload Guidelines](https://wiki.bambulab.com/en/makerworld/tutorials/model-upload-guidelines) — 29 Jul 2026
+- [Print Profile Upload Guidelines](https://wiki.bambulab.com/en/makerworld/tutorials/print-profile-upload) — 26 Apr 2026
+
+**What the documents say**
+
+- *Bulk* — Model Upload Guidelines, "Content Flooding": duplicate uploads,
+  low-quality bulk uploads and homogeneous uploads are prohibited. Community
+  Guidelines prohibit spam and "excessive posting".
+- *Conduit* — ToS §5: "MakerWorld is **NOT** a data storage service provider."
+  A liability disclaimer rather than a ban, but it states the intent. ToS §9
+  separately bars robots, spiders and "any means of artificial intelligence
+  service" from accessing or acquiring site content.
+- *AI-generated* — permitted, but must be tagged **AIGC**, and AI-generated
+  images may not be used as model images. Outright AI bans apply only to the
+  Exclusive Program and crowdfunding.
+
+**Two clauses that bear on this design more than the bulk question**
+
+1. The printed-photo requirement is explicit: model gallery images "must include
+   at least one clear photo of the actual printed object", and "Missing Photos of
+   Printed Objects" is a listed violation. That is circular for our flow — you
+   upload *in order to* print. Whether it is enforced on private models is what
+   A2 tests.
+2. Print Profile Guidelines §6.1 lists as an invalid modification "adjusting
+   scale or print parameters ... without specifying meaningful changes", which
+   describes our output fairly literally. Written about profiles attached to
+   other people's public models, so its reach here is unclear.
+
+**The ambiguity, stated plainly:** every one of these documents is written about
+*public* publication — visibility, community quality, other users downloading.
+The word "private" appears in none of them. There is no clause prohibiting
+"upload your own model privately and print it", and no safe-harbour permitting
+it either.
+
+**Decision (account holder, 2026-08-23):** a private listing created for one's
+own printing, not bulk uploaded, is within the terms. Proceeding to A2 on that
+basis. The automation boundary is unchanged: uploads stay manual.
 
 ---
 

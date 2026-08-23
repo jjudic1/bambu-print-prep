@@ -1,0 +1,112 @@
+# A2 — MakerWorld transport test
+
+The last unknown. Everything upstream is proven: the file is correct, Bambu
+Studio accepts its settings, the pipeline runs end to end. Nothing yet proves a
+file can reach a printer without a desktop, and that is what decides whether this
+is a product or a local utility.
+
+**Run by:** the account holder, manually, in Safari. Not automated — see §2A's
+automation boundary and the note at the foot of this page.
+
+**ToS position (2026-08-23):** the account holder's reading is that a private
+listing, created for one's own printing and not bulk uploaded, is within the
+terms. The published guidelines are written throughout about *public*
+publication and never address private models either way; see
+`transport-findings.md` §A3 for the clauses and the ambiguity.
+
+---
+
+## The two files
+
+Identical geometry and settings. The only difference is who wrote the container.
+
+| File | Written by | Members | Settings |
+|---|---|---|---|
+| `output/A-print-prep.3mf` | our pipeline | 6 | 300 |
+| `output/B-bambustudio-control.3mf` | Bambu Studio (round-tripped from A) | 15 | 575 |
+
+**Why two.** If A fails and B succeeds, the fault is in our writer and is fixable.
+If both fail, MakerWorld does not accept this kind of upload as a print profile
+and the transport question reopens — that is a product decision, not a bug. If
+both succeed, v1 has a delivery path.
+
+The test object is ~40 mm, prints in well under an hour, and needs no supports —
+small enough to actually print, which matters for step 5.
+
+---
+
+## Protocol
+
+Do **A first**, all the way through, before touching B.
+
+### 1. Upload
+1. Safari → MakerWorld → **Upload**.
+2. Choose `A-print-prep.3mf`.
+3. Set visibility to **Private**.
+4. Give it any title. Note whether a printed photo is demanded.
+5. Tag as **AIGC** if the model was AI-generated (this one is not).
+6. Press **Publish**.
+
+**Record:** did Publish complete, or was it blocked pending a photo of a printed
+result? This is the risk §2A flagged, and the Model Upload Guidelines state the
+photo requirement plainly — but it is unverified whether it is *enforced* on
+private models. A blocked Publish button ends the flow.
+
+### 2. Does it appear in Handy?
+Open Bambu Handy on the phone → your own uploads. Does the model appear, and does
+it offer a printable profile?
+
+**Record:** visible at all? Printable, or download-only?
+
+### 3. Printer and filament
+Tap through to print. Pick printer and filament.
+
+**Record:** does it show the correct plate, size and orientation? Does it show
+supports as configured, or does MakerWorld re-slice with its own defaults?
+
+### 4. Start a print
+**Record:** does it actually start without any desktop step?
+
+### 5. Count the taps
+Write down every action from "file saved on the iPad" to "printer moving", and
+which of them were one-time setup versus per-print. §6.5 is designed around this
+number and it is currently a guess.
+
+### 6. Repeat with B
+Only if A failed. Same steps.
+
+---
+
+## Results
+
+Fill in and move the conclusion into `transport-findings.md`.
+
+| Step | A (ours) | B (control) |
+|---|---|---|
+| Upload accepted as Private | | |
+| Publish blocked pending photo? | | |
+| Appears in Handy | | |
+| Offers a printable profile | | |
+| Size / orientation correct | | |
+| Supports honoured | | |
+| Print starts | | |
+| Taps per print | | |
+
+**Secondary questions from §2A**
+
+- Do private models count against any account-quality metric?
+- Do private models earn no points (expected, and fine)?
+- Does MakerWorld re-slice, or use our settings as-is?
+
+---
+
+## Automation boundary
+
+This stays manual in v1. Automating it means holding Bambu credentials, which is
+both a security liability and the fastest way to lose the account. Revisit only
+if MakerWorld ships an official API.
+
+If the account is a fresh one created for this, keep the volume low while testing
+— "Content Flooding" in the Model Upload Guidelines names repeated uploads of
+identical or near-identical files, and a new account has no history to absorb a
+misread.
