@@ -26,6 +26,11 @@ Every model also gets, by default:
 
 Turn either off with `--no-flatten` / `--no-supports`.
 
+**Bambu Studio must be installed.** MakerWorld rejects our own 3mf container
+even though Bambu Studio accepts it, so the finished file is handed back through
+`bambu-studio.exe --export-3mf` (~0.5s) to produce one MakerWorld will take.
+`--no-makerworld` skips that step; the file still opens fine in Bambu Studio.
+
 From a shell, the same thing:
 
 ```powershell
