@@ -275,11 +275,29 @@ would remove it. The differences to close are known — geometry moved into
 `cut_information.xml` and `filament_sequence.json` — but which of them MakerWorld
 actually checks is unknown, and every guess costs an upload to test.
 
+### The photo requirement is not enforced on private models ✅
+
+The risk §2A flagged as potentially fatal — "a blocked Publish button ends the
+flow" — does not materialise. **A private model publishes with a render as its
+gallery image; no photo of a printed object is required at upload.** Verified
+2026-08-23: published private, and MakerWorld generated a print profile from it.
+
+That resolves the circularity in the Model Upload Guidelines, which require "at
+least one clear photo of the actual printed object". Enforcement is evidently
+tied to public listings. A user who later wants to publish can replace the
+render with a real photo after the first print.
+
+Consequence for §6.5: the handoff no longer needs a "take a screenshot" step.
+Bambu Studio's export already contains a 512x512 lit plate render at
+`Metadata/plate_1.png`, and `prep.bambu.extract_preview` now saves it beside the
+3mf as `<name>-preview.png`. It is cleaner than a screenshot — no plate grid, no
+slicer UI — so the upload has a picture ready without the user producing one.
+
 ### Still open
 
 Everything past the upload form:
 
-1. Does Publish complete on a **Private** model, or is a printed photo enforced?
+1. ~~Does Publish complete on a **Private** model?~~ **Yes**, with a render.
 2. Does it appear in Bambu Handy as a printable profile?
 3. Correct size and orientation? Are supports honoured, or does MakerWorld
    re-slice with its own defaults?
