@@ -26,8 +26,23 @@ import pytest
 import trimesh
 from fastapi.testclient import TestClient
 
+from api import limits, main
 from api.geometry import matrix_to_quaternion, quaternion_to_matrix
 from api.main import app
+
+
+@pytest.fixture(autouse=True)
+def _fresh_limits():
+    """A test suite uploads far more than a person would.
+
+    Without this the limiter does its job and starts returning 429 halfway
+    through the run -- which is the limiter being right and the suite being
+    wrong. Reset per test rather than raising the limit, so the number under
+    test stays the number that ships.
+    """
+    main.uploads.reset()
+    yield
+    main.uploads.reset()
 
 
 @pytest.fixture
@@ -319,3 +334,128 @@ def test_a_spin_still_gets_clamped_to_the_bed(client, job):
                      printer="Bambu Lab A1 mini 0.4 nozzle")
     assert body["fits"] is True
     assert max(body["size_mm"][:2]) <= 180.0 + 1e-6
+
+
+# --- what a public URL needs ------------------------------------------------
+#
+# None of this matters on localhost. All of it matters the moment the address
+# is reachable, and each one is a way an ordinary day takes the service down.
+
+def test_the_health_check_answers(client):
+    assert client.get("/api/health").json() == {"ok": True}
+
+
+def test_uploads_are_rate_limited_per_caller(client, box_stl):
+    """Unauthenticated uploads mean anyone with the URL can spend the CPU."""
+    limit = limits.RATE_LIMIT
+    for _ in range(limit):
+        r = client.post("/api/jobs",
+                        files={"file": ("box.stl", box_stl, "application/octet-stream")})
+        assert r.status_code == 200
+
+    blocked = client.post("/api/jobs",
+                          files={"file": ("box.stl", box_stl, "application/octet-stream")})
+    assert blocked.status_code == 429
+
+
+def test_the_rate_limit_message_says_what_to_do_not_what_broke(client, box_stl):
+    # §6: every error names the recovery. "429 Too Many Requests" does not.
+    for _ in range(limits.RATE_LIMIT):
+        client.post("/api/jobs",
+                    files={"file": ("box.stl", box_stl, "application/octet-stream")})
+    detail = client.post(
+        "/api/jobs",
+        files={"file": ("box.stl", box_stl, "application/octet-stream")},
+    ).json()["detail"]
+
+    assert "try again" in detail.lower()
+    for jargon in ("rate", "429", "quota", "throttle"):
+        assert jargon not in detail.lower()
+
+
+def test_an_oversized_upload_is_refused(client, monkeypatch):
+    monkeypatch.setattr(limits, "MAX_UPLOAD_BYTES", 1024)
+    r = client.post("/api/jobs",
+                    files={"file": ("big.stl", b"x" * 4096, "application/octet-stream")})
+    assert r.status_code == 413
+    assert "bigger than" in r.json()["detail"]
+
+
+def test_a_refused_upload_leaves_nothing_on_disk(client, monkeypatch):
+    """A rejected upload that still costs disk is the same leak, slower."""
+    before = len(list(main.JOBS.iterdir())) if main.JOBS.is_dir() else 0
+    monkeypatch.setattr(limits, "MAX_UPLOAD_BYTES", 1024)
+    client.post("/api/jobs",
+                files={"file": ("big.stl", b"x" * 4096, "application/octet-stream")})
+    after = len(list(main.JOBS.iterdir())) if main.JOBS.is_dir() else 0
+    assert after == before
+
+
+def test_a_file_that_is_not_a_model_leaves_nothing_on_disk(client):
+    before = len(list(main.JOBS.iterdir())) if main.JOBS.is_dir() else 0
+    client.post("/api/jobs", files={"file": ("notes.txt", b"hello", "text/plain")})
+    after = len(list(main.JOBS.iterdir())) if main.JOBS.is_dir() else 0
+    assert after == before
+
+
+# --- the sweep --------------------------------------------------------------
+
+def test_the_sweep_removes_jobs_past_the_window(tmp_path):
+    import os
+    import time
+
+    old = tmp_path / "stale"
+    fresh = tmp_path / "current"
+    for d in (old, fresh):
+        d.mkdir()
+        (d / "meta.json").write_text("{}")
+
+    long_ago = time.time() - (limits.JOB_TTL_SECONDS + 60)
+    os.utime(old, (long_ago, long_ago))
+
+    assert limits.sweep(tmp_path) == 1
+    assert not old.exists()
+    assert fresh.exists()
+
+
+def test_the_sweep_spares_a_job_someone_is_still_working_on(tmp_path):
+    """prepare() rewrites out/ and touches the directory, so an open tab keeps
+    its job alive rather than having it deleted underneath the user."""
+    import os
+    import time
+
+    job = tmp_path / "active"
+    job.mkdir()
+    recent = time.time() - 60
+    os.utime(job, (recent, recent))
+
+    assert limits.sweep(tmp_path) == 0
+    assert job.exists()
+
+
+def test_the_sweep_ignores_stray_files_next_to_the_jobs(tmp_path):
+    (tmp_path / "README").write_text("not a job")
+    assert limits.sweep(tmp_path) == 0
+    assert (tmp_path / "README").exists()
+
+
+def test_the_sweep_copes_with_a_directory_that_is_not_there(tmp_path):
+    assert limits.sweep(tmp_path / "nope") == 0
+
+
+# --- concurrency ------------------------------------------------------------
+
+def test_mesh_work_is_capped_below_the_core_count():
+    """More threads than cores buys nothing on CPU-bound work and makes every
+    request slower at once -- the failure that looks like a hang, not a queue."""
+    assert 1 <= limits.MAX_CONCURRENT_JOBS <= 4
+
+
+def test_the_upload_path_does_not_block_the_event_loop():
+    """The solver takes ~9s on a 20k-face mesh. Inline in an `async def` that
+    froze the whole process, health check included. This asserts the heavy work
+    is reachable as a plain function so it can be handed to a thread."""
+    import inspect
+
+    assert not inspect.iscoroutinefunction(main._examine)
+    assert inspect.iscoroutinefunction(limits.run_mesh_work)

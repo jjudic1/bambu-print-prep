@@ -19,6 +19,7 @@ returns is the authoritative one, and the UI shows that rather than its own.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import shutil
@@ -28,7 +29,9 @@ from pathlib import Path
 
 import numpy as np
 import trimesh
-from fastapi import FastAPI, HTTPException, UploadFile
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
@@ -49,6 +52,7 @@ from prep.profiles import (
 from prep.repair import repair
 from prep.write3mf import write_project_3mf
 
+from . import limits
 from .geometry import (
     matrix_to_quaternion,
     preview_glb,
@@ -62,7 +66,27 @@ from .geometry import (
 # expensive part.
 JOBS = Path(__file__).resolve().parent.parent / "var" / "jobs"
 
-app = FastAPI(title="print-prep")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Sweep on boot as well as on a timer: a container that restarts often
+    # would otherwise never reach the first scheduled sweep.
+    limits.sweep(JOBS)
+    task = asyncio.create_task(limits.sweep_forever(JOBS))
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
+app = FastAPI(title="print-prep", lifespan=lifespan)
+uploads = limits.RateLimiter()
+
+
+@app.get("/api/health")
+def health():
+    """For the host's health check. Cheap on purpose -- it must answer while
+    the solver is busy, which is the whole reason mesh work left the loop."""
+    return {"ok": True}
 
 # The PWA is served from a different origin in development (Vite on 5174,
 # this on 8141). Tightened to an allowlist rather than "*" because these
@@ -175,32 +199,18 @@ def printers():
 
 # --- upload -----------------------------------------------------------------
 
-@app.post("/api/jobs")
-async def create_job(file: UploadFile):
-    """Ingest, analyse, repair if needed, and propose orientations.
+def _examine(source: Path, directory: Path):
+    """Everything CPU-bound about an upload, in one blocking call.
 
-    Everything expensive happens once, here. What comes back is enough for the
-    browser to run the whole sizing and orientation conversation without asking
-    the server anything else until the user confirms.
+    Pulled out so it can be handed to a worker thread whole. It used to run
+    inline in an `async def`, which meant the ~9s the solver takes on a 20k-face
+    mesh blocked the event loop -- no other request served, health check
+    included. On a single-instance deploy that reads as an outage rather than as
+    a slow upload.
     """
-    raw = await file.read()
-    job_id = str(uuid.uuid4())
-    directory = JOBS / job_id
-    directory.mkdir(parents=True, exist_ok=True)
-
-    source = directory / f"source{Path(file.filename or 'model.stl').suffix}"
-    source.write_bytes(raw)
-
-    try:
-        ingested = load(source)
-    except TooLarge as exc:
-        shutil.rmtree(directory, ignore_errors=True)
-        raise HTTPException(413, str(exc))
-    except IngestError as exc:
-        shutil.rmtree(directory, ignore_errors=True)
-        raise HTTPException(400, str(exc))
-
+    ingested = load(source)
     mesh = ingested.mesh
+
     # Nozzle only affects the thin-wall threshold in the report; the real
     # printer is chosen later, and prepare() re-analyses against it.
     report = analyze_mod.analyze(mesh, unit_guess=ingested.unit_guess, nozzle_mm=0.4)
@@ -212,8 +222,63 @@ async def create_job(file: UploadFile):
         repair_steps = [s.split(": ", 1)[-1] for s in log.steps]
 
     chosen, alternates = orient_mod.solve(mesh)
-
     mesh.export(directory / "working.stl")
+    return ingested, mesh, report, repair_steps, chosen, alternates
+
+
+async def _receive(file: UploadFile, destination: Path) -> None:
+    """Stream the body to disk, refusing anything oversized as it arrives.
+
+    Read in chunks rather than with `await file.read()`: that pulls the whole
+    body into memory first, so a large upload costs the RAM before any limit
+    can be applied to it.
+    """
+    written = 0
+    with destination.open("wb") as out:
+        while chunk := await file.read(1024 * 1024):
+            written += len(chunk)
+            if written > limits.MAX_UPLOAD_BYTES:
+                raise HTTPException(
+                    413,
+                    f"That file is bigger than "
+                    f"{limits.MAX_UPLOAD_BYTES // (1024 * 1024)} MB. "
+                    f"Try exporting it again at a lower detail setting.")
+            out.write(chunk)
+
+
+@app.post("/api/jobs")
+async def create_job(request: Request, file: UploadFile):
+    """Ingest, analyse, repair if needed, and propose orientations.
+
+    Everything expensive happens once, here. What comes back is enough for the
+    browser to run the whole sizing and orientation conversation without asking
+    the server anything else until the user confirms.
+    """
+    try:
+        uploads.check(request.client.host if request.client else "unknown")
+    except limits.TooManyRequests as exc:
+        raise HTTPException(429, str(exc))
+
+    job_id = str(uuid.uuid4())
+    directory = JOBS / job_id
+    directory.mkdir(parents=True, exist_ok=True)
+
+    source = directory / f"source{Path(file.filename or 'model.stl').suffix}"
+    try:
+        await _receive(file, source)
+    except HTTPException:
+        shutil.rmtree(directory, ignore_errors=True)
+        raise
+
+    try:
+        ingested, mesh, report, repair_steps, chosen, alternates = (
+            await limits.run_mesh_work(_examine, source, directory))
+    except TooLarge as exc:
+        shutil.rmtree(directory, ignore_errors=True)
+        raise HTTPException(413, str(exc))
+    except IngestError as exc:
+        shutil.rmtree(directory, ignore_errors=True)
+        raise HTTPException(400, str(exc))
 
     def as_option(candidate):
         return {
