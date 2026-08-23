@@ -14,6 +14,17 @@ Full specification: [docs/print-prep-service-spec.md](docs/print-prep-service-sp
 It asks which printer you have (once, then remembers), asks how big, and opens
 the folder with the finished file. No terminal needed.
 
+You get three files, and they only work together -- send all of them to the iPad:
+
+| File | What it is |
+|---|---|
+| `dragon-80mm.3mf` | the model, named so you can find it again |
+| `dragon-80mm-preview.png` | the picture the upload asks for |
+| `dragon-80mm - how to print this.html` | the steps, written for the iPad |
+
+Open the last one on the iPad and follow it. It is self-contained -- no internet
+needed to read it -- and it is the same steps every time, so keep it.
+
 Every model also gets, by default:
 
 - **a levelled bottom** if it was sculpted resting on a curve, so it stands on
@@ -56,7 +67,7 @@ New here? Read [docs/HANDOFF.md](docs/HANDOFF.md) first, then
 |---|---|
 | `docs/` | Spec, ideation notes, spike findings |
 | `spikes/` | Phase A throwaway probes (kept for the record, not imported by `prep/`) |
-| `prep/` | The pipeline: ingest → analyze → repair → size → orient → 3mf |
+| `prep/` | The pipeline: ingest → analyze → repair → size → orient → 3mf → handoff |
 | `bench/` | Orientation solver benchmark against a local model corpus |
 | `tests/` | pytest |
 

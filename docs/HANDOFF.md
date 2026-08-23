@@ -1,6 +1,6 @@
 # Handoff — read this first
 
-**Date:** 2026-08-23 · **Repo:** https://github.com/jjudic1/bambu-print-prep · **Tests:** 110 passing
+**Date:** 2026-08-23 · **Repo:** https://github.com/jjudic1/bambu-print-prep · **Tests:** 137 passing
 
 The spec is [print-prep-service-spec.md](print-prep-service-spec.md). This
 document is the delta: what has been proven, what it cost to prove, and what to
@@ -36,6 +36,7 @@ model.stl
   -> size      scale + plain-language comparison, clamped to the bed (§6.2)
   -> write3mf  Bambu-compatible project 3mf
   -> bambu     rewrite via Bambu Studio so MakerWorld accepts it
+  -> handoff   the how-to-print page that travels with it (§6.5)
 ```
 
 | Path | What |
@@ -44,6 +45,7 @@ model.stl
 | `prep/` | The pipeline. One module per stage above. |
 | `bench/orient_bench.py` | Orientation solver measured against a real corpus |
 | `spikes/` | Throwaway probes, kept because they document how things were proven |
+| `prep/handoff.py` | The §6.5 instructions, as a file that goes to the iPad |
 | `docs/transport-findings.md` | **The evidence trail. Read this second.** |
 
 Run it:
@@ -100,6 +102,43 @@ and no computer is involved.
 
 **Not yet measured:** the precise tap count, and where a non-technical person
 stalls. That is Milestone 6's job.
+
+### This loop now ships with the file (§6.5, 2026-08-23)
+
+Until this change, the entire handoff a user received was three lines of console
+text — "upload it to MakerWorld as a PRIVATE model" — which is a reminder for
+someone who already knows, not instructions. A Milestone 6 tester would have
+stalled there, and stalled for a reason already known, which teaches nothing.
+
+So every run now writes three files that only mean anything together:
+
+```
+dragon-80mm.3mf                      the model
+dragon-80mm-preview.png              the picture the upload needs
+dragon-80mm - how to print this.html the six steps above, for the iPad
+```
+
+`prep/handoff.py` builds the page: one self-contained HTML file, picture inlined
+as a data URI, no network. It renders in the Files preview and in Safari, and it
+survives AirDrop, iCloud Drive and mail intact. §6.5 wants this **persistent, not
+a modal** — it sits in Files next to the model, and "show me again" is just
+opening it again on print five.
+
+Content is the verified loop and nothing else. Both Handy routes are there, the
+short one as step 6 and *My Creations* as the fallback beneath it. There is
+deliberately **no deep link to MakerWorld's upload page**: that URL was never
+recorded during the A2 run, and a link that 404s is worse than a sentence naming
+the button.
+
+The file name changed too, and that was the other half of §6.5's first step —
+`dragon-80mm.3mf`, not `dragon.prepared.3mf`. The name is the only handle the
+user has on the file once it is in Files among the others, and it is what they
+must match in MakerWorld's picker. Two sizes of one model no longer collide.
+
+**Still unmeasured, and still the whole point:** whether these steps survive
+contact with someone who has not read them over your shoulder. The page is a
+first draft written from a loop *you* performed. Milestone 6 is what tells you
+which step is wrong.
 
 ---
 
@@ -163,11 +202,25 @@ run cut short still tells you something.
 **Milestone 6 is the only one that proves anything.** Everything else is
 optional polish.
 
-1. **Real user test.** Someone non-technical, an iPad, no help. Watch where they
-   stall. Do not fix anything until you have watched it fail once.
-2. **Then §6.5** — the guided handoff screen, built around whatever step 1
-   revealed as the drop-off. The loop above is the content; the tap count and the
-   failure point are the unknowns.
+1. **Real user test.** Someone non-technical, an iPad, no help. Hand them the
+   three files and the how-to page and nothing else — no explaining. Watch where
+   they stall. **Do not fix anything until you have watched it fail once**; the
+   page is a guess about where the difficulty is, and the point of the test is
+   to find out where it actually is.
+
+   Worth watching for specifically, since these are the guesses:
+   - Do they open the how-to page at all, or go straight for the model?
+   - Does the Files preview render it, or does it need Safari?
+   - Step 4 — do they understand which file "the picture" means?
+   - Step 5 — does **Private** survive, or does the default win?
+   - Step 6 — profile picture, or do they fall through to *My Creations*?
+
+2. **Then fix §6.5** around whatever step 1 revealed. `prep/handoff.py` is one
+   module of strings; changing the copy costs nothing. Screenshots are the
+   obvious next increment (§6.5 asks for them) but they are only worth shooting
+   for the steps that actually lost someone — and they go stale when MakerWorld
+   moves, so date the folder.
+
 3. **Then the PWA** (Milestones 3–4), if the handoff survives contact.
 
 **Open engineering questions, in rough priority:**
