@@ -1,29 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import * as THREE from 'three'
 import Viewer from './Viewer.jsx'
 import { fileUrl, listPrinters, meshUrl, prepare, uploadModel } from './api.js'
+import { IDENTITY, bake, compose, sameOrientation, turn } from './orientation.js'
 
-const IDENTITY = [0, 0, 0, 1]
-
-// Nudges, for when the solver is close but not right. Ninety degrees rather
-// than free rotation on purpose: the useful corrections are all quarter turns,
-// and a free-spin gizmo on a touchscreen is how you end up printing something
-// two degrees off the plate with a support forest under it.
-const NUDGES = [
+// Tipping onto a different face. Quarter turns rather than free rotation on
+// purpose: the corrections that matter are all quarter turns, and a free-spin
+// gizmo on a touchscreen is how you print two degrees off the plate with a
+// support forest underneath. Turning *on* the face is the yaw slider's job,
+// and that one is continuous because there the angle genuinely is a preference.
+const TIPS = [
   { label: 'Tip forward', axis: [1, 0, 0], deg: 90 },
   { label: 'Tip back', axis: [1, 0, 0], deg: -90 },
   { label: 'Roll left', axis: [0, 1, 0], deg: 90 },
   { label: 'Roll right', axis: [0, 1, 0], deg: -90 },
-  { label: 'Spin', axis: [0, 0, 1], deg: 90 },
 ]
-
-function nudge(quaternion, axis, deg) {
-  const current = new THREE.Quaternion(...quaternion)
-  const step = new THREE.Quaternion().setFromAxisAngle(
-    new THREE.Vector3(...axis), THREE.MathUtils.degToRad(deg),
-  )
-  return step.multiply(current).toArray()
-}
 
 const mm = (v) => `${Math.round(v)} mm`
 const inches = (v) => `${(v / 25.4).toFixed(1)} in`
@@ -34,7 +24,8 @@ export default function App() {
     () => localStorage.getItem('printer') || '',
   )
   const [job, setJob] = useState(null)
-  const [quaternion, setQuaternion] = useState(IDENTITY)
+  const [base, setBase] = useState(IDENTITY)
+  const [yawDeg, setYawDeg] = useState(0)
   const [longestMm, setLongestMm] = useState(80)
   const [measured, setMeasured] = useState(null)
   const [result, setResult] = useState(null)
@@ -70,6 +61,18 @@ export default function App() {
     [printers, printerId],
   )
 
+  // One pose, derived. The viewer and the server must never see anything else,
+  // or the preview stops being what gets printed.
+  const pose = useMemo(() => compose(base, yawDeg), [base, yawDeg])
+
+  // Tipping changes which face is down, so the spin the user had set stops
+  // meaning anything -- but un-spinning what they can see would be a surprise.
+  // Fold it in, and give the slider back a zero that means something.
+  const tip = (axis, deg) => {
+    setBase(turn(bake(base, yawDeg), axis, deg))
+    setYawDeg(0)
+  }
+
   async function onFile(file) {
     if (!file) return
     setBusy('Looking at your model...')
@@ -78,7 +81,8 @@ export default function App() {
     try {
       const uploaded = await uploadModel(file)
       setJob(uploaded)
-      setQuaternion(uploaded.orientations[0]?.quaternion || IDENTITY)
+      setBase(uploaded.orientations[0]?.quaternion || IDENTITY)
+      setYawDeg(0)
       setLongestMm(Math.round(Math.max(...uploaded.native_size_mm)))
     } catch (e) {
       setError(e.message)
@@ -91,9 +95,12 @@ export default function App() {
     setBusy('Getting it ready...')
     setError('')
     try {
+      // base and spin go separately, not pre-composed: the server sizes
+      // against the unspun pose so that turning the model never resizes it.
       setResult(await prepare(job.job_id, {
         printer: printerId,
-        orientation: quaternion,
+        orientation: base,
+        yaw_deg: yawDeg,
         longest_mm: longestMm,
       }))
     } catch (e) {
@@ -106,12 +113,26 @@ export default function App() {
   // Re-preparing invalidates what was downloaded, so drop it the moment
   // anything it was built from changes.
   const onMeasure = useCallback((m) => setMeasured(m), [])
-  useEffect(() => { setResult(null) }, [quaternion, longestMm, printerId])
+  useEffect(() => { setResult(null) }, [pose, longestMm, printerId])
 
-  const ceiling = Math.min(
-    Math.round(measured?.maxLongest || 300),
-    printer ? Math.max(printer.bed_mm[0], printer.bed_mm[1]) : 300,
-  )
+  // The largest size that still fits, in the units the slider speaks. It comes
+  // from the viewer, which measures the real footprint of the current pose --
+  // deliberately *not* capped at the bed's side length, because a long model
+  // turned across the corner legitimately exceeds it: 300 mm lies down fine on
+  // a 256 mm bed at 45 degrees, and capping would forbid the one trick the spin
+  // control is for.
+  const ceiling = Math.round(measured?.maxLongest || 300)
+
+  // Clamp the state, not just the slider's displayed value. §6.2 wants the
+  // ceiling shown rather than an error afterwards, and leaving the state above
+  // it produced exactly that error: a model drawn too big, the slider pinned at
+  // max, and "Get it ready" disabled, with no visible way out. Safe from
+  // feedback because the ceiling is measured at scale 1 and so does not depend
+  // on the value being clamped.
+  useEffect(() => {
+    if (!measured) return
+    setLongestMm((v) => Math.min(v, ceiling))
+  }, [ceiling, measured])
 
   if (!job) {
     return (
@@ -138,7 +159,8 @@ export default function App() {
     <main className="app">
       <Viewer
         glbUrl={meshUrl(job.job_id)}
-        quaternion={quaternion}
+        base={base}
+        quaternion={pose}
         longestMm={longestMm}
         bed={printer?.bed_mm || [256, 256]}
         height={printer?.height_mm || 250}
@@ -204,12 +226,8 @@ export default function App() {
             {job.orientations.map((o, i) => (
               <button
                 key={i}
-                className={
-                  o.quaternion.every((v, k) => Math.abs(v - quaternion[k]) < 1e-6)
-                    ? 'option on'
-                    : 'option'
-                }
-                onClick={() => setQuaternion(o.quaternion)}
+                className={sameOrientation(o.quaternion, base) ? 'option on' : 'option'}
+                onClick={() => { setBase(o.quaternion); setYawDeg(0) }}
                 title={o.reason}
               >
                 {i === 0 ? 'Our pick' : `Option ${i + 1}`}
@@ -218,20 +236,47 @@ export default function App() {
             ))}
           </div>
           <p className="reason">
-            {job.orientations.find((o) =>
-              o.quaternion.every((v, k) => Math.abs(v - quaternion[k]) < 1e-6),
-            )?.reason || 'Turned by hand.'}
+            {job.orientations.find((o) => sameOrientation(o.quaternion, base))
+              ?.reason || 'Turned by hand.'}
           </p>
           <div className="nudges">
-            {NUDGES.map((n) => (
-              <button
-                key={n.label}
-                onClick={() => setQuaternion(nudge(quaternion, n.axis, n.deg))}
-              >
-                {n.label}
+            {TIPS.map((t) => (
+              <button key={t.label} onClick={() => tip(t.axis, t.deg)}>
+                {t.label}
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="field">
+          <span>
+            Turn it round
+            <em>{yawDeg}&deg;</em>
+          </span>
+          <input
+            type="range"
+            min="0"
+            max="360"
+            step="1"
+            value={yawDeg}
+            onChange={(e) => setYawDeg(Number(e.target.value))}
+          />
+          <div className="ticks">
+            {[0, 45, 90, 180, 270].map((deg) => (
+              <button
+                key={deg}
+                className={yawDeg === deg ? 'tick on' : 'tick'}
+                onClick={() => setYawDeg(deg)}
+              >
+                {deg}&deg;
+              </button>
+            ))}
+          </div>
+          <p className="reason">
+            Spins it on the plate. The same side stays down, so this never
+            changes what it needs to hold it up &mdash; but turning a long model
+            across the corner can make it fit a bed it otherwise would not.
+          </p>
         </div>
 
         {measured && !measured.fits && (

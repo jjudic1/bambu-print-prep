@@ -231,3 +231,91 @@ def test_a_file_that_is_not_a_model_is_rejected_with_a_reason(client):
                     files={"file": ("notes.txt", b"hello", "text/plain")})
     assert r.status_code == 400
     assert r.json()["detail"]
+
+
+# --- yaw: turning the model on the face it is already resting on ------------
+#
+# The distinction that matters is between tipping and spinning. Tipping changes
+# which face is down, and so changes what the print needs to hold it up.
+# Spinning cannot: the same face stays on the plate at every angle. Anything
+# here that lets a spin alter the height is a bug, because it would mean the
+# down-face moved.
+
+def _prepared(client, job, **body):
+    payload = {"printer": "Bambu Lab P1S 0.4 nozzle", "orientation": [0, 0, 0, 1],
+               "flatten_base": False, **body}
+    r = client.post(f"/api/jobs/{job['job_id']}/prepare", json=payload)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+@pytest.mark.parametrize("yaw", [0, 30, 45, 90, 135, 180, 270, 359])
+def test_a_spin_never_changes_the_height(client, job, yaw):
+    """Height is the tell. If it moves, the face on the plate moved with it."""
+    body = _prepared(client, job, yaw_deg=yaw, longest_mm=40)
+    assert body["size_mm"][2] == pytest.approx(20.0, abs=0.05)
+
+
+@pytest.mark.parametrize("yaw", [0, 45, 90, 180, 270])
+def test_a_spin_never_resizes_the_object(client, job, yaw):
+    """The bug this replaced: scale was pinned to the longest side of the
+    axis-aligned box, which *grows* on the diagonal -- so asking for 40 mm and
+    then turning the model quietly shrank it to about 32. The user turned it;
+    they did not ask for it to get smaller."""
+    body = _prepared(client, job, yaw_deg=yaw, longest_mm=40)
+    # 40 x 30 x 20 at any spin still has the same volume and the same height.
+    assert sorted(body["size_mm"])[0] == pytest.approx(20.0, abs=0.05)
+    assert body["size_mm"][2] == pytest.approx(20.0, abs=0.05)
+
+
+def test_a_quarter_turn_swaps_the_footprint(client, job):
+    body = _prepared(client, job, yaw_deg=90, longest_mm=40)
+    assert body["size_mm"] == pytest.approx([30.0, 40.0, 20.0], abs=0.05)
+
+
+def test_a_half_turn_returns_the_footprint_it_started_with(client, job):
+    assert (_prepared(client, job, yaw_deg=180, longest_mm=40)["size_mm"]
+            == pytest.approx([40.0, 30.0, 20.0], abs=0.05))
+
+
+def test_turning_across_the_corner_widens_the_footprint(client, job):
+    """A 40x30 box on the diagonal covers about 49x49 -- more plate, same object.
+    The UI leans on this: it is why a long model can fit a bed it otherwise
+    would not, and why the size ceiling has to move when the spin does."""
+    straight = _prepared(client, job, yaw_deg=0, longest_mm=40)["size_mm"]
+    diagonal = _prepared(client, job, yaw_deg=45, longest_mm=40)["size_mm"]
+    assert diagonal[0] > straight[0]
+    assert diagonal[1] > straight[1]
+    assert diagonal[2] == pytest.approx(straight[2], abs=0.05)
+
+
+def test_the_spin_composes_after_the_pose_not_before(client, job):
+    """Yaw is about the *bed's* Z, applied to the already-placed model. Compose
+    it the other way round and it turns about whatever axis Z was before the
+    face came down, which reads as the model tumbling off the plate."""
+    # Lay the box on its side first (90 about X: 40 x 30 x 20 -> 40 x 20 x 30),
+    # then spin a quarter turn. A bed-Z spin swaps the footprint and leaves the
+    # height alone; a body-Z spin would move the height.
+    on_side = [0.7071067811865476, 0, 0, 0.7071067811865476]
+    body = _prepared(client, job, orientation=on_side, yaw_deg=90, longest_mm=40)
+    assert body["size_mm"][2] == pytest.approx(30.0, abs=0.05)
+    assert sorted(body["size_mm"][:2]) == pytest.approx([20.0, 40.0], abs=0.05)
+
+
+def test_the_yaw_matrix_is_a_rotation_about_z_and_nothing_else():
+    from api.geometry import yaw_matrix
+    for deg in (0, 17, 90, 180, 359):
+        m = yaw_matrix(deg)
+        assert np.linalg.det(m[:3, :3]) == pytest.approx(1.0)
+        # Z is untouched, which is the whole point.
+        assert m[:3, 2] == pytest.approx([0, 0, 1])
+        assert m[2, :3] == pytest.approx([0, 0, 1])
+
+
+def test_a_spin_still_gets_clamped_to_the_bed(client, job):
+    """Turning a big model across the corner needs more plate, not less, so the
+    ceiling has to tighten -- the file must never come out bigger than the bed."""
+    body = _prepared(client, job, yaw_deg=45, longest_mm=400,
+                     printer="Bambu Lab A1 mini 0.4 nozzle")
+    assert body["fits"] is True
+    assert max(body["size_mm"][:2]) <= 180.0 + 1e-6

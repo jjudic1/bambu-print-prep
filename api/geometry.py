@@ -99,3 +99,19 @@ def preview_glb(mesh, max_faces: int = 40_000) -> bytes:
             pass    # a slow preview beats no preview; not a broad except
 
     return trimesh.exchange.gltf.export_glb(trimesh.Scene(display))
+
+
+def yaw_matrix(degrees: float) -> np.ndarray:
+    """Rotation about the bed's Z axis -- a spin, not a tumble.
+
+    Kept separate from the pose quaternion because the two answer different
+    questions and must not be conflated when sizing: the quaternion decides
+    *which face is down*, and this decides *how far round it is stood* on that
+    face. The face on the plate is the same at every angle, so a spin can never
+    make a model need supports it did not need a moment ago.
+    """
+    radians = np.radians(float(degrees))
+    cos, sin = np.cos(radians), np.sin(radians)
+    matrix = np.eye(4)
+    matrix[:3, :3] = [[cos, -sin, 0], [sin, cos, 0], [0, 0, 1]]
+    return matrix

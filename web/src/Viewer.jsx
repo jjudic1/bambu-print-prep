@@ -22,7 +22,7 @@ const GRID_10 = 0x262b33
 const MODEL = 0x22a45d
 const TOO_BIG = 0xc4463a
 
-export default function Viewer({ glbUrl, quaternion, longestMm, bed, height, onMeasure }) {
+export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, height, onMeasure }) {
   const mount = useRef(null)
   const state = useRef({})
 
@@ -162,16 +162,27 @@ export default function Viewer({ glbUrl, quaternion, longestMm, bed, height, onM
 
     const [bx, by] = bed
 
+    // Measure the size the slider refers to against the *unspun* pose.
+    //
+    // Measuring the current pose instead is the obvious thing and it is wrong:
+    // spinning a 40x30 box a quarter turn grows its axis-aligned box to about
+    // 49x49, so holding "longest side = 40 mm" would quietly shrink the object
+    // to four-fifths of what was asked for. The user turned it; they did not
+    // ask for it to get smaller. The server derives the scale the same way --
+    // see prepare() in api/main.py -- and the two must not drift.
     model.position.set(0, 0, 0)
     model.scale.setScalar(1)
+    model.quaternion.set(...base)
+    model.updateMatrixWorld(true)
+    const unspun = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3())
+    const basis = Math.max(unspun.x, unspun.y, unspun.z) || 1
+
+    // Now the pose actually shown: the spin goes on afterwards.
     model.quaternion.set(...quaternion)
     model.updateMatrixWorld(true)
+    const span = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3())
 
-    const box = new THREE.Box3().setFromObject(model)
-    const span = box.getSize(new THREE.Vector3())
-    const longest = Math.max(span.x, span.y, span.z) || 1
-    const scale = longestMm ? longestMm / longest : 1
-
+    const scale = longestMm ? longestMm / basis : 1
     model.scale.setScalar(scale)
     model.updateMatrixWorld(true)
 
@@ -196,12 +207,14 @@ export default function Viewer({ glbUrl, quaternion, longestMm, bed, height, onM
     onMeasure?.({
       size: [size.x, size.y, size.z],
       fits,
-      nativeLongest: longest,
-      maxLongest: longest * Math.min(bx / span.x, by / span.y, height / span.z),
+      nativeLongest: basis,
+      // In slider units, which are basis units -- so the ceiling tightens when
+      // a spin widens the footprint, and loosens again when it narrows it.
+      maxLongest: basis * Math.min(bx / span.x, by / span.y, height / span.z),
     })
   }
 
-  useEffect(place, [quaternion, longestMm, bed[0], bed[1], height])
+  useEffect(place, [base, quaternion, longestMm, bed[0], bed[1], height])
 
   return <div ref={mount} className="viewer" />
 }
