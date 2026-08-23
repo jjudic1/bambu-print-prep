@@ -116,11 +116,21 @@ if "!pick!"=="5" (
 )
 
 rem ---- 4. run it --------------------------------------------------------
+rem One folder per model, holding exactly the three files that belong
+rem together. The user is about to be told "send all of these to the iPad", so
+rem what opens must contain those three and nothing else -- not every model
+rem they have ever prepared.
+rem
+rem Pass the FOLDER, not a filename: the tool names the file itself and puts
+rem the finished size in it ("dragon-80mm.3mf"), which is what the user needs
+rem three prints later when Files shows them a list (spec 6.5). It decides
+rem folder-vs-file by asking whether the path exists as a directory, so the
+rem mkdir below is required, not tidiness. No trailing backslash either --
+rem "output\" reaches the tool as an escaped quote and eats the argument.
+for %%F in ("!model!") do set "name=%%~nF"
 if not exist "output" mkdir "output"
-set "out=output\%~n1.3mf"
-if "%~n1"=="" (
-    for %%F in ("!model!") do set "out=output\%%~nF.3mf"
-)
+if not exist "output\!name!" mkdir "output\!name!"
+set "out=output\!name!"
 
 set "extra="
 
@@ -156,15 +166,18 @@ if not "!code!"=="0" (
 )
 
 rem ---- 5. show them where it went ---------------------------------------
+rem Three files, and they are only useful together: the model, its picture, and
+rem the page explaining what to do with both. Spec 6.5 is the weakest link in
+rem the whole product, so it ships beside the model rather than scrolling past
+rem in a console window nobody keeps.
 echo Your file is ready. Opening the folder now.
 echo.
-echo Next: upload it to MakerWorld as a PRIVATE model, then print it
-echo from the Bambu Handy app on your phone.
+echo There are three things in there. Send ALL of them to the iPad
+echo - the model, its picture, and "how to print this".
 echo.
-if exist "!out!" (
-    explorer /select,"%CD%\!out!"
-) else (
-    explorer "%CD%\output"
-)
+echo Open "how to print this" on the iPad and follow it. It is the
+echo same steps every time, so keep it.
+echo.
+explorer "%CD%\!out!"
 
 pause

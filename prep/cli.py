@@ -18,6 +18,7 @@ from pathlib import Path
 from . import analyze as analyze_mod
 from . import bambu as bambu_mod
 from . import base as base_mod
+from . import handoff as handoff_mod
 from . import orient as orient_mod
 from . import size as size_mod
 from .ingest import IngestError, TooLarge, load
@@ -44,6 +45,23 @@ def parse_size(text: str) -> float:
     return float(cleaned)
 
 
+def _output_path(out_arg, model_path, longest_mm: float) -> Path:
+    """Name the file the way §6.5 asks: recognisable, never a UUID.
+
+    ``dragon-80mm.3mf`` tells the user which model and which size, which is what
+    they need three prints later when Files shows a list of them. ``--out`` may
+    name a file exactly, or a directory to put the recognisable name in -- the
+    launcher wants the latter, since it does not know the final size either.
+    """
+    nice = f"{Path(model_path).stem}-{round(longest_mm)}mm.3mf"
+    if out_arg:
+        given = Path(out_arg)
+        if given.is_dir() or str(out_arg).endswith(("/", "\\")):
+            return given / nice
+        return given
+    return Path(model_path).with_name(nice)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="prep",
@@ -66,6 +84,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="accept the offer to simplify a very large model")
     p.add_argument("--no-makerworld", action="store_true",
                    help="skip the Bambu Studio rewrite that MakerWorld requires")
+    p.add_argument("--no-instructions", action="store_true",
+                   help="don't write the how-to-print page beside the file")
     p.add_argument("--json", action="store_true", help="machine-readable output")
     p.add_argument("--list-printers", action="store_true")
     return p
@@ -138,7 +158,7 @@ def main(argv=None) -> int:
     scaled = mesh.copy()
     scaled.apply_scale(sizing.scale)
 
-    out = Path(args.out) if args.out else Path(args.model).with_suffix(".prepared.3mf")
+    out = _output_path(args.out, args.model, sizing.longest_mm)
     written = write_project_3mf(
         out, scaled, printer,
         title=Path(args.model).name,
@@ -163,6 +183,22 @@ def main(argv=None) -> int:
         except (bambu_mod.ExportFailed, OSError, subprocess.SubprocessError) as exc:
             makerworld_note = f"Bambu Studio couldn't rewrite the file: {exc}"
 
+    # §6.5. The instructions travel with the model, because the model is the
+    # only thing that reaches the iPad. Written last, so it can show the picture
+    # and the size that actually came out.
+    instructions = None
+    if not args.no_instructions:
+        x, y, z = (round(v, 1) for v in written.size_mm)
+        instructions = handoff_mod.write(
+            written.path.with_name(written.path.stem + " - how to print this.html"),
+            model_name=Path(args.model).stem,
+            file_name=written.path.name,
+            printer=written.printer,
+            size_text=f"{x} x {y} x {z} mm - {sizing.comparison}",
+            material=args.material,
+            preview=preview,
+        )
+
     if args.json:
         print(json.dumps({
             "source": ingested.source_name,
@@ -183,6 +219,7 @@ def main(argv=None) -> int:
             "makerworld_ready": makerworld_ready,
             "makerworld_note": makerworld_note,
             "preview_image": str(preview) if preview else None,
+            "instructions": str(instructions.path) if instructions else None,
             "output": str(written.path),
         }, indent=2))
         return 0
@@ -190,13 +227,13 @@ def main(argv=None) -> int:
     _report_to_human(ingested, report, repair_log, chosen, flattened, sizing,
                      written, supports=not args.no_supports,
                      makerworld_ready=makerworld_ready, makerworld_note=makerworld_note,
-                     preview=preview)
+                     preview=preview, instructions=instructions)
     return 0 if written.fits else EXIT_TOO_BIG_FOR_BED
 
 
 def _report_to_human(ingested, report, repair_log, chosen, flattened, sizing,
                      written, *, supports=True, makerworld_ready=False,
-                     makerworld_note=None, preview=None):
+                     makerworld_note=None, preview=None, instructions=None):
     print(f"{ingested.source_name}")
     if ingested.simplified_from:
         print(f"  simplified from {ingested.simplified_from / 1e6:.1f} million "
@@ -242,6 +279,9 @@ def _report_to_human(ingested, report, repair_log, chosen, flattened, sizing,
     print(f"    for {written.printer} in {written.filament}")
     if preview:
         print(f"    picture for the upload: {preview}")
+    if instructions:
+        print(f"    how to print it: {instructions.path}")
+        print("    send all of these to the iPad together")
 
 
 if __name__ == "__main__":
