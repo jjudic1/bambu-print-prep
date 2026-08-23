@@ -340,8 +340,40 @@ observations are from 2026-08-23. Two candidate explanations, untested:
 - Or the check is on image *content*, and Bambu Studio's lit plate render with
   its plate texture passes where our flat-shaded one does not.
 
-**Until that is resolved, §6.5 step 4 is wrong in shipped code.** The how-to page
-tells the user they do not have to photograph anything. They do.
+**Resolved in the page (2026-08-23):** step 4 now warns that MakerWorld will not
+take the supplied picture, tells the user any real photo gets them through, and
+tells them to swap in a photo of the real object once it has printed. The
+account holder's decision, taken with the A3 scoping in view.
+
+### The prime tower settings, and what they revealed ✅
+
+Checking the submitted model in Handy turned up non-standard values in the prime
+tower section -- infill gap 100% where 150% is normal, rib wall unchecked where
+it is normally checked. The cause is a schema change, and it is worth recording
+because it will happen again:
+
+**Bambu Studio 02.x added ~100 settings that do not exist in 01.x files at all.**
+Our config omitted them; anything downstream then filled them from an *older*
+compiled-in fallback rather than the current profile default, and the user sees
+settings they never chose.
+
+The harvest in `spikes/a1_harvest_baseline.py` could not have caught this. It
+required a key to appear in 98% of the corpus, and the corpus is 244 files of
+01.x against 135 of 02.x -- so a key universal within the current era looked
+like 35% noise and was filtered out. It now **cohorts by major version** and
+harvests the current one. Baseline: 60 keys -> 86.
+
+Two further notes from the same pass:
+
+- `is_genuine()` only checked for `BambuStudio-` in the header, which **our own
+  output now satisfies** -- it has to, or Bambu Studio drops every setting. The
+  corpus-pollution failure CLAUDE.md warns about had quietly become possible
+  again. `prep.write3mf` stamps `Origin`, so the check now excludes our own work
+  by that.
+- `prime_tower_infill_gap` and `prime_tower_rib_wall` agree at only ~82% across
+  real files, and the minority is not printer- or filament-count-specific, so it
+  is a user preference rather than a default we would get wrong per printer. The
+  majority is taken and the harvest prints anything below 90% for review.
 
 An unrelated real photo was accepted and completed the submission. That works,
 but note what it would mean to put in the instructions: **the A3 terms decision

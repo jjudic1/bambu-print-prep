@@ -1,10 +1,15 @@
 """The guided handoff page, §6.5.
 
 Two things are worth pinning here and they are different in kind. One is that
-the page carries the *verified* loop -- private, the render as the picture, both
-routes through Handy -- because those were expensive to establish and a plausible
+the page carries the *verified* loop -- private, the photo check, both routes
+through Handy -- because those were expensive to establish and a plausible
 rewrite could quietly drop one. The other is §6's copy rules, which are the sort
 of thing that decays one helpful edit at a time; a test is cheaper than noticing.
+
+Note that the photo step reversed on 2026-08-23: the page used to say no photo
+was needed, on a finding that a render was accepted. It is not. When a fact here
+flips, the test flips with it and says why -- these are the project's memory of
+what MakerWorld actually does, and a stale one is worse than none.
 """
 
 from __future__ import annotations
@@ -42,11 +47,24 @@ def test_it_tells_them_to_keep_the_model_private(page):
     assert "<b>Private</b>" in page
 
 
-def test_it_says_no_photograph_is_needed(page):
-    # Verified 2026-08-23: a private model publishes with a render. If someone
-    # "helpfully" restores a photo step, the user stalls on a print they have
-    # not made yet -- the exact circularity §2A called potentially fatal.
-    assert "not</b> have to photograph" in page
+def test_it_prepares_the_user_for_the_photo_check(page):
+    """MakerWorld rejects our render as "not a real photo" (2026-08-23).
+
+    This reverses what the page used to say, and the reversal is the point:
+    §2A's circularity is real after all. A user who reaches this step believing
+    no photo is wanted stalls on a print they have not made yet, which is the
+    failure §2A called potentially fatal. The page has to warn them *before*
+    they get there and name a way through.
+    """
+    assert "will not take the picture" in page
+    assert "camera roll" in page
+
+
+def test_it_tells_them_to_replace_it_with_the_real_thing(page):
+    # The placeholder is a way past a check on a listing nobody can see, not a
+    # thing to leave lying around. If the page stops saying this, it stops
+    # being a workaround and becomes a habit.
+    assert "swap in a photo of the real" in page
 
 
 def test_it_offers_both_routes_through_handy(page):

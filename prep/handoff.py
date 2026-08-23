@@ -115,10 +115,12 @@ def _steps(file_name: str) -> list:
          "Tap <b>Upload</b>, then <b>Choose file</b>, and pick the file you "
          "just saved."),
 
-        ("Add the picture",
-         "Use the picture that came with the file, the one ending in "
-         "<b>-preview</b>. That is all it needs -- you do <b>not</b> have to "
-         "photograph anything you have printed."),
+        ("Add a picture",
+         "MakerWorld asks for a photo here, and it will not take the picture "
+         "that came with the file. <b>Any real photo from your camera roll</b> "
+         "gets you through -- the model is private, so nobody else sees it. "
+         "Once it has printed, come back and swap in a photo of the real "
+         "thing."),
 
         ("Set it to Private, then Publish",
          "Give it any title at all. Set who can see it to <b>Private</b> -- "
