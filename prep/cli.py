@@ -170,14 +170,20 @@ def main(argv=None) -> int:
 
     # MakerWorld rejects our own container even though Bambu Studio accepts it,
     # so hand the finished file back through Bambu Studio as a writer (§2A).
+    # The picture no longer comes out of Bambu Studio's export -- prep.render
+    # draws it, so it exists whether or not the rewrite below runs, and will
+    # still exist once the rewrite is gone entirely.
+    preview = None
+    if written.preview_png:
+        preview = written.path.with_name(written.path.stem + "-preview.png")
+        preview.write_bytes(written.preview_png)
+
     makerworld_ready = False
     makerworld_note = None
-    preview = None
     if not args.no_makerworld:
         try:
             bambu_mod.rewrite_for_makerworld(written.path)
             makerworld_ready = True
-            preview = bambu_mod.extract_preview(written.path)
         except bambu_mod.BambuStudioUnavailable as exc:
             makerworld_note = str(exc)
         except (bambu_mod.ExportFailed, OSError, subprocess.SubprocessError) as exc:

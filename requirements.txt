@@ -12,3 +12,5 @@ rtree>=1.3
 shapely>=2.0        # cross-section areas for the orientation stress test
 fast-simplification>=0.1  # decimation for the orientation solver proxy mesh
 pytest>=8.0
+pillow>=10.0        # TESTS ONLY -- prep/render.py writes PNGs with zlib
+                    # on purpose, so the worker container needs no imaging lib

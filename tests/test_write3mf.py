@@ -163,3 +163,98 @@ def test_model_records_that_print_prep_made_it(printer, wedge, tmp_path):
     write_project_3mf(out, wedge, printer, title="w.stl")
     model = zipfile.ZipFile(out).read("3D/3dmodel.model").decode("utf-8")
     assert "print-prep" in model
+
+
+# --- matching Bambu Studio's container (docs/transport-findings.md §A2) -----
+#
+# MakerWorld rejected our old container while accepting Bambu Studio's, with
+# identical geometry and settings inside. These pin the structural differences
+# that were closed, because every one of them was found by diffing a rejected
+# file against an accepted one and none of them is self-evident from the code.
+
+BAMBU_MEMBERS = {
+    "[Content_Types].xml",
+    "_rels/.rels",
+    "3D/3dmodel.model",
+    "3D/Objects/object_1.model",
+    "3D/_rels/3dmodel.model.rels",
+    "Metadata/project_settings.config",
+    "Metadata/model_settings.config",
+    "Metadata/slice_info.config",
+    "Metadata/cut_information.xml",
+    "Metadata/filament_sequence.json",
+    "Metadata/plate_1.png",
+    "Metadata/plate_1_small.png",
+    "Metadata/plate_no_light_1.png",
+    "Metadata/top_1.png",
+    "Metadata/pick_1.png",
+}
+
+
+def test_container_carries_exactly_the_members_bambu_studio_writes(printer, wedge, tmp_path):
+    out = tmp_path / "w.3mf"
+    write_project_3mf(out, wedge, printer, title="w.stl")
+    assert set(zipfile.ZipFile(out).namelist()) == BAMBU_MEMBERS
+
+
+def test_geometry_lives_in_its_own_part_via_the_production_extension(printer, wedge, tmp_path):
+    out = tmp_path / "w.3mf"
+    write_project_3mf(out, wedge, printer, title="w.stl")
+    z = zipfile.ZipFile(out)
+
+    root = z.read("3D/3dmodel.model").decode("utf-8")
+    part = z.read("3D/Objects/object_1.model").decode("utf-8")
+
+    # The root holds no geometry at all -- it points at the part.
+    assert "<vertex" not in root
+    assert "<vertex" in part
+    assert 'p:path="/3D/Objects/object_1.model"' in root
+    assert 'requiredextensions="p"' in root
+
+
+def test_the_geometry_part_is_related_from_the_root(printer, wedge, tmp_path):
+    out = tmp_path / "w.3mf"
+    write_project_3mf(out, wedge, printer, title="w.stl")
+    rels = zipfile.ZipFile(out).read("3D/_rels/3dmodel.model.rels").decode("utf-8")
+    assert "/3D/Objects/object_1.model" in rels
+
+
+def test_the_cover_thumbnail_relationships_are_declared(printer, wedge, tmp_path):
+    """Bambu's own namespace, not the OPC one -- a plausible way MakerWorld
+    finds a listing's cover image, and absent from our rejected container."""
+    out = tmp_path / "w.3mf"
+    write_project_3mf(out, wedge, printer, title="w.stl")
+    rels = zipfile.ZipFile(out).read("_rels/.rels").decode("utf-8")
+    assert "cover-thumbnail-middle" in rels
+    assert "cover-thumbnail-small" in rels
+
+
+def test_every_part_gets_a_uuid(printer, wedge, tmp_path):
+    out = tmp_path / "w.3mf"
+    write_project_3mf(out, wedge, printer, title="w.stl")
+    root = zipfile.ZipFile(out).read("3D/3dmodel.model").decode("utf-8")
+    # object, component, build and item all carry one in a genuine file.
+    assert root.count("p:UUID=") == 4
+
+
+def test_the_container_still_reads_back_after_the_split(printer, wedge, tmp_path):
+    """trimesh follows p:path, so the independent oracle survives the change."""
+    out = tmp_path / "w.3mf"
+    write_project_3mf(out, wedge, printer, title="w.stl")
+    back = trimesh.load(out, force="mesh")
+    assert len(back.faces) == len(wedge.faces)
+
+
+def test_a_preview_is_produced_without_bambu_studio(printer, wedge, tmp_path):
+    # The whole point: the gallery image used to be extracted from Bambu
+    # Studio's export, which made the picture depend on the binary too.
+    result = write_project_3mf(tmp_path / "w.3mf", wedge, printer, title="w.stl")
+    assert result.preview_png is not None
+    assert result.preview_png[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_thumbnails_can_be_turned_off_for_a_cheap_write(printer, wedge, tmp_path):
+    out = tmp_path / "w.3mf"
+    result = write_project_3mf(out, wedge, printer, title="w.stl", thumbnails=False)
+    assert result.preview_png is None
+    assert "Metadata/plate_1.png" not in zipfile.ZipFile(out).namelist()
