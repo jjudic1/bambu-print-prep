@@ -15,12 +15,27 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
-# Where OrcaSlicer keeps its bundled vendor profiles. Override with
-# PREP_PROFILE_ROOT when running somewhere the slicer is not installed
-# (a container, CI) after vendoring the JSON into the repo.
+# Vendored first, and that ordering is the point.
+#
+# These used to resolve from whichever slicer happened to be installed, which
+# meant the answer depended on the machine: OrcaSlicer's Bambu profiles yield
+# 326 settings and pick an X1C filament for a P1S, while Bambu Studio's own tree
+# yields 487 and picks the P1S profile. Those are different files.
+#
+# The file MakerWorld actually accepted was built against Bambu Studio's tree
+# (transport-findings §A2b), so that is the tree that ships. Resolving from a
+# local install instead would mean the deployed service emits a variant nobody
+# has ever uploaded -- and this project's rule is not to spend uploads on
+# untested guesses. Vendoring also makes a container possible at all, since
+# neither slicer is installed in one.
+#
+# PREP_PROFILE_ROOT still overrides, for testing against a newer slicer.
+VENDORED_ROOT = Path(__file__).with_name("data") / "profiles"
+
 DEFAULT_ROOTS = [
-    Path(r"C:/Program Files/OrcaSlicer/resources/profiles"),
+    VENDORED_ROOT,
     Path(r"C:/Program Files/Bambu Studio/resources/profiles"),
+    Path(r"C:/Program Files/OrcaSlicer/resources/profiles"),
     Path("/usr/share/OrcaSlicer/resources/profiles"),
     Path.home() / ".local/share/OrcaSlicer/resources/profiles",
 ]
@@ -138,6 +153,16 @@ def load_printer(name: str, vendor: str = DEFAULT_VENDOR) -> Printer:
     """Build a Printer from a machine profile name, resolving its inherits chain."""
     s = resolve(vendor, "machine", name)
 
+    # A profile without a bed is not a machine -- it is one of the G-code
+    # template fragments described in list_printers(). Say so as a ProfileError
+    # so callers can skip it; a bare KeyError escaped every `except ProfileError`
+    # in the codebase and surfaced as a 500.
+    for required in ("printable_area", "printable_height"):
+        if required not in s:
+            raise ProfileError(
+                f"{name!r} is not a printer profile (no {required}) -- it is "
+                f"probably a template other profiles inherit from")
+
     area = [_parse_point(p) for p in s["printable_area"]]
     xs = [p[0] for p in area]
     ys = [p[1] for p in area]
@@ -170,9 +195,29 @@ def _model_default_bed(vendor: str, model: str) -> str:
 
 
 def list_printers(vendor: str = DEFAULT_VENDOR) -> list[str]:
-    """User-selectable machine profiles — the concrete ones, not the common bases."""
-    names = _sub_paths(vendor, "machine")
-    return sorted(n for n in names if "common" not in n and "nozzle" in n)
+    """User-selectable machine profiles -- the concrete ones, not the bases.
+
+    Bambu Studio's own tree carries entries that look like machines by name and
+    are not: "Bambu Lab A1 0.4 nozzle template machine_start_gcode" and its
+    siblings hold G-code fragments for other profiles to inherit, and have no
+    bed at all. Name-matching alone let 89 of those through, and each one blew
+    up with a bare KeyError on `printable_area` further down.
+
+    `instantiation` is the slicer's own answer to "is this a profile a user can
+    pick", so use that rather than guessing from the name. Note it is the string
+    "true", not a JSON boolean.
+    """
+    out = []
+    for name in _sub_paths(vendor, "machine"):
+        if "common" in name or "nozzle" not in name:
+            continue
+        try:
+            raw = _load_raw(vendor, "machine", name)
+        except ProfileError:
+            continue
+        if str(raw.get("instantiation", "true")).lower() != "false":
+            out.append(name)
+    return sorted(out)
 
 
 def list_models(vendor: str = DEFAULT_VENDOR) -> list[str]:

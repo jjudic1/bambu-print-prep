@@ -1,0 +1,21 @@
+# What the container installs. Runtime only -- no pytest, no httpx, no Pillow.
+#
+# Pillow in particular is deliberately absent: prep/render.py writes PNGs with
+# zlib by hand precisely so the worker needs no imaging library, and it is a
+# test-only dependency in requirements.txt. Adding it back here would undo that.
+numpy>=2.0
+scipy>=1.13
+trimesh>=4.4
+networkx>=3.3
+manifold3d>=2.5
+pymeshfix>=0.17
+lxml>=5.2
+scikit-image>=0.24
+embreex>=4.0
+rtree>=1.3
+shapely>=2.0
+fast-simplification>=0.1
+
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
