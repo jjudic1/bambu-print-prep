@@ -275,6 +275,56 @@ would remove it. The differences to close are known — geometry moved into
 `cut_information.xml` and `filament_sequence.json` — but which of them MakerWorld
 actually checks is unknown, and every guess costs an upload to test.
 
+### A2b — closing the container gap, to drop the binary (2026-08-23) ⏳
+
+The Bambu Studio rewrite is a real hosting cost: §4's Python worker becomes a
+container with a desktop GUI app in it, which is why "match their container in
+our own writer" sits at the top of the open questions. That is now **written but
+unproven** — it needs exactly one upload to settle.
+
+**Everything below was found by diffing the rejected file against the accepted
+one.** The earlier note said "the differences to close are known"; it undercounted
+them. Nine members, and four further differences that are not members at all:
+
+| Difference | Closed by |
+|---|---|
+| Geometry inline in `3dmodel.model` rather than split into `3D/Objects/object_1.model` + `3D/_rels/3dmodel.model.rels` | 3MF **production extension**: `xmlns:p`, `requiredextensions="p"`, `p:path` on the component |
+| No `p:UUID` on object, component, build or item | generated, with Bambu's index-ish prefixes |
+| `xmlns:slic3rpe` declared; `xmlns:BambuStudio` and `xmlns:p` absent | namespaces matched |
+| Four metadata fields missing (`Copyright`, `ProfileCover`, `ProfileDescription`, `ProfileTitle`) | emitted |
+| `_rels/.rels` lacked `cover-thumbnail-middle` / `cover-thumbnail-small` | emitted — **best single guess at how MakerWorld finds a cover image**, since neither is in the 3MF standard |
+| Five plate PNGs absent | `prep/render.py` |
+| `cut_information.xml`, `filament_sequence.json` absent | static templates |
+| 300 settings keys against 575 | 494 by resolving against Bambu Studio's own profile tree; the last 97 are compiled-in defaults |
+
+**The renderer was the hidden cost.** Dropping Bambu Studio drops its renderer,
+and `extract_preview` was quietly serving two masters: MakerWorld's gallery image
+*and* the picture on the §6.5 how-to page. `prep/render.py` is a z-buffered
+rasteriser in numpy — no GL, no display, no imaging library, PNGs written with
+`zlib` — because putting OpenGL back in to draw a 512px thumbnail would
+re-import the dependency being removed. ~0.14s for all five.
+
+**What is verified locally, with no upload spent:**
+
+- Container is **member-for-member identical** to Bambu Studio's export.
+- Bambu Studio slices it and echoes our settings back unchanged — same
+  `print_settings_id`, `printer_settings_id`, `enable_support` as its own file.
+- trimesh, an unrelated 3MF reader, follows `p:path` and reads the geometry
+  back at the right size, grounded on z=0.
+
+**What is not verified: whether MakerWorld accepts it.** That is one upload.
+
+**If it is rejected**, the informative order to strip things back is: first the
+`Origin` metadata (`print-prep` is the only string in the file that says we are
+not Bambu Studio — it was moved out of an XML comment for exactly this reason),
+then the settings gap, then the `CLIENT_VERSION` string. The version is the
+*weakest* suspect: 99 of 380 files in the local corpus claim the same
+`01.10.01.50` we do.
+
+**The Bambu Studio rewrite remains the default** until that upload happens.
+`--no-makerworld` produces the native container; do not flip the default on a
+file nobody has uploaded.
+
 ### The photo requirement is not enforced on private models ✅
 
 The risk §2A flagged as potentially fatal — "a blocked Publish button ends the
