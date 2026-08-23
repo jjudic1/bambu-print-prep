@@ -138,3 +138,28 @@ def test_title_with_quotes_does_not_corrupt_the_xml(printer, wedge, tmp_path):
     z = zipfile.ZipFile(out)
     ET.fromstring(z.read("Metadata/model_settings.config"))
     ET.fromstring(z.read("3D/3dmodel.model"))
+
+
+def test_model_declares_bambu_format_compatibility(printer, wedge, tmp_path):
+    """Bambu Studio reads print settings only from a file that claims its format.
+
+    With Application set to anything else it reports "The 3mf file has invalid
+    config, load geometry data only" and silently falls back to system defaults
+    -- which is how supports-on became supports-off. Proven by bisection in
+    spikes/a2_model_header.py: renaming this string alone flipped Bambu Studio
+    from rejecting our config to accepting it, with nothing else changed.
+    """
+    out = tmp_path / "w.3mf"
+    write_project_3mf(out, wedge, printer, title="w.stl")
+    model = zipfile.ZipFile(out).read("3D/3dmodel.model").decode("utf-8")
+
+    assert '<metadata name="Application">BambuStudio-' in model
+    assert '<metadata name="BambuStudio:3mfVersion">1</metadata>' in model
+
+
+def test_model_records_that_print_prep_made_it(printer, wedge, tmp_path):
+    """The Application string is a format declaration, so provenance goes here."""
+    out = tmp_path / "w.3mf"
+    write_project_3mf(out, wedge, printer, title="w.stl")
+    model = zipfile.ZipFile(out).read("3D/3dmodel.model").decode("utf-8")
+    assert "print-prep" in model

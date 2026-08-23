@@ -18,6 +18,7 @@ oriented model, so it is asserted in tests.
 
 from __future__ import annotations
 
+import datetime as _dt
 import json
 import zipfile
 from dataclasses import dataclass
@@ -26,7 +27,13 @@ from xml.sax.saxutils import escape, quoteattr
 
 import numpy as np
 
-from .profiles import Printer, default_filament, default_process, project_settings
+from .profiles import (
+    CLIENT_VERSION,
+    Printer,
+    default_filament,
+    default_process,
+    project_settings,
+)
 
 CONTENT_TYPES = """<?xml version="1.0" encoding="UTF-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -36,6 +43,10 @@ CONTENT_TYPES = """<?xml version="1.0" encoding="UTF-8"?>
  <Default Extension="gcode" ContentType="text/x.gcode"/>
 </Types>
 """
+
+def _today() -> str:
+    return _dt.date.today().isoformat()
+
 
 MESH_OBJECT_ID = 1      # carries the geometry
 BUILD_OBJECT_ID = 2     # component wrapper, referenced by the build item
@@ -100,9 +111,21 @@ def _model_xml(mesh, matrix, title: str) -> str:
         for a, b, c in np.asarray(mesh.faces, dtype=int)
     )
     return f"""<?xml version="1.0" encoding="UTF-8"?>
-<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:BambuStudio="http://schemas.bambulab.com/package/2021">
- <metadata name="Application">print-prep</metadata>
+<!-- Geometry and settings prepared by print-prep. The Application metadata
+     below declares Bambu Studio format compatibility, which Bambu Studio
+     requires before it will read the print settings at all. -->
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:slic3rpe="http://schemas.slic3r.org/3mf/2017/06">
+ <metadata name="Application">BambuStudio-{CLIENT_VERSION}</metadata>
  <metadata name="BambuStudio:3mfVersion">1</metadata>
+ <metadata name="CopyRight"></metadata>
+ <metadata name="CreationDate">{_today()}</metadata>
+ <metadata name="Description"></metadata>
+ <metadata name="Designer"></metadata>
+ <metadata name="DesignerCover"></metadata>
+ <metadata name="DesignerUserId"></metadata>
+ <metadata name="License"></metadata>
+ <metadata name="ModificationDate">{_today()}</metadata>
+ <metadata name="Origin"></metadata>
  <metadata name="Title">{escape(title)}</metadata>
  <resources>
   <object id="{MESH_OBJECT_ID}" type="model">
