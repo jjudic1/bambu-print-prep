@@ -46,6 +46,33 @@ prepares a month at nothing.
 Needs `gcloud` and a project with billing enabled. Cloud Build compiles the
 image, so Docker is not needed locally.
 
+**On this machine, gcloud needs its own Python pointed out to it.** `gcloud` is
+a Python program, and the bare name `python` here is a Microsoft Store stub that
+only ever prints "Python was not found" -- so every gcloud command fails with
+that instead of anything about gcloud. The SDK ships a Python for exactly this
+reason; name it:
+
+```bash
+export CLOUDSDK_PYTHON="/c/Users/jjudi/AppData/Local/Google/Cloud SDK/google-cloud-sdk/platform/bundledpython/python.exe"
+```
+
+In PowerShell:
+
+```powershell
+$env:CLOUDSDK_PYTHON = "$env:LOCALAPPDATA\Google\Cloud SDK\google-cloud-sdk\platformundledpython\python.exe"
+```
+
+The installer puts gcloud on the persistent user PATH, so a **new** terminal
+finds it; one opened before the install will not.
+
+**Billing enabled is not the same as being billed.** Cloud Run's free allowance
+-- 2M requests, 180,000 vCPU-seconds, 360,000 GiB-seconds a month -- is real and
+does not expire, but Google will not let you enable the API without a payment
+method on the account. At 2 vCPU the CPU allowance binds first: 90,000 instance-
+seconds, or roughly 8,000 models a month, at nothing. There is no hard cap by
+default, so set a budget alert; past the allowance it runs about $0.0006 per
+model, which is cheap but not zero.
+
 ```bash
 gcloud auth login
 gcloud config set project YOUR_PROJECT_ID
