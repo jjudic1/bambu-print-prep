@@ -139,6 +139,59 @@ human most of the time", not as accuracy.
 
 ---
 
+## A1b — Bambu Studio only trusts a file that claims to be its own ✅
+
+**Date:** 2026-08-22 · Reproduce with `python spikes/a2_model_header.py`.
+
+Reported symptom: supports stayed off in Bambu Studio. The real symptom was
+bigger — on open it says **"The 3mf file has invalid config, load geometry data
+only"** and discards *every* setting we write, not just the support ones.
+
+**Bambu Studio's own exe is a usable oracle**, which unlocked this. It is
+GUI-subsystem and prints nothing to the console, so it looks unscriptable — but
+`bambu-studio.exe --slice 0 --outputdir DIR file.3mf` still *writes files*. The
+G-code header echoes the config it used: an accepted config prints
+`print_settings_id`, a rejected one leaves it empty.
+
+Three bisections, each overturning the previous conclusion:
+
+1. **Is it the settings?** No. A genuine Bambu config, copied verbatim into our
+   container, was *also* rejected. That ruled out the whole settings theory —
+   including the missing `version` key and `different_settings_to_system`, which
+   had looked like strong candidates.
+2. **Which part of the container?** Swapping our parts one at a time into a
+   working file: `[Content_Types].xml`, `_rels/.rels`, `slice_info.config` and
+   `model_settings.config` all passed. `3D/3dmodel.model` failed.
+3. **What inside it?** One string:
+
+```
+<metadata name="Application">print-prep</metadata>        -> rejected
+<metadata name="Application">BambuStudio-01.10.01.50</metadata>  -> accepted
+```
+
+**Bambu Studio reads print settings only from a file whose Application metadata
+declares Bambu Studio format.** Anything else is treated as a foreign import:
+geometry in, settings discarded. That is what "load geometry data only" means.
+
+Verified end to end afterwards — Bambu Studio slicing our own pipeline output:
+
+```
+; print_settings_id = 0.20mm Standard @BBL X1C
+; enable_support = 1
+; support_type = tree(auto)
+43 support features
+```
+
+Pinned in `tests/test_write3mf.py`. Provenance is not hidden: the file carries an
+XML comment naming print-prep, since the Application string is a format
+declaration rather than a claim of authorship.
+
+**The lesson worth keeping:** OrcaSlicer accepted every one of these files,
+including the broken ones, so it was never a valid stand-in for Bambu Studio.
+Test against the program the user actually runs.
+
+---
+
 ## A3 — MakerWorld terms ❓ **do this before A2**
 
 Spec §11 Q3, unanswered. Read the Community Guidelines and ToS on
