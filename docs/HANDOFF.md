@@ -1,6 +1,6 @@
 # Handoff — read this first
 
-**Date:** 2026-08-23 · **Repo:** https://github.com/jjudic1/bambu-print-prep · **Tests:** 137 passing
+**Date:** 2026-08-23 · **Repo:** https://github.com/jjudic1/bambu-print-prep · **Tests:** 156 passing
 
 The spec is [print-prep-service-spec.md](print-prep-service-spec.md). This
 document is the delta: what has been proven, what it cost to prove, and what to
@@ -62,17 +62,23 @@ Run it:
 1. **§2A "do not pre-slice" — confirmed.** MakerWorld accepts an *unsliced*
    project 3mf and re-slices at print time. A sliced control was built and proved
    unnecessary.
-2. **§2A "3mf produced by Bambu Studio" — literally true, twice over.** Our own
-   container is a valid project 3mf that Bambu Studio opens and honours
-   completely, and MakerWorld still refuses it at upload. The pipeline therefore
-   ends by rewriting the file through `bambu-studio.exe --export-3mf` (~0.5s),
-   which is the fallback §2A reserved. **Consequence: any host producing
-   MakerWorld-ready output needs Bambu Studio installed.** This directly affects
-   the plan of a Python worker on Fly.io/Railway.
-3. **§2A's fatal risk did not materialise.** A private model publishes with a
-   *render* as its gallery image; no photo of a printed object is demanded. The
-   Model Upload Guidelines require one, but enforcement is tied to public
-   listings.
+2. **§2A "3mf produced by Bambu Studio" — resolved; the binary is gone.**
+   MakerWorld refused our first container while accepting Bambu Studio's, so the
+   pipeline rewrote through `bambu-studio.exe` for a day. The container gap has
+   since been closed in our own writer and **MakerWorld accepts it** (verified by
+   upload, 2026-08-23). `--bambu-rewrite` keeps the old path reachable in case
+   MakerWorld tightens. **Phase C can be an ordinary Python worker after all**,
+   and §10's AGPL question leaves the runtime with the binary. See
+   `transport-findings.md` §A2b for the nine members and four non-member
+   differences that had to be closed.
+3. **§2A's fatal risk is real after all, and has a workaround.** An earlier run
+   suggested a render passed as the gallery image. It does not: MakerWorld
+   rejects it as "not a real photo". Any real photo is accepted, so the loop
+   completes, and §6.5 step 4 now says so and tells the user to swap in a photo
+   of the actual object once it has printed. **This is the account holder's
+   decision, and it is worth re-reading A3 before it scales** — A3 reasoned about
+   one person's own low-volume private listings, not a free service instructing
+   every user to satisfy a photo check with an unrelated image.
 4. **§10's "the orientation solver is the moat" — correct, and it was wrong
    three times before it was right.** See the benchmark section below.
 
@@ -225,12 +231,18 @@ optional polish.
 
 **Open engineering questions, in rough priority:**
 
-- Match Bambu Studio's container in our own writer, to drop the binary
-  dependency. Candidate differences are recorded in `transport-findings.md`;
-  which ones MakerWorld actually checks is unknown, and **each guess costs an
-  upload to test**, so do not do it blind on a young account.
-- Phase C hosting needs rethinking given the Bambu Studio dependency, and §10's
-  AGPL question applies before any commercial deployment.
+- ~~Match Bambu Studio's container in our own writer~~ — **done**, one upload,
+  §A2b. What remains is that acceptance rests on that single upload; if
+  MakerWorld tightens, `--bambu-rewrite` is the fallback and the first suspects
+  are listed in §A2b.
+- **Re-verify the rest of the A2 loop against our own container.** Orientation
+  and supports were checked in Handy and are right. Not yet checked: that the
+  size survives MakerWorld's re-slice, and that a print actually completes from
+  the native container.
+- Settings completeness is now era-aware (§A2b), but the corpus behind it is 47
+  single-extruder 02.x files. A larger cohort would firm up the ~82% keys.
+- §10's AGPL question is **no longer blocking** for hosting, since no AGPL binary
+  runs in the worker. It still applies to any vendored profile data.
 - Estimated time and filament weight are *not* available without slicing (§5.6).
   Do not fake them.
 

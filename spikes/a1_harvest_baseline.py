@@ -26,6 +26,7 @@ import collections
 import glob
 import json
 import os
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -44,6 +45,19 @@ CORPUS = os.path.expanduser("~/Downloads/*.3mf")
 # A key must appear in at least this share of real files to count as a default.
 PRESENCE = 0.98
 
+# Bambu Studio 02.x added ~100 settings that do not exist in 01.x files at all
+# -- prime_tower_rib_wall and friends among them. Harvesting across both eras
+# conflates two schemas: the new keys look rare (35% of a mixed corpus) and get
+# filtered out as noise. They are not noise; they are universal *within their
+# era*. So cohort by major version and harvest the current one.
+SCHEMA_ERA = re.compile(r"BambuStudio-0*(\d+)\.")
+CURRENT_ERA = "2"
+
+# Real files disagree on a handful of keys because users changed them. Taking
+# the majority is right, but anything this uncertain is worth seeing, so the
+# run prints everything below 0.9 rather than silently baking it in.
+AGREEMENT = 0.80
+
 # Keys that describe one specific project rather than a default, and must never
 # be baked into a baseline.
 PROJECT_SPECIFIC = {
@@ -58,12 +72,34 @@ PROJECT_SPECIFIC = {
 }
 
 
-def is_genuine(z) -> bool:
+def _header(z) -> str | None:
     try:
-        head = z.read("3D/3dmodel.model")[:3000].decode("utf-8", "replace")
+        return z.read("3D/3dmodel.model")[:3000].decode("utf-8", "replace")
     except KeyError:
+        return None
+
+
+def is_genuine(z) -> bool:
+    """Written by Bambu Studio, and *not* by us.
+
+    Our own output declares itself as BambuStudio-<version> too -- it has to, or
+    Bambu Studio drops every setting -- so the old check now matches our files
+    as well as theirs. A file this tool produced once ended up in Downloads and
+    started scoring itself as ground truth; prep.write3mf stamps Origin, so
+    there is a reliable way to exclude our own work from a corpus scan.
+    """
+    head = _header(z)
+    if head is None:
+        return False
+    if ">print-prep<" in head:
         return False
     return "BambuStudio-" in head
+
+
+def era_of(z) -> str | None:
+    head = _header(z)
+    match = SCHEMA_ERA.search(head) if head else None
+    return match.group(1) if match else None
 
 
 def main(argv=None) -> int:
@@ -85,6 +121,8 @@ def main(argv=None) -> int:
             if "Metadata/project_settings.config" not in z.namelist():
                 continue
             if not is_genuine(z):
+                continue
+            if era_of(z) != CURRENT_ERA:
                 continue
             d = json.loads(z.read("Metadata/project_settings.config"))
         except Exception:
@@ -114,8 +152,9 @@ def main(argv=None) -> int:
         encoded, agree = counter.most_common(1)[0]
         baseline[key] = {"value": json.loads(encoded), "agreement": agree / present}
 
-    strong = {k: v["value"] for k, v in baseline.items() if v["agreement"] >= 0.9}
-    weak = {k: v for k, v in baseline.items() if v["agreement"] < 0.9}
+    strong = {k: v["value"] for k, v in baseline.items() if v["agreement"] >= AGREEMENT}
+    weak = {k: v for k, v in baseline.items() if v["agreement"] < AGREEMENT}
+    shaky = {k: v for k, v in baseline.items() if AGREEMENT <= v["agreement"] < 0.9}
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -123,7 +162,11 @@ def main(argv=None) -> int:
 
     print(f"single-extruder Bambu Studio files: {total}")
     print(f"candidate keys missing from ours   : {len(baseline)}")
-    print(f"written (>=90% agreement)          : {len(strong)} -> {out}")
+    print(f"written (>={AGREEMENT:.0%} agreement)          : {len(strong)} -> {out}")
+    if shaky:
+        print(f"  of those, below 90% -- real files disagree, majority taken:")
+        for key, info in sorted(shaky.items(), key=lambda kv: kv[1]["agreement"]):
+            print(f"    {key:42s} {info['agreement']:.0%}  -> {info['value']!r}")
     if weak:
         print(f"skipped (values genuinely vary)    : {len(weak)}")
         for key, info in sorted(weak.items(), key=lambda kv: kv[1]['agreement'])[:12]:
