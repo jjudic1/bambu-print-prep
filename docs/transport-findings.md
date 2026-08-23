@@ -275,7 +275,7 @@ would remove it. The differences to close are known — geometry moved into
 `cut_information.xml` and `filament_sequence.json` — but which of them MakerWorld
 actually checks is unknown, and every guess costs an upload to test.
 
-### A2b — closing the container gap, to drop the binary (2026-08-23) ⏳
+### A2b — our own container is accepted; the binary is dropped ✅
 
 The Bambu Studio rewrite is a real hosting cost: §4's Python worker becomes a
 container with a desktop GUI app in it, which is why "match their container in
@@ -312,7 +312,43 @@ re-import the dependency being removed. ~0.14s for all five.
 - trimesh, an unrelated 3MF reader, follows `p:path` and reads the geometry
   back at the right size, grounded on z=0.
 
-**What is not verified: whether MakerWorld accepts it.** That is one upload.
+**✅ MakerWorld accepted it (2026-08-23).** One upload, as planned. The print
+file was taken without complaint, so `prep/bambu.py` is no longer in the default
+path — `--bambu-rewrite` keeps it reachable if MakerWorld ever tightens. **Phase
+C can be an ordinary Python worker after all**, and §10's AGPL question leaves
+the runtime with it.
+
+⚠️ **Two things this upload did *not* establish, and one it contradicted.**
+
+**1. Accepted at upload is not the same as prints from Handy.** The original A2
+protocol had six checkpoints; this run confirms the first. Our container has not
+been shown to produce a *printable profile*, nor to preserve size, orientation
+and supports through MakerWorld's re-slice. Those were verified for Bambu
+Studio's container, not ours, and MakerWorld could accept a file it cannot make
+a profile from. **Re-run checkpoints 2–6 before trusting the native path.**
+
+**2. The gallery image was rejected as not a real photo.** This directly
+contradicts the finding recorded above — "a private model publishes with a
+*render* as its gallery image; no photo of a printed object is required." Both
+observations are from 2026-08-23. Two candidate explanations, untested:
+
+- The earlier run may never have *attached* a picture: MakerWorld may pull
+  `Metadata/plate_1.png` out of the container itself, and only run a photo check
+  on an image the user uploads by hand. Our container now carries that member
+  plus the `cover-thumbnail-*` relationships, so **the "attach nothing" path is
+  worth one upload before any other decision** — it would dissolve the problem.
+- Or the check is on image *content*, and Bambu Studio's lit plate render with
+  its plate texture passes where our flat-shaded one does not.
+
+**Until that is resolved, §6.5 step 4 is wrong in shipped code.** The how-to page
+tells the user they do not have to photograph anything. They do.
+
+An unrelated real photo was accepted and completed the submission. That works,
+but note what it would mean to put in the instructions: **the A3 terms decision
+was scoped to "a private listing made for one's own printing, not bulk uploaded
+... keep volume low."** One person doing this once on their own account is the
+thing A3 reasoned about. A free service telling every user to do it is not, and
+that is a product decision rather than a bug.
 
 **If it is rejected**, the informative order to strip things back is: first the
 `Origin` metadata (`print-prep` is the only string in the file that says we are

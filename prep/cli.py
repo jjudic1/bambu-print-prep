@@ -82,8 +82,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-repair", action="store_true")
     p.add_argument("--simplify", action="store_true",
                    help="accept the offer to simplify a very large model")
-    p.add_argument("--no-makerworld", action="store_true",
-                   help="skip the Bambu Studio rewrite that MakerWorld requires")
+    p.add_argument("--bambu-rewrite", action="store_true",
+                   help="hand the file through Bambu Studio as well (not needed; "
+                        "kept as an escape hatch if MakerWorld tightens up)")
     p.add_argument("--no-instructions", action="store_true",
                    help="don't write the how-to-print page beside the file")
     p.add_argument("--json", action="store_true", help="machine-readable output")
@@ -178,9 +179,14 @@ def main(argv=None) -> int:
         preview = written.path.with_name(written.path.stem + "-preview.png")
         preview.write_bytes(written.preview_png)
 
-    makerworld_ready = False
+    # MakerWorld accepts our own container as of 2026-08-23, so Bambu Studio is
+    # no longer in the path -- see transport-findings.md §A2b. The rewrite stays
+    # reachable behind a flag because the acceptance test is a single upload and
+    # MakerWorld could tighten again without warning.
+    makerworld_ready = True
     makerworld_note = None
-    if not args.no_makerworld:
+    if args.bambu_rewrite:
+        makerworld_ready = False
         try:
             bambu_mod.rewrite_for_makerworld(written.path)
             makerworld_ready = True
