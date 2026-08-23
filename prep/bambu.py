@@ -28,6 +28,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 
 # Where Bambu Studio installs. Override with PREP_BAMBU_STUDIO.
@@ -39,6 +40,11 @@ DEFAULT_PATHS = [
 ]
 
 EXPORT_TIMEOUT_S = 600
+
+# Bambu Studio renders these into the exported project. plate_1.png is the lit
+# 512x512 plate view -- the same picture a person would otherwise screenshot.
+PREVIEW_MEMBERS = ("Metadata/plate_1.png", "Metadata/top_1.png",
+                   "Metadata/plate_no_light_1.png")
 
 
 class BambuStudioUnavailable(RuntimeError):
@@ -64,7 +70,8 @@ def available() -> bool:
     return find_bambu_studio() is not None
 
 
-def rewrite_for_makerworld(path, *, exe: Path | None = None, timeout: int = EXPORT_TIMEOUT_S) -> Path:
+def rewrite_for_makerworld(path, *, exe: Path | None = None,
+                           timeout: int = EXPORT_TIMEOUT_S) -> Path:
     """Rewrite ``path`` in place through Bambu Studio. Returns the same path.
 
     Bambu Studio is GUI-subsystem and prints nothing to a console, so success is
@@ -95,3 +102,23 @@ def rewrite_for_makerworld(path, *, exe: Path | None = None, timeout: int = EXPO
         shutil.copyfile(exported, path)
 
     return path
+
+
+def extract_preview(path, dest=None) -> Path | None:
+    """Pull the plate render out of a project 3mf and save it beside the file.
+
+    MakerWorld requires a gallery image at upload, and on a private model a
+    render is accepted (verified 2026-08-23) -- so handing the user a ready-made
+    picture removes a step from §6.5's handoff that they would otherwise satisfy
+    by screenshotting the slicer.
+    """
+    path = Path(path)
+    dest = Path(dest) if dest else path.with_name(path.stem + "-preview.png")
+
+    with zipfile.ZipFile(path) as z:
+        names = set(z.namelist())
+        for member in PREVIEW_MEMBERS:
+            if member in names:
+                dest.write_bytes(z.read(member))
+                return dest
+    return None

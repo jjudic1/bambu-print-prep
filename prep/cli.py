@@ -152,10 +152,12 @@ def main(argv=None) -> int:
     # so hand the finished file back through Bambu Studio as a writer (§2A).
     makerworld_ready = False
     makerworld_note = None
+    preview = None
     if not args.no_makerworld:
         try:
             bambu_mod.rewrite_for_makerworld(written.path)
             makerworld_ready = True
+            preview = bambu_mod.extract_preview(written.path)
         except bambu_mod.BambuStudioUnavailable as exc:
             makerworld_note = str(exc)
         except (bambu_mod.ExportFailed, OSError, subprocess.SubprocessError) as exc:
@@ -180,19 +182,21 @@ def main(argv=None) -> int:
             "fits": written.fits,
             "makerworld_ready": makerworld_ready,
             "makerworld_note": makerworld_note,
+            "preview_image": str(preview) if preview else None,
             "output": str(written.path),
         }, indent=2))
         return 0
 
     _report_to_human(ingested, report, repair_log, chosen, flattened, sizing,
                      written, supports=not args.no_supports,
-                     makerworld_ready=makerworld_ready, makerworld_note=makerworld_note)
+                     makerworld_ready=makerworld_ready, makerworld_note=makerworld_note,
+                     preview=preview)
     return 0 if written.fits else EXIT_TOO_BIG_FOR_BED
 
 
 def _report_to_human(ingested, report, repair_log, chosen, flattened, sizing,
                      written, *, supports=True, makerworld_ready=False,
-                     makerworld_note=None):
+                     makerworld_note=None, preview=None):
     print(f"{ingested.source_name}")
     if ingested.simplified_from:
         print(f"  simplified from {ingested.simplified_from / 1e6:.1f} million "
@@ -236,6 +240,8 @@ def _report_to_human(ingested, report, repair_log, chosen, flattened, sizing,
 
     print(f"  wrote {written.path}")
     print(f"    for {written.printer} in {written.filament}")
+    if preview:
+        print(f"    picture for the upload: {preview}")
 
 
 if __name__ == "__main__":
