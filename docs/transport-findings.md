@@ -293,16 +293,30 @@ Bambu Studio's export already contains a 512x512 lit plate render at
 3mf as `<name>-preview.png`. It is cleaner than a screenshot — no plate grid, no
 slicer UI — so the upload has a picture ready without the user producing one.
 
-### Still open
+### ✅ A2 is answered: the loop works end to end (2026-08-23)
 
-Everything past the upload form:
+| Question | Result |
+|---|---|
+| Publish completes on a Private model | **yes**, with a render as the image |
+| Appears in Bambu Handy | **yes**, under *My Creations* |
+| Offers a printable profile | **yes** |
+| Size and orientation correct | **yes** |
+| Supports honoured | **yes** |
+| Print starts with no desktop step | **yes** |
 
-1. ~~Does Publish complete on a **Private** model?~~ **Yes**, with a render.
-2. Does it appear in Bambu Handy as a printable profile?
-3. Correct size and orientation? Are supports honoured, or does MakerWorld
-   re-slice with its own defaults?
-4. Does a print actually start with no desktop step?
-5. How many taps per print, and which were one-time setup?
+**A model prepared by this tool reaches a printer from an iPad with no computer
+involved.** That is the question §2 and §11 Q1 said the product hinged on.
+
+**The route through Handy**, both verified, and the raw material for §6.5:
+
+- *Me* tab → slide the bar carrying printing history / print queue / browsing
+  history / ratings **to the right** → **My Creations** → tap the model.
+- Shorter: profile picture, top left → **3D Models** → newest upload is at top.
+
+From there it prints like anything else in Handy.
+
+Still unmeasured: the exact tap count, and where a non-technical person stalls.
+That is Milestone 6, and it is now the only milestone that proves anything.
 
 ### Original plan, for the record
 

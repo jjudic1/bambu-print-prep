@@ -39,15 +39,16 @@ From a shell, the same thing:
 
 | Milestone | State |
 |---|---|
-| A1 — write a Bambu-compatible project 3mf | automated checks pass; **awaiting one manual open in Bambu Studio** |
-| A2 — does MakerWorld accept it? | **blocked**: needs a Bambu account, and A3 first |
-| A3 — MakerWorld terms of service | **not started**, and it gates A2 |
+| A1 — write a Bambu-compatible project 3mf | done |
+| A2 — MakerWorld → Handy → printer | **done: prints from an iPad, no desktop** |
+| A3 — MakerWorld terms of service | read; decision recorded |
 | 1 — CLI pipeline | done |
 | 2 — orientation beats naive | done: 90% vs 83%, breaking 2 poses in 60 |
+| 5 — delivery works end to end | proven manually |
+| 6 — non-technical user prints alone | **not started — the only one that proves anything** |
 
-See [docs/transport-findings.md](docs/transport-findings.md) for the evidence.
-The transport question is still open, and it is still the thing that decides
-whether this is a product.
+New here? Read [docs/HANDOFF.md](docs/HANDOFF.md) first, then
+[docs/transport-findings.md](docs/transport-findings.md) for the evidence.
 
 ## Layout
 

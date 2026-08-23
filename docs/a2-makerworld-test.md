@@ -87,12 +87,12 @@ Fill in and move the conclusion into `transport-findings.md`.
 | Upload accepted as Private | n/a | **yes** |
 | Publish blocked pending photo? | n/a | **no** — a render was accepted |
 | Print profile created | n/a | **yes** (1) |
-| Appears in Handy | | |
-| Offers a printable profile | | |
-| Size / orientation correct | | |
-| Supports honoured | | |
-| Print starts | | |
-| Taps per print | | |
+| Appears in Handy | | **yes** — *My Creations* |
+| Offers a printable profile | | **yes** |
+| Size / orientation correct | | **yes** |
+| Supports honoured | | **yes** |
+| Print starts | | **yes**, no desktop step |
+| Taps per print | | not yet counted — Milestone 6 |
 
 **Secondary questions from §2A**
 
