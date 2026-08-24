@@ -219,7 +219,8 @@ export default function App() {
   if (!job) {
     return (
       <main className="landing">
-        <h1>Get it printed</h1>
+        <h1>EZslicer3D</h1>
+        <p className="tagline">3D print&hellip; no computer necessary</p>
         <p className="lede">
           Bring a model. We&rsquo;ll work out which way up it goes and how big it
           should be, and hand you a file your printer understands.
@@ -276,10 +277,13 @@ export default function App() {
       <section className="panel">
         <header className="row">
           <strong>{job.name}</strong>
+          <span className="wordmark">EZslicer3D</span>
+        </header>
+        <div className="row">
           <button className="link" onClick={() => { setJob(null); setResult(null) }}>
             Start over
           </button>
-        </header>
+        </div>
 
         <label className="field">
           <span>Your printer</span>
