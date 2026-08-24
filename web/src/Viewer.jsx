@@ -22,7 +22,8 @@ const GRID_10 = 0x262b33
 const MODEL = 0x22a45d
 const TOO_BIG = 0xc4463a
 
-export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, height, onMeasure }) {
+export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, height,
+                                 colour = MODEL, onMeasure }) {
   const mount = useRef(null)
   const state = useRef({})
 
@@ -137,11 +138,24 @@ export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, heigh
       if (cancelled) return
       model.clear()
       gltf.scene.traverse((child) => {
-        if (child.isMesh) {
-          child.material = new THREE.MeshStandardMaterial({
-            color: MODEL, roughness: 0.55, metalness: 0.05, flatShading: false,
-          })
+        if (!child.isMesh) return
+
+        // trimesh exports GLB with POSITION and nothing else -- no NORMAL
+        // attribute, verified by reading the glTF JSON chunk. A lit material
+        // with no normals has nothing to shade against, so every surface comes
+        // out flat unlit black: the model appears as a silhouette and reads as
+        // "the colour is wrong" rather than "the lighting is missing".
+        //
+        // Computed here rather than exported because normals would roughly
+        // double the size of every download, and the browser can derive them
+        // in a few milliseconds from geometry it already has.
+        if (!child.geometry.getAttribute('normal')) {
+          child.geometry.computeVertexNormals()
         }
+
+        child.material = new THREE.MeshStandardMaterial({
+          color: colour, roughness: 0.55, metalness: 0.05, flatShading: false,
+        })
       })
       model.add(gltf.scene)
       model.userData.loaded = true
@@ -196,9 +210,12 @@ export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, heigh
       -scaled.min.z,
     )
 
+    // Too big overrides the chosen colour, and goes back to it when it fits.
+    // Warning colour has to win: a red model is telling you something, and a
+    // user who picked red would otherwise never see the warning at all.
     const fits = size.x <= bx && size.y <= by && size.z <= height
     model.traverse((c) => {
-      if (c.isMesh) c.material.color.setHex(fits ? MODEL : TOO_BIG)
+      if (c.isMesh) c.material.color.setHex(fits ? colour : TOO_BIG)
     })
 
     // The parent owns the numbers; the viewer just measured them. maxLongest is
@@ -214,7 +231,7 @@ export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, heigh
     })
   }
 
-  useEffect(place, [base, quaternion, longestMm, bed[0], bed[1], height])
+  useEffect(place, [base, quaternion, longestMm, bed[0], bed[1], height, colour])
 
   return <div ref={mount} className="viewer" />
 }

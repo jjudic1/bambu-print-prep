@@ -286,7 +286,8 @@ def _rels(thumbnail: bool) -> str:
 
 def write_project_3mf(path, mesh, printer: Printer, *, title: str = "model",
                       orientation=None, process=None, filament=None,
-                      thumbnails=True, supports: bool = True) -> ProjectFile:
+                      thumbnails=True, supports: bool = True,
+                      colour=None) -> ProjectFile:
     """Write ``mesh`` as a print-ready project 3mf for ``printer``.
 
     ``orientation`` is the rotation chosen by the orientation solver, in the
@@ -305,7 +306,7 @@ def write_project_3mf(path, mesh, printer: Printer, *, title: str = "model",
 
     # Rendered from the *placed* mesh, so the picture shows what will print --
     # oriented and grounded, not the model in its original pose.
-    shots = None if thumbnails is False else render.thumbnails(placed)
+    shots = None if thumbnails is False else render.thumbnails(placed, colour)
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:

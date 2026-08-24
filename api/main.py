@@ -137,6 +137,10 @@ class PrepareRequest(BaseModel):
     yaw_deg: float = 0.0
     longest_mm: float | None = None
     material: str = "PLA"
+    # "#rrggbb". Only affects the picture -- the actual colour is whatever
+    # filament is loaded at print time -- but the picture is what the user
+    # was looking at and what MakerWorld shows, so it should match.
+    colour: str | None = None
     supports: bool = True
     flatten_base: bool = True
 
@@ -475,6 +479,7 @@ def prepare(job_id: str, req: PrepareRequest):
         process=default_process(printer.name),
         filament=default_filament(printer.name, material=req.material),
         supports=req.supports,
+        colour=req.colour,
     )
 
     preview_path = out_dir / f"{stem}-preview.png"

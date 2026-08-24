@@ -15,6 +15,20 @@ const TIPS = [
   { label: 'Roll right', axis: [0, 1, 0], deg: -90 },
 ]
 
+// Filament colours, named the way a person would name them rather than by hex.
+// Not a full picker: the point is to see the shape clearly, and against a dark
+// plate a handful of distinct choices does that better than a spectrum.
+const COLOURS = [
+  { name: 'Green', hex: 0x22a45d },
+  { name: 'Grey', hex: 0xb6bcc4 },
+  { name: 'Orange', hex: 0xe07b39 },
+  { name: 'Red', hex: 0xc4443a },
+  { name: 'Blue', hex: 0x3d7fd1 },
+  { name: 'Yellow', hex: 0xe3c33c },
+  { name: 'Black', hex: 0x2b2f36 },
+  { name: 'White', hex: 0xecedef },
+]
+
 const mm = (v) => `${Math.round(v)} mm`
 const inches = (v) => `${(v / 25.4).toFixed(1)} in`
 
@@ -27,6 +41,9 @@ export default function App() {
   const [base, setBase] = useState(IDENTITY)
   const [yawDeg, setYawDeg] = useState(0)
   const [longestMm, setLongestMm] = useState(80)
+  const [colour, setColour] = useState(
+    () => Number(localStorage.getItem('colour')) || COLOURS[0].hex,
+  )
   const [measured, setMeasured] = useState(null)
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState('')
@@ -55,6 +72,10 @@ export default function App() {
   useEffect(() => {
     if (printerId) localStorage.setItem('printer', printerId)
   }, [printerId])
+
+  // Remembered like the printer is: someone printing in grey is probably
+  // printing in grey again tomorrow.
+  useEffect(() => { localStorage.setItem('colour', String(colour)) }, [colour])
 
   const printer = useMemo(
     () => printers.find((p) => p.id === printerId),
@@ -114,6 +135,7 @@ export default function App() {
         orientation: base,
         yaw_deg: yawDeg,
         longest_mm: longestMm,
+        colour: `#${colour.toString(16).padStart(6, '0')}`,
       }))
     } catch (e) {
       setError(e.message)
@@ -155,13 +177,25 @@ export default function App() {
           should be, and hand you a file your printer understands.
         </p>
         <label className="drop">
-          <input
-            type="file"
-            accept=".stl,.obj,.3mf,.glb,.ply"
-            onChange={(e) => onFile(e.target.files[0])}
-          />
+          {/*
+            No `accept` attribute, deliberately.
+
+            iOS maps `accept` onto uniform type identifiers, and none of .stl,
+            .3mf, .obj, .glb or .ply has one registered unless some installed app
+            claims it. The effect is not a narrower list -- it is that Files
+            greys out *every* file and the user cannot pick anything at all. On
+            the one device this product exists for, `accept=".stl"` means "you
+            may not upload an STL".
+
+            So the filter comes off and the server decides. prep.ingest already
+            refuses anything it cannot read, with a sentence written for a
+            person, which is a better place for this to fail than a file picker
+            that silently offers nothing.
+          */}
+          <input type="file" onChange={(e) => onFile(e.target.files[0])} />
           <span>{busy || 'Choose a model'}</span>
         </label>
+        <p className="hint">STL, 3MF, OBJ, GLB or PLY.</p>
         {error && <p className="error">{error}</p>}
       </main>
     )
@@ -174,6 +208,7 @@ export default function App() {
         base={base}
         quaternion={pose}
         longestMm={longestMm}
+        colour={colour}
         bed={printer?.bed_mm || [256, 256]}
         height={printer?.height_mm || 250}
         onMeasure={onMeasure}
@@ -256,6 +291,22 @@ export default function App() {
               <button key={t.label} onClick={() => tip(t.axis, t.deg)}>
                 {t.label}
               </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="field">
+          <span>Colour</span>
+          <div className="swatches">
+            {COLOURS.map((c) => (
+              <button
+                key={c.name}
+                className={colour === c.hex ? 'swatch on' : 'swatch'}
+                style={{ background: `#${c.hex.toString(16).padStart(6, '0')}` }}
+                onClick={() => setColour(c.hex)}
+                title={c.name}
+                aria-label={c.name}
+              />
             ))}
           </div>
         </div>
