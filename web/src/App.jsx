@@ -41,6 +41,10 @@ export default function App() {
   const [base, setBase] = useState(IDENTITY)
   const [yawDeg, setYawDeg] = useState(0)
   const [longestMm, setLongestMm] = useState(80)
+  // Locked by default. §6.2 wants one slider as the primary control; the
+  // axes are the escape hatch behind it, not the front door.
+  const [uniform, setUniform] = useState(true)
+  const [sizeMm, setSizeMm] = useState(null)
   const [colour, setColour] = useState(
     () => Number(localStorage.getItem('colour')) || COLOURS[0].hex,
   )
@@ -116,6 +120,8 @@ export default function App() {
       setJob(uploaded)
       setBase(uploaded.orientations[0]?.quaternion || IDENTITY)
       setYawDeg(0)
+      setUniform(true)
+      setSizeMm(null)
       setLongestMm(Math.round(Math.max(...uploaded.native_size_mm)))
     } catch (e) {
       setError(e.message)
@@ -134,7 +140,9 @@ export default function App() {
         printer: printerId,
         orientation: base,
         yaw_deg: yawDeg,
-        longest_mm: longestMm,
+        ...(uniform || !sizeMm
+          ? { longest_mm: longestMm }
+          : { size_mm: sizeMm }),
         colour: `#${colour.toString(16).padStart(6, '0')}`,
       }))
     } catch (e) {
@@ -147,7 +155,39 @@ export default function App() {
   // Re-preparing invalidates what was downloaded, so drop it the moment
   // anything it was built from changes.
   const onMeasure = useCallback((m) => setMeasured(m), [])
-  useEffect(() => { setResult(null) }, [pose, longestMm, printerId])
+
+  // What the model measured when it arrived, before any sizing. Captured once
+  // per job so "original size" restores the file's own dimensions rather than
+  // whatever the slider last happened to be.
+  const nativeSize = job?.native_size_mm || null
+  const nativeLongest = nativeSize ? Math.round(Math.max(...nativeSize)) : 0
+
+  function unlockAxes(next) {
+    setUniform(next)
+
+    if (!next) {
+      // Unlocking must change nothing until a slider moves, so seed the axes
+      // from the size that is on screen right now.
+      const scale = measured && longestMm ? longestMm / (measured.nativeLongest || 1) : 1
+      setSizeMm((measured?.own || nativeSize || [50, 50, 50])
+        .map((v) => Math.max(1, Math.round(v * scale))))
+      return
+    }
+
+    // Re-locking has to give the shape back, and there is no way to do that
+    // without discarding the stretch -- that is what the checkbox means. But it
+    // should not also change the *size*: carrying the old slider value forward
+    // made a model stretched to 120 mm snap back to 40, which reads as the app
+    // throwing the work away rather than restoring the proportions.
+    if (sizeMm) setLongestMm(Math.max(1, Math.round(Math.max(...sizeMm))))
+  }
+
+  function toOriginalSize() {
+    setUniform(true)
+    setSizeMm(null)
+    setLongestMm(nativeLongest)
+  }
+  useEffect(() => { setResult(null) }, [pose, longestMm, sizeMm, uniform, printerId])
 
   // The largest size that still fits, in the units the slider speaks. It comes
   // from the viewer, which measures the real footprint of the current pose --
@@ -206,7 +246,8 @@ export default function App() {
       <Viewer
         glbUrl={meshUrl(job.job_id)}
         base={base}
-        quaternion={pose}
+        yawDeg={yawDeg}
+        sizeMm={uniform ? null : sizeMm}
         longestMm={longestMm}
         colour={colour}
         bed={printer?.bed_mm || [256, 256]}
@@ -243,28 +284,76 @@ export default function App() {
                 : ''}
             </em>
           </span>
-          <input
-            type="range"
-            min="10"
-            max={ceiling}
-            value={Math.min(longestMm, ceiling)}
-            onChange={(e) => setLongestMm(Number(e.target.value))}
-          />
-          <div className="ticks">
-            {[
-              ['Keychain', 35],
-              ['Desk size', 100],
-              ['Biggest that fits', ceiling],
-            ].map(([label, value]) => (
-              <button
-                key={label}
-                className={Math.abs(longestMm - value) < 2 ? 'tick on' : 'tick'}
-                onClick={() => setLongestMm(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {uniform ? (
+            <>
+              <input
+                type="range"
+                min="10"
+                max={ceiling}
+                value={Math.min(longestMm, ceiling)}
+                onChange={(e) => setLongestMm(Number(e.target.value))}
+              />
+              <div className="ticks">
+                {[
+                  ['Keychain', 35],
+                  ['Desk size', 100],
+                  ['Biggest that fits', ceiling],
+                ].map(([label, value]) => (
+                  <button
+                    key={label}
+                    className={Math.abs(longestMm - value) < 2 ? 'tick on' : 'tick'}
+                    onClick={() => setLongestMm(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <button
+                  className={longestMm === nativeLongest ? 'tick on' : 'tick'}
+                  onClick={toOriginalSize}
+                  title={nativeSize
+                    ? `${nativeSize.map((v) => Math.round(v)).join(' x ')} mm`
+                    : ''}
+                >
+                  Original size
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="axes">
+              {['Across', 'Deep', 'Tall'].map((label, i) => (
+                <label key={label} className="axis">
+                  <span>{label}<em>{Math.round(sizeMm?.[i] ?? 0)} mm</em></span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="400"
+                    value={Math.round(sizeMm?.[i] ?? 0)}
+                    onChange={(e) => setSizeMm((v) => {
+                      const next = [...(v || [0, 0, 0])]
+                      next[i] = Number(e.target.value)
+                      return next
+                    })}
+                  />
+                </label>
+              ))}
+              <button className="tick" onClick={toOriginalSize}>Original size</button>
+            </div>
+          )}
+
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={uniform}
+              onChange={(e) => unlockAxes(e.target.checked)}
+            />
+            {/*
+              Named for what it protects rather than for the maths. "Uniform
+              scale" is the correct term and means nothing to someone who has
+              never squashed a model by accident -- which is exactly what
+              unchecking this allows.
+            */}
+            <span>Keep its shape</span>
+          </label>
         </div>
 
         <div className="field">

@@ -136,6 +136,9 @@ class PrepareRequest(BaseModel):
     # purpose -- see the sizing note in prepare().
     yaw_deg: float = 0.0
     longest_mm: float | None = None
+    # Explicit per-axis size in the model's own frame, when the user has
+    # unlocked the aspect ratio. Wins over longest_mm when both are sent.
+    size_mm: list[float] | None = Field(default=None, min_length=3, max_length=3)
     material: str = "PLA"
     # "#rrggbb". Only affects the picture -- the actual colour is whatever
     # filament is loaded at print time -- but the picture is what the user
@@ -448,20 +451,43 @@ def prepare(job_id: str, req: PrepareRequest):
     # afterwards. The size that comes back still describes the real yawed model,
     # and the build-volume clamp still measures the real footprint -- only the
     # thing the slider is proportional to changes.
-    sizing_basis = float(max(mesh.extents))
+    #
+    # Scaling happens here, in the model's own frame, and the spin goes on
+    # afterwards. With a uniform scale the order made no difference; with the
+    # axes unlocked it makes all of it, because a non-uniform scale and a
+    # rotation do not commute. Stretching X and then turning the model is a
+    # longer model turned; turning it and then stretching X is a different
+    # shape entirely. The sliders sit beside a model the user can see, so they
+    # have to mean the object's own axes.
+    native = tuple(float(v) for v in mesh.extents)
+    sizing_basis = float(max(native))
 
-    if req.yaw_deg:
-        mesh.apply_transform(yaw_matrix(req.yaw_deg))
-        mesh.apply_translation([0, 0, -float(mesh.bounds[0][2])])
-
-    if req.longest_mm:
-        sizing = size_mod.apply(mesh, report, printer,
-                                scale=float(req.longest_mm) / sizing_basis)
+    if req.size_mm:
+        factors = size_mod.stretch(native, req.size_mm)
+    elif req.longest_mm:
+        factors = (float(req.longest_mm) / sizing_basis,) * 3
     else:
-        sizing = size_mod.apply(mesh, report, printer, scale=1.0)
+        factors = (1.0, 1.0, 1.0)
 
     scaled = mesh.copy()
-    scaled.apply_scale(sizing.scale)
+    scaled.apply_scale(factors)
+
+    if req.yaw_deg:
+        scaled.apply_transform(yaw_matrix(req.yaw_deg))
+        scaled.apply_translation([0, 0, -float(scaled.bounds[0][2])])
+
+    # The clamp has to come after the spin, because the spin is what decides the
+    # footprint -- and it shrinks every axis together, so the proportions the
+    # user chose survive being made to fit (§6.2: show the ceiling, do not error
+    # after the fact).
+    over = size_mod.max_scale(scaled.extents, printer)
+    clamped = over < 1.0 - 1e-9
+    if clamped:
+        scaled.apply_scale(over)
+
+    overall = float(min(factors)) * (over if clamped else 1.0)
+    sizing = size_mod.summarise(scaled.extents, report, printer, overall,
+                                clamped=clamped)
 
     out_dir = job.dir / "out"
     if out_dir.exists():

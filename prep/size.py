@@ -151,3 +151,51 @@ def smallest_safe_scale(report: MeshReport, printer: Printer) -> float | None:
     if not report.min_wall_mm:
         return None
     return (printer.nozzle_mm * MIN_WALL_NOZZLES) / report.min_wall_mm
+
+
+def stretch(current_size, target_mm) -> tuple:
+    """Per-axis scale factors to reach ``target_mm`` from ``current_size``.
+
+    The unlocked-aspect case (§6.2 keeps a single slider as the primary
+    control; this is the escape hatch behind it). An axis with no extent is
+    left alone rather than divided by -- a flat model has a zero dimension and
+    is a legitimate thing to scale.
+    """
+    return tuple(
+        (float(t) / float(c)) if c > 1e-9 and t else 1.0
+        for c, t in zip(current_size, target_mm)
+    )
+
+
+def summarise(size_mm, report: MeshReport, printer: Printer,
+              scale_applied: float, *, clamped: bool = False) -> SizeChoice:
+    """Build the answer from a size that has already been decided.
+
+    ``apply`` works out the scale and then describes it. When the caller has
+    had to work the scale out itself -- because the axes are unlocked, or
+    because a spin changed the footprint after scaling -- this describes the
+    result without recomputing it. Same copy, same thresholds, one place.
+    """
+    size = tuple(float(v) for v in size_mm)
+    min_wall = (report.min_wall_mm * scale_applied
+                if report.min_wall_mm is not None else None)
+    floor = printer.nozzle_mm * MIN_WALL_NOZZLES
+    too_thin = min_wall is not None and min_wall < floor
+
+    warning = None
+    if too_thin:
+        warning = ("At this size the thinnest parts get too fine to print - "
+                   "they'd come out fragile or not at all.")
+    elif clamped:
+        warning = "This is as big as your printer can make it."
+
+    return SizeChoice(
+        scale=scale_applied,
+        size_mm=size,
+        longest_mm=_longest(size),
+        fits=printer.fits(size),
+        min_wall_mm=min_wall,
+        too_thin=too_thin,
+        warning=warning,
+        comparison=describe(size),
+    )

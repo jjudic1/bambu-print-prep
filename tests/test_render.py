@@ -116,3 +116,59 @@ def test_a_degenerate_mesh_does_not_crash_the_render():
     flat = trimesh.Trimesh(vertices=[[0, 0, 0], [1, 0, 0], [2, 0, 0]],
                            faces=[[0, 1, 2]], process=False)
     assert png_size(render.preview_png(flat)) == (512, 512)
+
+
+# --- which side of the plate the camera is on -------------------------------
+#
+# Every render was made from *underneath* the plate for the life of this module,
+# looking up at the bottom of the model. It survived because the shape it was
+# checked against -- a box with a cylinder centred on top -- is nearly
+# symmetrical about the plate and reads as plausible either way up.
+#
+# So these test the asymmetry directly, and one of them tests the vector itself,
+# because a sign error here produces a picture that looks like a picture.
+
+def test_the_camera_looks_down_at_the_plate_not_up_at_it():
+    """EYE_DIR points from the model towards the eye, so a positive Z there has
+    to come out as a negative Z in the direction the camera faces."""
+    verts = np.array([[0.0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    basis = render._camera(verts, render.EYE_DIR, render.UP)
+
+    assert render.EYE_DIR[2] > 0, "the eye belongs above the plate"
+    forward = basis[2]
+    assert forward[2] < 0, "the camera is looking up from underneath the plate"
+
+
+def test_something_sitting_on_top_is_visible_from_the_camera():
+    """The behavioural version, which does not care how the basis is built.
+
+    A small block on a wide slab is visible from above -- it sits inside the
+    slab's outline and changes those pixels. From below it is entirely hidden
+    behind the slab, and the two renders come out all but identical.
+    """
+    slab = trimesh.creation.box(extents=(60, 60, 4)).apply_translation([0, 0, 2])
+    block = trimesh.creation.box(extents=(16, 16, 16)).apply_translation([0, 0, 12])
+
+    from PIL import Image
+    import io
+
+    def pixels(mesh):
+        png = render.preview_png(mesh)
+        return np.array(Image.open(io.BytesIO(png)).convert("RGB"), dtype=int)
+
+    bare = pixels(slab)
+    stacked = pixels(trimesh.util.concatenate([slab, block]))
+
+    differing = int((np.abs(bare - stacked).sum(axis=2) > 12).sum())
+    assert differing > 2000, (
+        f"only {differing} pixels changed -- the block on top is not being "
+        f"seen, which means the camera is under the plate")
+
+
+def test_the_top_view_looks_straight_down():
+    slab = trimesh.creation.box(extents=(60, 40, 4))
+    verts, faces = render._proxy(slab)
+    basis = render._camera(verts, render.TOP_DOWN, render.UP)
+
+    assert render.TOP_DOWN[2] > 0
+    assert basis[2] == pytest.approx([0, 0, -1], abs=1e-9)
