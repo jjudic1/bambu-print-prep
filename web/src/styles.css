@@ -122,3 +122,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   color: var(--dim); cursor: pointer;
 }
 .check input { width: 1.05rem; height: 1.05rem; accent-color: var(--accent); }
+
+.support {
+  border-top: 1px solid var(--line); padding-top: .8rem; margin: .4rem 0 0;
+  color: var(--dim); font-size: .87rem;
+  display: flex; flex-direction: column; gap: .45rem;
+}
+.support p { margin: 0; }
+.support a { color: var(--accent); font-weight: 700; }
+.landing .support { border: 0; padding: 0; margin-top: .5rem; text-align: center; }
