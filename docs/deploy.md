@@ -198,3 +198,57 @@ A 16 MB upload passes through the rewrite intact. The documented 4.5 MB limit
 applies to Vercel serverless functions, not to rewrites that proxy to an
 external origin, so `MAX_UPLOAD_BYTES` in `api/limits.py` remains the real
 ceiling.
+
+
+---
+
+## Background work on Cloud Run needs CPU always allocated
+
+This one is not obvious and cost a deploy to find.
+
+`POST /api/jobs` answers 202 and finishes the examination behind the response.
+On Cloud Run that silently does not work: **CPU is throttled to near zero
+outside request processing**, so a task scheduled after the response gets no
+cycles. Jobs sat at `working` indefinitely. Eighty rapid polls did not advance
+one -- a poll allocates CPU only for its own few milliseconds, and the solver
+needs nineteen seconds of it.
+
+The synchronous version worked precisely *because* the work happened during the
+request. Making it asynchronous moved it outside the window where the container
+is allowed to run.
+
+`--no-cpu-throttling` fixes it, and is how the service is deployed:
+
+```bash
+gcloud run deploy print-prep-api --source . --region us-central1   --allow-unauthenticated --memory 2Gi --cpu 2 --timeout 300   --max-instances 1 --no-cpu-throttling   --set-env-vars JOBS_ROOT=/tmp/jobs
+```
+
+**It changes the billing model, and therefore the free-tier maths.** With CPU
+always allocated you are charged for the instance's whole lifetime rather than
+for request time, and Cloud Run keeps an idle instance alive for a while before
+shutting it down. So the unit of consumption stops being "a model prepared" and
+becomes "a period of activity". The earlier estimate of thousands of models a
+month assumed request-time billing and no longer holds; the honest figure is on
+the order of a hundred distinct usage sessions a month inside the free
+allowance, with any number of models inside each. The $1 budget alert is the
+backstop, and it is set.
+
+**If that ever binds, the fix is Cloud Tasks rather than a bigger allowance.**
+Enqueue a task that calls back into the service as an ordinary request: the work
+then happens *during* a request, CPU is allocated for exactly as long as it
+runs, throttling can go back on, and billing returns to per-model. It is the
+idiomatic Cloud Run answer to background work and it is more moving parts, which
+is why it is not here yet.
+
+## `--max-instances 1`, and why it is not just thrift
+
+Jobs live on the instance's tmpfs. With more than one instance, an upload
+handled by A and a poll handled by B gives a 404 for a job that is fine --
+and polling makes that far more likely to happen than the old single
+request-response did. One instance makes the store coherent. The mesh semaphore
+already serialises the CPU-bound part to one job at a time on a 2-vCPU box, so
+little is given up.
+
+The queue is visible and honest: three uploads at once completed at 36s, 41s
+and 57s. Slow, but every one succeeded and each upload answered immediately --
+where the synchronous version returned a 502 on the third.
