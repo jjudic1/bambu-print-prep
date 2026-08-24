@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import logging
 import os
 import shutil
 import uuid
@@ -88,6 +89,11 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="print-prep", lifespan=lifespan)
 uploads = limits.RateLimiter()
+
+log = logging.getLogger("print-prep.api")
+
+# Strong references to in-flight background work. See create_job().
+_running: set = set()
 
 
 @app.get("/api/health")
@@ -265,13 +271,80 @@ async def _receive(file: UploadFile, destination: Path) -> None:
             out.write(chunk)
 
 
-@app.post("/api/jobs")
-async def create_job(request: Request, file: UploadFile):
-    """Ingest, analyse, repair if needed, and propose orientations.
+WORKING, READY, FAILED = "working", "ready", "failed"
 
-    Everything expensive happens once, here. What comes back is enough for the
-    browser to run the whole sizing and orientation conversation without asking
-    the server anything else until the user confirms.
+
+def _write_meta(directory: Path, meta: dict) -> None:
+    """Write meta.json atomically.
+
+    The browser polls this file's contents through `GET /api/jobs/{id}`. A
+    plain write is not atomic, so a poll landing mid-write reads truncated JSON
+    and the client sees a parse error rather than "still working" -- an error
+    for something that is not wrong. Rename is atomic on both platforms.
+    """
+    temporary = directory / "meta.json.tmp"
+    temporary.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    temporary.replace(directory / "meta.json")
+
+
+def _describe(candidate) -> dict:
+    return {
+        "quaternion": matrix_to_quaternion(candidate.matrix),
+        "reason": candidate.reason,
+        "height_mm": round(float(candidate.height_mm), 1),
+        "contact_mm2": round(float(candidate.contact_mm2), 1),
+    }
+
+
+async def _work(job_id: str, directory: Path, source: Path, name: str) -> None:
+    """The examination, run after the response has already gone out."""
+    base = {"name": name, "state": WORKING}
+    try:
+        ingested, mesh, report, repair_steps, chosen, alternates = (
+            await limits.run_mesh_work(_examine, source, directory))
+    except (TooLarge, IngestError) as exc:
+        # Both already carry a plain-language message written for the user --
+        # that is the whole point of prep.ingest's exception types, so pass it
+        # through rather than inventing a worse one here.
+        _write_meta(directory, {**base, "state": FAILED, "error": str(exc)})
+        return
+    except Exception as exc:                                   # noqa: BLE001
+        # A crash must still reach the poller, or the browser waits for ever on
+        # a job that will never finish. Logged in full, shown in the plainest
+        # terms available -- and re-raised nowhere, because this is the top of
+        # a background task and there is nothing above it to catch anything.
+        log.exception("examining %s failed", job_id)
+        _write_meta(directory, {
+            **base, "state": FAILED,
+            "error": "Something went wrong reading that model. Try another file.",
+        })
+        return
+
+    _write_meta(directory, {
+        **base,
+        "state": READY,
+        "unit_guess": ingested.unit_guess,
+        "simplified_from": ingested.simplified_from,
+        "repair_steps": repair_steps,
+        "report": report.to_dict(),
+        "native_size_mm": [round(float(v), 2) for v in mesh.extents],
+        "orientations": [_describe(chosen)] + [_describe(a) for a in alternates],
+    })
+
+
+@app.post("/api/jobs", status_code=202)
+async def create_job(request: Request, file: UploadFile):
+    """Take the file, start looking at it, and answer straight away.
+
+    This used to do the whole examination inline and return the result. At the
+    measured speeds that was not tenable: 19s for a 20k-face mesh on Cloud Run,
+    27s for a dense one, during which the browser has nothing to show and any
+    gateway in the path is entitled to give up -- which Vercel's duly did, with
+    a 502, on the third of three quick uploads.
+
+    §4 said so from the start: "the request must not block. The PWA polls or
+    subscribes for status." So: 202 and a job id, and the client asks
+    `GET /api/jobs/{id}` until the state stops being `working`.
     """
     try:
         uploads.check(request.client.host if request.client else "unknown")
@@ -289,36 +362,26 @@ async def create_job(request: Request, file: UploadFile):
         shutil.rmtree(directory, ignore_errors=True)
         raise
 
-    try:
-        ingested, mesh, report, repair_steps, chosen, alternates = (
-            await limits.run_mesh_work(_examine, source, directory))
-    except TooLarge as exc:
-        shutil.rmtree(directory, ignore_errors=True)
-        raise HTTPException(413, str(exc))
-    except IngestError as exc:
-        shutil.rmtree(directory, ignore_errors=True)
-        raise HTTPException(400, str(exc))
+    name = Path(file.filename or "model").stem
+    # Written before the task starts, so a poll arriving immediately finds a
+    # job rather than a 404.
+    _write_meta(directory, {"name": name, "state": WORKING})
 
-    def as_option(candidate):
-        return {
-            "quaternion": matrix_to_quaternion(candidate.matrix),
-            "reason": candidate.reason,
-            "height_mm": round(float(candidate.height_mm), 1),
-            "contact_mm2": round(float(candidate.contact_mm2), 1),
-        }
+    # Held in a set because asyncio keeps only a weak reference to a task: drop
+    # the last strong one and it can be garbage collected mid-flight, leaving a
+    # job stuck at "working" for ever with nothing running.
+    task = asyncio.create_task(_work(job_id, directory, source, name))
+    _running.add(task)
+    task.add_done_callback(_running.discard)
 
-    meta = {
-        "name": Path(file.filename or "model").stem,
-        "unit_guess": ingested.unit_guess,
-        "simplified_from": ingested.simplified_from,
-        "repair_steps": repair_steps,
-        "report": report.to_dict(),
-        "native_size_mm": [round(float(v), 2) for v in mesh.extents],
-        "orientations": [as_option(chosen)] + [as_option(a) for a in alternates],
-    }
-    (directory / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    return {"job_id": job_id, "name": name, "state": WORKING}
 
-    return {"job_id": job_id, **meta}
+
+@app.get("/api/jobs/{job_id}")
+def job_status(job_id: str):
+    """Where a job has got to, and its result once it has one."""
+    job = _job(job_id)
+    return {"job_id": job.id, **job.meta}
 
 
 @app.get("/api/jobs/{job_id}/mesh.glb")
@@ -342,6 +405,10 @@ def prepare(job_id: str, req: PrepareRequest):
     measured against the model rather than against whatever size was asked for.
     """
     job = _job(job_id)
+    if job.meta.get("state") != READY:
+        # Without this the caller gets a FileNotFoundError on working.stl, which
+        # is a 500 describing an internal path rather than "not finished yet".
+        raise HTTPException(409, "That model is still being looked at.")
 
     try:
         printer = load_printer(req.printer)

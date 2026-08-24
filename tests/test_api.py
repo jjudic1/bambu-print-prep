@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import io
 import json
+import time
 import zipfile
 
 import numpy as np
@@ -47,7 +48,35 @@ def _fresh_limits():
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    """As a context manager, which matters now that uploads are asynchronous.
+
+    A bare `TestClient(app)` never runs the lifespan, so the app's event loop
+    does not tick between requests and a task scheduled by an upload never
+    progresses -- every job sits at "working" for ever and every test times
+    out. The context manager form runs the real startup and keeps the loop
+    alive, which is also what production does.
+    """
+    with TestClient(app) as c:
+        yield c
+
+
+def wait_for(client, job_id, *, timeout=90.0):
+    """Poll a job to completion, the way the browser does."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        body = client.get(f"/api/jobs/{job_id}").json()
+        if body["state"] != "working":
+            return body
+        time.sleep(0.2)
+    raise AssertionError(f"job {job_id} never left 'working'")
+
+
+def upload(client, data, name="box.stl"):
+    """Upload and wait, for tests that care about the result and not the wait."""
+    r = client.post("/api/jobs",
+                    files={"file": (name, data, "application/octet-stream")})
+    assert r.status_code == 202, r.text
+    return wait_for(client, r.json()["job_id"])
 
 
 @pytest.fixture
@@ -59,10 +88,9 @@ def box_stl():
 
 @pytest.fixture
 def job(client, box_stl):
-    r = client.post("/api/jobs",
-                    files={"file": ("box.stl", box_stl, "application/octet-stream")})
-    assert r.status_code == 200
-    return r.json()
+    body = upload(client, box_stl)
+    assert body["state"] == "ready", body.get("error")
+    return {"job_id": body["job_id"], **body}
 
 
 # --- the convention boundary ------------------------------------------------
@@ -242,10 +270,15 @@ def test_a_filename_cannot_escape_the_job_directory(client, job):
 
 
 def test_a_file_that_is_not_a_model_is_rejected_with_a_reason(client):
-    r = client.post("/api/jobs",
-                    files={"file": ("notes.txt", b"hello", "text/plain")})
-    assert r.status_code == 400
-    assert r.json()["detail"]
+    """The rejection now arrives through the poll, not the upload.
+
+    The upload cannot know: it answers before anything has looked at the file.
+    So the failure has to survive into the job's state and carry a message the
+    user can act on -- §6, every error names the recovery.
+    """
+    body = upload(client, b"hello", name="notes.txt")
+    assert body["state"] == "failed"
+    assert body["error"]
 
 
 # --- yaw: turning the model on the face it is already resting on ------------
@@ -351,7 +384,7 @@ def test_uploads_are_rate_limited_per_caller(client, box_stl):
     for _ in range(limit):
         r = client.post("/api/jobs",
                         files={"file": ("box.stl", box_stl, "application/octet-stream")})
-        assert r.status_code == 200
+        assert r.status_code == 202
 
     blocked = client.post("/api/jobs",
                           files={"file": ("box.stl", box_stl, "application/octet-stream")})
@@ -391,11 +424,18 @@ def test_a_refused_upload_leaves_nothing_on_disk(client, monkeypatch):
     assert after == before
 
 
-def test_a_file_that_is_not_a_model_leaves_nothing_on_disk(client):
-    before = len(list(main.JOBS.iterdir())) if main.JOBS.is_dir() else 0
-    client.post("/api/jobs", files={"file": ("notes.txt", b"hello", "text/plain")})
-    after = len(list(main.JOBS.iterdir())) if main.JOBS.is_dir() else 0
-    assert after == before
+def test_a_failed_job_keeps_its_directory_so_the_error_survives(client):
+    """The opposite of the oversized case, and deliberately so.
+
+    An upload refused at the door leaves nothing behind, because there is no
+    job. One that fails while being examined has already answered 202 with an
+    id, and the browser is polling that id -- delete the directory and the poll
+    404s, turning a legible "that is not a model we can read" into "your job
+    vanished". The sweep clears it later.
+    """
+    body = upload(client, b"hello", name="notes.txt")
+    assert body["state"] == "failed"
+    assert (main.JOBS / body["job_id"] / "meta.json").is_file()
 
 
 # --- the sweep --------------------------------------------------------------
@@ -459,3 +499,101 @@ def test_the_upload_path_does_not_block_the_event_loop():
 
     assert not inspect.iscoroutinefunction(main._examine)
     assert inspect.iscoroutinefunction(limits.run_mesh_work)
+
+
+# --- 202 and poll -----------------------------------------------------------
+#
+# The measured reason this exists: 19s for a 20k-face mesh on Cloud Run, 27s
+# for a dense one. Held open, that is long enough for a gateway to give up --
+# Vercel's did, with a 502, on the third of three quick uploads. §4 called it
+# before any of this was written: "the request must not block."
+
+def test_the_upload_answers_immediately_rather_than_waiting(client):
+    """The point of the whole change: answer before the work, not after."""
+    heavy = trimesh.creation.icosphere(subdivisions=4).export(file_type="stl")
+
+    started = time.monotonic()
+    r = client.post("/api/jobs",
+                    files={"file": ("ball.stl", heavy, "application/octet-stream")})
+    elapsed = time.monotonic() - started
+
+    assert r.status_code == 202
+    assert r.json()["state"] == "working"
+    # Generously loose: this asserts "did not wait for the solver", not a
+    # latency budget. The solver alone is seconds even on this machine.
+    assert elapsed < 5.0
+
+
+def test_a_job_is_pollable_the_instant_it_is_created(client, box_stl):
+    """meta.json is written before the task starts, so a poll that arrives
+    immediately finds a job rather than a 404 it has to learn to retry."""
+    job_id = client.post(
+        "/api/jobs",
+        files={"file": ("box.stl", box_stl, "application/octet-stream")},
+    ).json()["job_id"]
+
+    assert client.get(f"/api/jobs/{job_id}").status_code == 200
+
+
+def test_polling_reaches_ready_and_carries_the_whole_report(client, box_stl):
+    body = upload(client, box_stl)
+    assert body["state"] == "ready"
+    assert body["orientations"]
+    assert body["report"]
+    assert sorted(body["native_size_mm"], reverse=True) == [40.0, 30.0, 20.0]
+
+
+def test_a_crash_while_examining_still_reaches_the_poller(client, monkeypatch):
+    """A background task that dies silently leaves the browser waiting for ever.
+
+    Whatever goes wrong has to end up in the job's state, because after a 202
+    there is no request left to fail.
+    """
+    def explode(*_args, **_kwargs):
+        raise RuntimeError("solver went bang")
+
+    monkeypatch.setattr(main, "_examine", explode)
+    body = upload(client, trimesh.creation.box().export(file_type="stl"))
+
+    assert body["state"] == "failed"
+    assert body["error"]
+    assert "bang" not in body["error"]        # the user gets prose, not a traceback
+
+
+def test_preparing_a_job_that_is_not_ready_says_so(client, box_stl):
+    """Without this the caller gets a FileNotFoundError on working.stl -- a 500
+    naming an internal path, for the entirely ordinary situation of being early."""
+    job_id = client.post(
+        "/api/jobs",
+        files={"file": ("box.stl", box_stl, "application/octet-stream")},
+    ).json()["job_id"]
+
+    r = client.post(f"/api/jobs/{job_id}/prepare",
+                    json={"printer": "Bambu Lab P1S 0.4 nozzle"})
+    assert r.status_code in (409, 200)        # 200 only if it finished that fast
+    if r.status_code == 409:
+        assert "still" in r.json()["detail"].lower()
+
+
+def test_meta_is_written_atomically(client, box_stl):
+    """The browser polls this file's contents. A torn read is a parse error in
+    the client for something that is not actually wrong, so the write goes to a
+    temporary and is renamed into place."""
+    job_id = client.post(
+        "/api/jobs",
+        files={"file": ("box.stl", box_stl, "application/octet-stream")},
+    ).json()["job_id"]
+
+    # Hammer it while the task runs; every read must be valid JSON.
+    for _ in range(60):
+        body = client.get(f"/api/jobs/{job_id}")
+        assert body.status_code == 200
+        assert body.json()["state"] in ("working", "ready", "failed")
+        if body.json()["state"] != "working":
+            break
+        time.sleep(0.05)
+
+
+def test_a_job_id_that_was_never_issued_is_still_a_404(client):
+    import uuid as _uuid
+    assert client.get(f"/api/jobs/{_uuid.uuid4()}").status_code == 404

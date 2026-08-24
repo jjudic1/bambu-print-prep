@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Viewer from './Viewer.jsx'
-import { fileUrl, listPrinters, meshUrl, prepare, uploadModel } from './api.js'
+import { fileUrl, listPrinters, meshUrl, prepare, uploadAndWait } from './api.js'
 import { IDENTITY, bake, compose, sameOrientation, turn } from './orientation.js'
 
 // Tipping onto a different face. Quarter turns rather than free rotation on
@@ -78,8 +78,20 @@ export default function App() {
     setBusy('Looking at your model...')
     setError('')
     setResult(null)
+    const since = Date.now()
     try {
-      const uploaded = await uploadModel(file)
+      const uploaded = await uploadAndWait(file, {
+        // A detailed model takes the better part of half a minute, and a file
+        // picker that simply stops responding for that long reads as broken.
+        // Saying how long it has been is not a progress bar, but it is the
+        // difference between waiting and wondering.
+        onProgress: () => {
+          const seconds = Math.round((Date.now() - since) / 1000)
+          setBusy(seconds < 4
+            ? 'Looking at your model...'
+            : `Still looking -- ${seconds}s. Detailed models take longer.`)
+        },
+      })
       setJob(uploaded)
       setBase(uploaded.orientations[0]?.quaternion || IDENTITY)
       setYawDeg(0)
