@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Viewer from './Viewer.jsx'
 import { fileUrl, listPrinters, meshUrl, prepare, uploadAndWait } from './api.js'
 import { IDENTITY, bake, compose, sameOrientation, turn } from './orientation.js'
+import {
+  DONATION_LABEL,
+  DONATION_URL,
+  donationsEnabled,
+  muteReminder,
+  reminderMuted,
+} from './support.js'
 
 // Tipping onto a different face. Quarter turns rather than free rotation on
 // purpose: the corrections that matter are all quarter turns, and a free-spin
@@ -52,6 +59,7 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [hideReminder, setHideReminder] = useState(reminderMuted)
 
   useEffect(() => {
     listPrinters()
@@ -237,6 +245,16 @@ export default function App() {
         </label>
         <p className="hint">STL, 3MF, OBJ, GLB or PLY.</p>
         {error && <p className="error">{error}</p>}
+
+        {donationsEnabled() && (
+          <p className="support">
+            Free, and no account needed.{' '}
+            <a href={DONATION_URL} target="_blank" rel="noopener noreferrer">
+              {DONATION_LABEL}
+            </a>{' '}
+            if it saves you some faff.
+          </p>
+        )}
       </main>
     )
   }
@@ -455,6 +473,35 @@ export default function App() {
               </a>
             ))}
             <p className="hint">Send all three to your iPad together.</p>
+
+            {/*
+              Below the files, never above them. Someone who has waited for a
+              model to prepare is trying to get to their printer, and putting a
+              request for money between them and the download would be charging
+              a toll on the thing they came for.
+            */}
+            {donationsEnabled() && !hideReminder && (
+              <div className="support">
+                <p>
+                  This is free and stays free.{' '}
+                  <a href={DONATION_URL} target="_blank" rel="noopener noreferrer">
+                    {DONATION_LABEL}
+                  </a>{' '}
+                  if it was useful.
+                </p>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={hideReminder}
+                    onChange={(e) => {
+                      setHideReminder(e.target.checked)
+                      muteReminder(e.target.checked)
+                    }}
+                  />
+                  <span>Don&rsquo;t remind me again</span>
+                </label>
+              </div>
+            )}
           </div>
         ) : (
           <button
