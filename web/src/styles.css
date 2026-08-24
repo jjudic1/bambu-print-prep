@@ -101,3 +101,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   font-weight: 700; text-align: center;
 }
 .hint { color: var(--dim); }
+
+.swatches { display: flex; gap: .45rem; flex-wrap: wrap; }
+.swatch {
+  width: 2rem; height: 2rem; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
+  padding: 0;
+}
+.swatch.on { border-color: var(--ink); }

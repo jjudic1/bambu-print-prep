@@ -252,3 +252,46 @@ little is given up.
 The queue is visible and honest: three uploads at once completed at 36s, 41s
 and 57s. Slow, but every one succeeded and each upload answered immediately --
 where the synchronous version returned a 502 on the third.
+
+
+---
+
+## Two things real devices found that this machine could not
+
+### `accept` on a file input makes an iPad refuse every file
+
+The input carried `accept=".stl,.obj,.3mf,.glb,.ply"`, which is correct-looking
+and, on iOS, catastrophic. iOS resolves `accept` against uniform type
+identifiers, and none of those extensions has one registered unless some
+installed app claims it. The result is not a narrower list: **Files greys out
+everything and no file can be chosen at all.** On the one device this product
+exists for, `accept=".stl"` means "you may not upload an STL".
+
+The attribute is gone. `prep.ingest` already refuses what it cannot read with a
+sentence written for a person, which is a better place to fail than a picker
+that silently offers nothing.
+
+Worth remembering as a class: **a filter that is merely wrong on desktop can be
+total on mobile**, and nothing on a Windows dev machine will ever show it.
+
+### The model rendered as a black silhouette
+
+trimesh exports GLB with `POSITION` and nothing else -- no `NORMAL` attribute,
+confirmed by reading the glTF JSON chunk. A `MeshStandardMaterial` with no
+normals has nothing to shade against, so every surface renders flat unlit black.
+The model appears as a solid silhouette, which reads as "the colour is wrong"
+rather than "the lighting is missing".
+
+`computeVertexNormals()` on load fixes it. Measured into an offscreen render
+target, which works even where the preview pane cannot composite:
+
+| | lit pixels | distinct shades |
+|---|---|---|
+| before | 0 | 0 |
+| after | 2103 | 14 |
+
+**This was verified numerically and never looked at**, which is how it shipped.
+The browser checks asserted bounding boxes and sizes -- all of which were
+correct -- while the picture was black the entire time. Sampling geometry is not
+the same as seeing the render, and this project's rule about measuring rather
+than assuming has a corollary: measure the thing the user actually looks at.

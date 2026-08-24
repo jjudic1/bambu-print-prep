@@ -46,7 +46,26 @@ MAX_FACES = 8000
 
 # Bambu's own filament green, near enough. The picture is the first thing the
 # user sees of their model, so it should look like an object, not a debug view.
+# Overridable per render, because the app lets the user pick a colour and the
+# picture that goes to MakerWorld should be the one they were looking at.
 MODEL_RGB = (0.13, 0.66, 0.33)
+
+
+def parse_colour(value, fallback=MODEL_RGB):
+    """Accept "#rrggbb" from the browser; fall back rather than fail.
+
+    A malformed colour is not worth losing a prepared model over -- the picture
+    is a nicety and the file is the point.
+    """
+    if not value:
+        return fallback
+    text = str(value).strip().lstrip("#")
+    if len(text) != 6:
+        return fallback
+    try:
+        return tuple(int(text[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+    except ValueError:
+        return fallback
 BACKGROUND_RGBA = (0, 0, 0, 0)      # transparent: the page supplies its own bg
 
 # Camera direction. Three-quarter view from above, the angle every slicer uses,
@@ -132,7 +151,7 @@ def _project(verts: np.ndarray, basis: np.ndarray, px: int):
 
 
 def _rasterise(verts, faces, px: int, *, shade: bool, flat_rgb=None,
-               direction=None) -> np.ndarray:
+               direction=None, base_rgb=None) -> np.ndarray:
     """Z-buffered triangle fill. Returns HxWx4 uint8 over a transparent ground."""
     basis = _camera(verts, EYE_DIR if direction is None else np.asarray(direction,
                     dtype=np.float64), UP)
@@ -157,7 +176,7 @@ def _rasterise(verts, faces, px: int, *, shade: bool, flat_rgb=None,
     else:
         intensity = np.ones(len(faces))
 
-    base = np.array(flat_rgb if flat_rgb else MODEL_RGB, dtype=np.float64)
+    base = np.array(flat_rgb or base_rgb or MODEL_RGB, dtype=np.float64)
 
     # Back-to-front is not enough with interpenetrating geometry, so keep a real
     # z-buffer. The loop is per-triangle; the pixel work inside is vectorised.
@@ -212,18 +231,20 @@ def _downsample(rgba: np.ndarray, px: int) -> np.ndarray:
     return (blocks.mean(axis=(1, 3)) + 0.5).astype(np.uint8)
 
 
-def thumbnails(mesh) -> Thumbnails:
+def thumbnails(mesh, colour=None) -> Thumbnails:
     """The five plate images Bambu Studio's container carries."""
     verts, faces = _proxy(mesh)
+    rgb = parse_colour(colour)
 
-    lit = _rasterise(verts, faces, PLATE_PX, shade=True)
-    flat = _rasterise(verts, faces, PLATE_PX, shade=False)
+    lit = _rasterise(verts, faces, PLATE_PX, shade=True, base_rgb=rgb)
+    flat = _rasterise(verts, faces, PLATE_PX, shade=False, base_rgb=rgb)
 
     # top_1.png looks straight down; it is how the slicer shows plate coverage.
     # Passed as an argument rather than swapped into the module constant -- a
     # worker renders more than one job at a time, and shared mutable state is
     # how you get one model's thumbnail onto another model's listing.
-    top = _rasterise(verts, faces, PLATE_PX, shade=True, direction=TOP_DOWN)
+    top = _rasterise(verts, faces, PLATE_PX, shade=True, direction=TOP_DOWN,
+                     base_rgb=rgb)
 
     # pick_1.png is an object-id buffer, not a picture: flat colour per object,
     # read back to work out what the cursor is over. One object means one colour.
@@ -238,7 +259,8 @@ def thumbnails(mesh) -> Thumbnails:
     )
 
 
-def preview_png(mesh) -> bytes:
+def preview_png(mesh, colour=None) -> bytes:
     """Just the gallery image, for the upload and the how-to page."""
     verts, faces = _proxy(mesh)
-    return write_png(_rasterise(verts, faces, PLATE_PX, shade=True))
+    return write_png(_rasterise(verts, faces, PLATE_PX, shade=True,
+                                base_rgb=parse_colour(colour)))
