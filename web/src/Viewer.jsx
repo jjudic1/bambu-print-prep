@@ -22,7 +22,7 @@ const GRID_10 = 0x262b33
 const MODEL = 0x22a45d
 const TOO_BIG = 0xc4463a
 
-export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, height,
+export default function Viewer({ glbUrl, base, yawDeg, longestMm, sizeMm, bed, height,
                                  colour = MODEL, onMeasure }) {
   const mount = useRef(null)
   const state = useRef({})
@@ -52,8 +52,20 @@ export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, heigh
     key.position.set(1, -1.4, 2)
     scene.add(key)
 
-    const world = new THREE.Group()          // holds the bed, rebuilt on change
-    const model = new THREE.Group()          // holds the loaded mesh
+    const world = new THREE.Group()      // the bed, rebuilt when the printer changes
+
+    // Three nested groups, because a non-uniform scale and a rotation do not
+    // commute and the server has a definite opinion about the order. It does:
+    // rotate onto the chosen face, scale in *that* frame, then spin on the
+    // plate. One Object3D cannot express that -- three.js composes a single
+    // matrix as T * R * S, which would scale in the mesh's original frame,
+    // before the face came down. Nesting gives R(yaw) * S * R(base), which is
+    // the order prepare() uses.
+    const model = new THREE.Group()      // placement on the bed, and the spin
+    const stretch = new THREE.Group()    // the size, in the model's own frame
+    const pose = new THREE.Group()       // which face is down
+    stretch.add(pose)
+    model.add(stretch)
     scene.add(world, model)
 
     let frame
@@ -75,7 +87,7 @@ export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, heigh
     observer.observe(el)
     resize()
 
-    state.current = { scene, camera, renderer, controls, world, model }
+    state.current = { scene, camera, renderer, controls, world, model, stretch, pose }
 
     return () => {
       cancelAnimationFrame(frame)
@@ -130,13 +142,13 @@ export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, heigh
 
   // --- the model ------------------------------------------------------------
   useEffect(() => {
-    const { model } = state.current
-    if (!model || !glbUrl) return
+    const { model, pose } = state.current
+    if (!pose || !glbUrl) return
 
     let cancelled = false
     new GLTFLoader().load(glbUrl, (gltf) => {
       if (cancelled) return
-      model.clear()
+      pose.clear()
       gltf.scene.traverse((child) => {
         if (!child.isMesh) return
 
@@ -157,7 +169,7 @@ export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, heigh
           color: colour, roughness: 0.55, metalness: 0.05, flatShading: false,
         })
       })
-      model.add(gltf.scene)
+      pose.add(gltf.scene)
       model.userData.loaded = true
       place()
     })
@@ -171,44 +183,39 @@ export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, heigh
   // real geometry work -- so the size reported back by /prepare is the
   // authoritative one, and this is a preview.
   function place() {
-    const { model } = state.current
+    const { model, stretch, pose } = state.current
     if (!model?.userData.loaded) return
 
     const [bx, by] = bed
 
-    // Measure the size the slider refers to against the *unspun* pose.
-    //
-    // Measuring the current pose instead is the obvious thing and it is wrong:
-    // spinning a 40x30 box a quarter turn grows its axis-aligned box to about
-    // 49x49, so holding "longest side = 40 mm" would quietly shrink the object
-    // to four-fifths of what was asked for. The user turned it; they did not
-    // ask for it to get smaller. The server derives the scale the same way --
-    // see prepare() in api/main.py -- and the two must not drift.
+    // Same order prepare() uses: face down, measure, size, spin, sit on the bed.
     model.position.set(0, 0, 0)
-    model.scale.setScalar(1)
-    model.quaternion.set(...base)
-    model.updateMatrixWorld(true)
-    const unspun = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3())
-    const basis = Math.max(unspun.x, unspun.y, unspun.z) || 1
-
-    // Now the pose actually shown: the spin goes on afterwards.
-    model.quaternion.set(...quaternion)
-    model.updateMatrixWorld(true)
-    const span = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3())
-
-    const scale = longestMm ? longestMm / basis : 1
-    model.scale.setScalar(scale)
+    model.quaternion.identity()
+    stretch.scale.setScalar(1)
+    pose.quaternion.set(...base)
     model.updateMatrixWorld(true)
 
-    const scaled = new THREE.Box3().setFromObject(model)
-    const size = scaled.getSize(new THREE.Vector3())
-    const centre = scaled.getCenter(new THREE.Vector3())
+    // Measured with the face down but before any spin, because that is the
+    // frame the sliders speak in. Spinning must not resize anything: turning a
+    // 40x30 box a quarter of the way round grows its bounding box to about
+    // 49x49, and sizing against that would quietly shrink the object to
+    // four-fifths of what was asked for.
+    const own = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3())
+    const basis = Math.max(own.x, own.y, own.z) || 1
 
-    model.position.set(
-      bx / 2 - centre.x,
-      by / 2 - centre.y,
-      -scaled.min.z,
-    )
+    const factors = sizeMm
+      ? [sizeMm[0] / (own.x || 1), sizeMm[1] / (own.y || 1), sizeMm[2] / (own.z || 1)]
+      : Array(3).fill(longestMm ? longestMm / basis : 1)
+
+    stretch.scale.set(...factors)
+    model.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1),
+                                      THREE.MathUtils.degToRad(yawDeg || 0))
+    model.updateMatrixWorld(true)
+
+    const box = new THREE.Box3().setFromObject(model)
+    const size = box.getSize(new THREE.Vector3())
+    const centre = box.getCenter(new THREE.Vector3())
+    model.position.set(bx / 2 - centre.x, by / 2 - centre.y, -box.min.z)
 
     // Too big overrides the chosen colour, and goes back to it when it fits.
     // Warning colour has to win: a red model is telling you something, and a
@@ -218,20 +225,22 @@ export default function Viewer({ glbUrl, base, quaternion, longestMm, bed, heigh
       if (c.isMesh) c.material.color.setHex(fits ? colour : TOO_BIG)
     })
 
-    // The parent owns the numbers; the viewer just measured them. maxLongest is
-    // what the size slider clamps to, so the control cannot ask for something
-    // the bed will not take (§6.2 wants the ceiling shown, not an error after).
+    // Everything the panel needs to describe and constrain the model. `own` is
+    // what the axis sliders are set from and what "original size" restores;
+    // maxLongest is the ceiling for the single slider, in that slider's units.
     onMeasure?.({
       size: [size.x, size.y, size.z],
+      own: [own.x, own.y, own.z],
       fits,
       nativeLongest: basis,
-      // In slider units, which are basis units -- so the ceiling tightens when
-      // a spin widens the footprint, and loosens again when it narrows it.
-      maxLongest: basis * Math.min(bx / span.x, by / span.y, height / span.z),
+      // How much bigger the current model could get before something hits a
+      // wall, expressed in the single slider's own units.
+      maxLongest: (longestMm || basis)
+        * Math.min(bx / size.x, by / size.y, height / size.z),
     })
   }
 
-  useEffect(place, [base, quaternion, longestMm, bed[0], bed[1], height, colour])
+  useEffect(place, [base, yawDeg, longestMm, sizeMm, bed[0], bed[1], height, colour])
 
   return <div ref={mount} className="viewer" />
 }

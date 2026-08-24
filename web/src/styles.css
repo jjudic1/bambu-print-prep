@@ -109,3 +109,16 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   padding: 0;
 }
 .swatch.on { border-color: var(--ink); }
+
+.axes { display: flex; flex-direction: column; gap: .55rem; }
+.axis { display: flex; flex-direction: column; gap: .2rem; }
+.axis > span {
+  display: flex; justify-content: space-between; font-size: .78rem;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--dim);
+}
+.axis em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--ink); }
+.check {
+  display: flex; align-items: center; gap: .5rem; font-size: .85rem;
+  color: var(--dim); cursor: pointer;
+}
+.check input { width: 1.05rem; height: 1.05rem; accent-color: var(--accent); }

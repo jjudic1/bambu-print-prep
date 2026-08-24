@@ -68,8 +68,19 @@ def parse_colour(value, fallback=MODEL_RGB):
         return fallback
 BACKGROUND_RGBA = (0, 0, 0, 0)      # transparent: the page supplies its own bg
 
-# Camera direction. Three-quarter view from above, the angle every slicer uses,
-# because it shows height and footprint at once.
+# Where the eye is, as a direction from the model towards the camera. Positive
+# Z means above the plate, which is the only place a picture of a print should
+# ever be taken from.
+#
+# This vector used to be fed to the camera as the *look* direction, which is its
+# exact opposite, so every render was made from underneath the plate looking up.
+# It survived review because the test model was a box with a cylinder centred on
+# top, and that is very nearly symmetrical about the plate: from below it still
+# reads as a plausible object. A slab with a spike on it does not -- from below
+# the spike is hidden behind the slab and only clears the far silhouette edge,
+# which is what finally made it obvious.
+#
+# So the name now means what it says and `_camera` negates it once, in one place.
 EYE_DIR = np.array([0.62, -0.72, 0.46])
 TOP_DOWN = np.array([0.0, 0.0, 1.0])
 UP = np.array([0.0, 0.0, 1.0])
@@ -124,9 +135,14 @@ def _proxy(mesh):
     return np.asarray(verts, dtype=np.float64), np.asarray(faces)
 
 
-def _camera(verts: np.ndarray, direction: np.ndarray, up: np.ndarray):
-    """An orthographic basis looking at the model, framed with a small margin."""
-    forward = direction / np.linalg.norm(direction)
+def _camera(verts: np.ndarray, eye: np.ndarray, up: np.ndarray):
+    """An orthographic basis looking at the model, framed with a small margin.
+
+    ``eye`` points from the model towards the camera; the camera looks back
+    along it. The negation is here and nowhere else.
+    """
+    forward = -np.asarray(eye, dtype=np.float64)
+    forward = forward / np.linalg.norm(forward)
     if abs(float(np.dot(forward, up))) > 0.999:      # looking straight down
         up = np.array([0.0, 1.0, 0.0])
     right = np.cross(forward, up)
