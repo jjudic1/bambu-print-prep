@@ -140,3 +140,61 @@ would otherwise swallow `/api` and serve the app shell instead:
 
 Order matters and the failure is quiet: with the fallback first, every API call
 returns 200 and a page of HTML, and the client fails trying to parse it as JSON.
+
+
+---
+
+## Live, and what the first deploy measured
+
+* PWA: **https://bambu-print-prep.vercel.app**
+* API: **https://print-prep-api-23515929262.us-central1.run.app** (project
+  `bambu-print-prep`, us-central1)
+
+The file the deployed service produces was checked against the corpus control:
+15 members, identical to Bambu Studio's own container, 487 settings, prime tower
+values correct, and printer-specific filament (`@BBL A1M` for an A1 mini, not
+the X1C profile the OrcaSlicer tree would have picked). The vendored profiles
+shipped correctly.
+
+### Upload latency is the problem, and §4 called it
+
+Measured through the live stack, warm, not cold starts:
+
+| Model | Faces | Time |
+|---|---|---|
+| dragon.stl | 140 | 0.95 s |
+| sphere | 20,480 | **19.4 s** |
+| sphere | 327,680 | **27 s** |
+
+The orientation solver dominates, and Cloud Run's shared vCPUs are about half
+the speed of this development machine -- 9 s locally becomes 19 s there.
+
+**The upload endpoint is synchronous, and at these times that is not tenable.**
+§4 says so directly: *"Why a job queue: slicing is 5-90 s and CPU-bound. The
+request must not block. The PWA polls or subscribes for status."* It was built
+synchronously anyway, and production immediately produced the failure that
+predicts: three uploads in quick succession returned a **502** from Vercel's
+proxy on the third, because `MAX_CONCURRENT_JOBS` resolves to 1 on a 2-vCPU
+instance -- `(os.cpu_count() or 2) // 2` -- so they serialised and the last one
+waited past the gateway's patience. Re-run singly, the same file succeeds.
+
+Two things follow, in order:
+
+1. **`POST /api/jobs` should return 202 and a job id immediately**, with the
+   browser polling for the report and the orientations. That removes the
+   gateway timeout as a class of failure and lets the UI say what is happening,
+   instead of a file picker that appears frozen for twenty seconds.
+2. **The solver is worth profiling.** 19 s for 20k faces is slow for something
+   that already works on a decimated proxy, and every second of it is charged
+   twice -- once to the user's patience and once to the free-tier allowance.
+
+Neither is a reason not to ship what is there: a model of ordinary size prepares
+in about a second. Both are the reason the next person should not add features
+before fixing this.
+
+### Vercel's proxy does not cap uploads at 4.5 MB
+
+A 16 MB upload passes through the rewrite intact. The documented 4.5 MB limit
+applies to Vercel serverless functions, not to rewrites that proxy to an
+external origin, so `MAX_UPLOAD_BYTES` in `api/limits.py` remains the real
+ceiling.
