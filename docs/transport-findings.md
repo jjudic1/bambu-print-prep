@@ -476,3 +476,77 @@ and the §6.5 handoff screen changes shape. Phase B is unaffected either way.
 v1 does **not** automate the MakerWorld upload. That would mean handling the
 user's Bambu credentials — a security liability and the fastest route to a banned
 account. Revisit only if MakerWorld ships an official API.
+
+---
+
+## A2c — the container can be written in the browser ✅ (spike, 2026-08-24)
+
+Prompted by BumpMesh (github.com/CNCKitchen/stlTexturizer), which does mesh
+displacement entirely client-side with three.js and fflate and no server at all.
+Its 3MF exports are **not** accepted by MakerWorld, for the same reason our
+first container was not: a standards-conformant 3MF is not Bambu's container.
+That gap is the thing this project already knows how to close.
+
+So: can the closing be done on the user's device?
+
+**Yes, and the reason is that the container is barely computed at all.** Of the
+fifteen members, six are static strings, four are small XML templates, five are
+pictures, and one is a settings blob that resolves to the same answer every time
+for a given printer and material. `prep/write3mf.py` imports only stdlib and
+numpy -- no trimesh, no scipy -- and never did.
+
+The settings were the only part that looked expensive and are not: fourteen
+printers with four materials each bake to **38 KB gzipped**
+(`spikes/export_web_profiles.py` -> `web/src/data/printers.json`).
+
+### What the spike proved
+
+`web/src/make3mf.js` is a port of the writer. Fed geometry identical to the
+Python side's, and diffed member by member:
+
+| | result |
+|---|---|
+| members | 15, the same set |
+| the six fixed members | **byte-for-byte identical** |
+| `model_settings.config` | **byte-for-byte identical** |
+| `project_settings.config` | **byte-for-byte identical**, 487 keys |
+| `3dmodel.model`, `object_1.model` | identical apart from the random UUIDs |
+| build transform | identical |
+| the five pictures | right sizes; content differs, as it must |
+
+And the local oracle agrees. **Bambu Studio slices the JavaScript-written file
+and echoes back the same `print_settings_id`, `printer_settings_id`,
+`filament_settings_id` and `enable_support` as the Python one**, and trimesh
+reads back the same 12 faces at 40x30x20 sitting on z=0.
+
+Pinned by `tests/test_web3mf.py`, which runs both writers and diffs them. A port
+is a second copy of expensive knowledge and copies drift; when this one does,
+the browser would start writing a container nobody has uploaded and the only
+symptom would be MakerWorld refusing a user who is not in the room.
+
+### What this does not carry
+
+Repair, analysis and the orientation solver need trimesh and stay on the server.
+They are the judgement half. This is the transport half -- and the transport
+half is the part nobody else has.
+
+### Why it matters more than it sounds
+
+Every cost and scaling problem in `deploy.md` belongs to the server: the ~$130 a
+month at steady use, the cold starts, the queue, `--max-instances 1`, the tmpfs
+job loss, the rate limits, the CPU throttling. A client-side path has none of
+them, is a static file on a CDN, and inverts the failure condition -- popularity
+becomes free rather than fatal. It also allows the claim BumpMesh makes: the
+model never leaves the device.
+
+### Still unproven, and it is one upload
+
+MakerWorld has not seen a browser-written file. Bambu Studio accepting it is
+strong evidence and not proof; the two disagreed once already, which is the
+whole reason §A2b exists.
+
+### Loose end
+
+`web/src/data/printers.json` is 1.4 MB of vendored Bambu Studio profile data in
+the repo. Fine while private. Shipping it to strangers is a licensing question
+worth answering before, not after.
