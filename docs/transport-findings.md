@@ -550,3 +550,49 @@ whole reason §A2b exists.
 `web/src/data/printers.json` is 1.4 MB of vendored Bambu Studio profile data in
 the repo. Fine while private. Shipping it to strangers is a licensing question
 worth answering before, not after.
+
+---
+
+## A2d — multiple plates, and the two things that silently drop parts
+
+For a small printer, a model that does not fit one bed has to be split across
+plates. The format supports it and the details are unforgiving; both traps
+below produce a file that *opens*, which is why they are worth writing down.
+
+Learned from 130 genuine multi-plate files in the local corpus, not guessed.
+
+**The shape.** One `3D/Objects/object_N.model` per part; one `<object>` in
+`3dmodel.model` per part, wrapping its geometry through a `p:path` component;
+one `<item>` per part carrying its world position; and in
+`model_settings.config` one `<object>` per part plus one `<plate>` per plate
+listing its `model_instance`s. Ids run 1/2, 3/4, 5/6 -- odd for the geometry,
+even for the wrapper -- without exception across the corpus. Thumbnails are per
+plate: `plate_N.png`, `plate_no_light_N.png`, `top_N.png`, `pick_N.png`. Only
+plate 1 gets a `_small`, which is what the cover-thumbnail relationships point
+at and what MakerWorld shows as the listing image.
+
+**Plates are regions of world space, not labels.** Each plate's objects carry
+coordinates offset into that plate's region, and the stride is **1.2x the bed** --
+307 for the 256 mm machines, 216 for the 180 mm one, confirmed separately per
+bed size (39 and 14 files agreeing exactly).
+
+**Trap 1: every geometry part must declare the id it is referenced by.**
+`object_2.model` has to contain `<object id="3">`, not `id="1"`. Writing them all
+as 1 leaves four of five references resolving to nothing; Bambu Studio opens the
+file, keeps the positions, and quietly reassigns every object to plate 1.
+
+**Trap 2: the wrap column is two, and it is load-bearing.** Bambu Studio assigns
+objects to plates **geometrically**, by which plate region contains them -- the
+`plater_id` in `model_settings.config` is not taken at its word. Measured with
+three plates and five objects: wrapping at 2 reproduces the intended assignment
+exactly; wrapping at 3 puts plate 3 in a third column, where its objects land in
+no plate at all and are **silently dropped**; wrapping at 1 loses plate 2 the
+same way. The file still opens either way, with an empty plate and missing
+parts.
+
+Bambu Studio's own diagnosis, which is how both were found:
+
+> One of the plate is empty or has no object fully inside it.
+
+With both closed, `--slice 0` writes `plate_1.gcode`, `plate_2.gcode` and
+`plate_3.gcode` and reports Success.
