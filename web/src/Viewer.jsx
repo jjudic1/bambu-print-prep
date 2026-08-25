@@ -22,8 +22,8 @@ const GRID_10 = 0x262b33
 const MODEL = 0x22a45d
 const TOO_BIG = 0xc4463a
 
-export default function Viewer({ glbUrl, base, yawDeg, longestMm, sizeMm, bed, height,
-                                 colour = MODEL, onMeasure }) {
+export default function Viewer({ glbUrl, geometry, base, yawDeg, longestMm, sizeMm,
+                                 bed, height, colour = MODEL, onMeasure, onReady }) {
   const mount = useRef(null)
   const state = useRef({})
 
@@ -141,6 +141,23 @@ export default function Viewer({ glbUrl, base, yawDeg, longestMm, sizeMm, bed, h
   }, [bed[0], bed[1], height])
 
   // --- the model ------------------------------------------------------------
+  // Geometry handed in directly -- the no-server path, where the browser parsed
+  // the file itself and there is nothing to fetch.
+  useEffect(() => {
+    const { model, pose } = state.current
+    if (!pose || !geometry) return
+
+    pose.clear()
+    if (!geometry.getAttribute('normal')) geometry.computeVertexNormals()
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+      color: colour, roughness: 0.55, metalness: 0.05,
+    }))
+    pose.add(mesh)
+    model.userData.loaded = true
+    place()
+    onReady?.(state.current)
+  }, [geometry])
+
   useEffect(() => {
     const { model, pose } = state.current
     if (!pose || !glbUrl) return
@@ -172,6 +189,7 @@ export default function Viewer({ glbUrl, base, yawDeg, longestMm, sizeMm, bed, h
       pose.add(gltf.scene)
       model.userData.loaded = true
       place()
+      onReady?.(state.current)
     })
     return () => { cancelled = true }
   }, [glbUrl])
