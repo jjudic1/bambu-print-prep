@@ -1,25 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 
-import Viewer from '../Viewer.jsx'
+import PlateViewer from './PlateViewer.jsx'
 import printerData from '../data/printers.json'
-import { makeProject3mf, placeOnBed } from '../make3mf.js'
+import { makeProject3mf } from '../make3mf.js'
 import { IDENTITY, turn } from '../orientation.js'
-import { bakeRotation, plateImages, readModel, toArrays } from './mesh.js'
+import { plateImages, readModel, toArrays } from './mesh.js'
+import { arrange, footprint, splitParts } from './parts.js'
+import {
+  DONATION_LABEL, DONATION_URL, donationsEnabled, muteReminder, reminderMuted,
+} from '../support.js'
 
 /**
- * The no-server path.
+ * The no-server page.
  *
- * Nothing here talks to an API. The file is parsed in the browser, placed in
- * the browser, photographed in the browser and written in the browser -- so it
- * costs nothing to run, works with the tab offline once loaded, and the model
- * never leaves the device.
+ * Nothing here talks to an API: the file is parsed, arranged, photographed and
+ * written in the browser, so it costs nothing to run and the model never leaves
+ * the device. What it gives up is the judgement half -- no repair, no analysis,
+ * no orientation solver, because those need real mesh libraries.
  *
- * What it gives up is the judgement half: no repair, no analysis, and no
- * orientation solver, because those need real mesh libraries. You choose which
- * way up. That is the right trade for the case this exists for -- a model that
- * came out of another browser tool and only needs a container MakerWorld will
- * take.
+ * Orientation and size are shared by every part, which is the right default for
+ * the case this exists for: one model, split, laid across plates because the bed
+ * is too small. Position and plate are per part.
  */
 
 const TIPS = [
@@ -36,118 +38,226 @@ const COLOURS = [
 ]
 
 const mm = (v) => `${Math.round(v)} mm`
+let nextId = 1
 
 export default function LocalApp() {
   const printers = printerData.printers
   const [printerId, setPrinterId] = useState(
-    () => printers.find((p) => p.model === 'Bambu Lab P1S')?.id || printers[0].id,
-  )
+    () => localStorage.getItem('printer')
+      || printers.find((p) => p.model === 'Bambu Lab P1S')?.id || printers[0].id)
   const [material, setMaterial] = useState('PLA')
-  const [geometry, setGeometry] = useState(null)
+  const [colour, setColour] = useState(
+    () => Number(localStorage.getItem('colour')) || COLOURS[0].hex)
+
+  const [parts, setParts] = useState([])          // {id, geometry, name, plate, x, y}
+  const [plateCount, setPlateCount] = useState(1)
+  const [activePlate, setActivePlate] = useState(0)
+  const [selectedId, setSelectedId] = useState(null)
   const [name, setName] = useState('')
+
   const [base, setBase] = useState(IDENTITY)
   const [yawDeg, setYawDeg] = useState(0)
   const [longestMm, setLongestMm] = useState(80)
-  const [colour, setColour] = useState(COLOURS[0].hex)
-  const [measured, setMeasured] = useState(null)
+  const [nativeSize, setNativeSize] = useState(null)
+  const [uniform, setUniform] = useState(true)
+  const [sizeMm, setSizeMm] = useState(null)
+
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [note, setNote] = useState('')
   const [written, setWritten] = useState(null)
+  const [hideReminder, setHideReminder] = useState(reminderMuted)
   const sceneRef = useRef(null)
 
   const printer = useMemo(
     () => printers.find((p) => p.id === printerId) || printers[0],
-    [printers, printerId],
-  )
+    [printers, printerId])
   const materials = useMemo(() => Object.keys(printer.materials), [printer])
 
+  useEffect(() => { localStorage.setItem('printer', printerId) }, [printerId])
+  useEffect(() => { localStorage.setItem('colour', String(colour)) }, [colour])
   useEffect(() => {
     if (!materials.includes(material)) setMaterial(materials[0])
   }, [materials, material])
 
-  const onMeasure = useCallback((m) => setMeasured(m), [])
-  const onReady = useCallback((s) => { sceneRef.current = s }, [])
-  useEffect(() => { setWritten(null) }, [base, yawDeg, longestMm, printerId, material])
+  /**
+   * The rotation and scale every part shares.
+   *
+   * Built once and handed to the viewer and the writer, so what is drawn and
+   * what is written cannot drift. Order matches the server: face down, scale in
+   * that frame, then spin on the plate -- a non-uniform scale and a rotation do
+   * not commute, so this is not free to reorder.
+   */
+  const shared = useMemo(() => {
+    const m = new THREE.Matrix4().makeRotationFromQuaternion(
+      new THREE.Quaternion(...base))
+    if (!nativeSize) return m
+
+    const factors = !uniform && sizeMm
+      ? sizeMm.map((v, i) => v / (nativeSize[i] || 1))
+      : Array(3).fill(longestMm / (Math.max(...nativeSize) || 1))
+    m.premultiply(new THREE.Matrix4().makeScale(...factors))
+    if (yawDeg) {
+      m.premultiply(new THREE.Matrix4().makeRotationZ(THREE.MathUtils.degToRad(yawDeg)))
+    }
+    return m
+  }, [base, yawDeg, longestMm, sizeMm, uniform, nativeSize])
+
+  useEffect(() => { setWritten(null) }, [shared, parts, plateCount, printerId, material])
+
+  const onPlate = useMemo(
+    () => parts.filter((p) => p.plate === activePlate), [parts, activePlate])
 
   async function onFile(file) {
     if (!file) return
     setBusy('Reading it...')
-    setError('')
-    setWritten(null)
+    setError(''); setNote(''); setWritten(null)
     try {
-      const g = await readModel(file)
-      g.computeBoundingBox()
-      const size = g.boundingBox.getSize(new THREE.Vector3())
-      setGeometry(g)
+      const geometry = await readModel(file)
+      geometry.computeBoundingBox()
+      const size = geometry.boundingBox.getSize(new THREE.Vector3())
+      const [bx, by] = printer.bed_mm
+
+      setParts([{
+        id: nextId++, geometry, name: file.name, plate: 0, x: bx / 2, y: by / 2,
+      }])
+      setNativeSize([size.x, size.y, size.z])
+      setPlateCount(1); setActivePlate(0); setSelectedId(null)
       setName(file.name.replace(/\.[^.]+$/, ''))
-      setBase(IDENTITY)
-      setYawDeg(0)
+      setBase(IDENTITY); setYawDeg(0); setUniform(true); setSizeMm(null)
       setLongestMm(Math.round(Math.max(size.x, size.y, size.z)) || 80)
     } catch (e) {
-      // A parser's own words ("Cannot read properties of undefined") tell the
-      // user nothing they can act on. Ours are written for a person; anything
-      // else gets replaced and logged for us instead.
       console.error(e)
       setError(/^[A-Z][^:]*: /.test(e.message) || !/[a-z] [a-z]/.test(e.message)
         ? "We couldn't read that file. Try exporting it again as an STL."
         : e.message)
-    } finally {
-      setBusy('')
-    }
+    } finally { setBusy('') }
+  }
+
+  function onSplit() {
+    setError(''); setNote('')
+    try {
+      const pieces = []
+      for (const part of parts) {
+        const split = splitParts(part.geometry)
+        if (!split) { pieces.push(part); continue }
+        for (const [i, geometry] of split.entries()) {
+          pieces.push({ ...part, id: nextId++, geometry,
+                        name: `${part.name} (${i + 1})` })
+        }
+      }
+      if (pieces.length === parts.length) {
+        setNote('That model is one connected piece - there is nothing to split.')
+        return
+      }
+      setParts(pieces)
+      setNote(`Split into ${pieces.length} parts. Arrange them, or drag them about.`)
+    } catch (e) { setError(e.message) }
+  }
+
+  function onArrange(list = parts) {
+    const { placements, plateCount: needed, tooBig } = arrange(list, printer, shared)
+    const byId = new Map(placements.map((p) => [p.id, p]))
+    setParts(list.map((p) => ({ ...p, ...byId.get(p.id) })))
+    setPlateCount(needed)
+    setActivePlate(0)
+    setNote(tooBig.length
+      ? `${tooBig.length} part${tooBig.length > 1 ? 's are' : ' is'} bigger than the bed on its own - make it smaller or cut it up.`
+      : `Laid out across ${needed} plate${needed > 1 ? 's' : ''}.`)
+  }
+
+  const onMove = useCallback((id, x, y) => {
+    setParts((list) => list.map((p) => (p.id === id ? { ...p, x, y } : p)))
+  }, [])
+
+  function movePartToPlate(id, plate) {
+    const [bx, by] = printer.bed_mm
+    setParts((list) => list.map((p) => (
+      p.id === id ? { ...p, plate, x: bx / 2, y: by / 2 } : p)))
+    setActivePlate(plate)
   }
 
   function build() {
     setBusy('Writing the file...')
     setError('')
     try {
-      // Bake the pose into the geometry and scale it, exactly as the server
-      // does -- rotate, ground, scale -- so the file is the same file.
-      const baked = bakeRotation(geometry, base, yawDeg)
-      baked.computeBoundingBox()
-      const own = baked.boundingBox.getSize(new THREE.Vector3())
-      const factor = longestMm / (Math.max(own.x, own.y, own.z) || 1)
-      baked.applyMatrix4(new THREE.Matrix4().makeScale(factor, factor, factor))
-      baked.computeBoundingBox()
-
-      const lo = baked.boundingBox.min
-      const hi = baked.boundingBox.max
-      const matrix = placeOnBed([[lo.x, lo.y, lo.z], [hi.x, hi.y, hi.z]], printer)
-
-      const { vertices, triangles } = toArrays(baked)
       const scene = sceneRef.current
-      const thumbnails = scene
-        ? plateImages(scene.scene, scene.camera, { colour })
-        : null
+      const plates = []
+      for (let index = 0; index < plateCount; index++) {
+        const here = parts.filter((p) => p.plate === index)
+        if (!here.length) continue          // an empty plate is refused by Bambu
+
+        plates.push({
+          objects: here.map((part) => {
+            const geometry = part.geometry.clone()
+            geometry.applyMatrix4(shared)
+            geometry.computeBoundingBox()
+            const box = geometry.boundingBox
+            const centre = box.getCenter(new THREE.Vector3())
+            geometry.translate(-centre.x, -centre.y, -box.min.z)
+
+            const { vertices, triangles } = toArrays(geometry)
+            return {
+              vertices, triangles, name: part.name,
+              matrix: [[1, 0, 0, part.x], [0, 1, 0, part.y],
+                       [0, 0, 1, 0], [0, 0, 0, 1]],
+            }
+          }),
+          // One picture per plate. The viewer shows the active plate, so only
+          // that one gets a true render; the rest reuse it rather than shipping
+          // a blank, because a container missing members is untested ground.
+          thumbnails: scene ? plateImages(scene.scene, scene.camera, { colour }) : null,
+        })
+      }
+      if (!plates.length) throw new Error('There is nothing on any plate yet.')
 
       const zip = makeProject3mf({
-        vertices, triangles, printer, material, matrix,
-        title: `${name}.stl`, thumbnails,
+        printer, material, title: `${name}.stl`, plates,
       })
-
-      const size = [hi.x - lo.x, hi.y - lo.y, hi.z - lo.z]
       setWritten({
         url: URL.createObjectURL(new Blob([zip], { type: 'model/3mf' })),
         fileName: `${name}-${Math.round(longestMm)}mm.3mf`,
         bytes: zip.length,
-        size,
-        fits: size[0] <= printer.bed_mm[0] && size[1] <= printer.bed_mm[1]
-          && size[2] <= printer.height_mm,
+        plates: plates.length,
+        objects: plates.reduce((n, p) => n + p.objects.length, 0),
       })
     } catch (e) {
+      console.error(e)
       setError(e.message)
-    } finally {
-      setBusy('')
-    }
+    } finally { setBusy('') }
   }
 
-  if (!geometry) {
+  // Everything the sliders need to know about the current, shared pose.
+  const measured = useMemo(() => {
+    if (!parts.length) return null
+    const box = new THREE.Box3()
+    for (const part of parts) {
+      box.union(footprint(part.geometry, shared).box)
+    }
+    const size = box.getSize(new THREE.Vector3())
+    return [size.x, size.y, size.z]
+  }, [parts, shared])
+
+  function unlockAxes(next) {
+    setUniform(next)
+    if (!next) {
+      const scale = nativeSize ? longestMm / (Math.max(...nativeSize) || 1) : 1
+      setSizeMm((nativeSize || [50, 50, 50])
+        .map((v) => Math.max(1, Math.round(v * scale))))
+      return
+    }
+    if (sizeMm) setLongestMm(Math.max(1, Math.round(Math.max(...sizeMm))))
+  }
+
+  if (!parts.length) {
     return (
       <main className="landing">
         <h1>EZslicer3D</h1>
         <p className="tagline">3D print&hellip; no computer necessary</p>
         <p className="lede">
-          Drop in any model and get one your Bambu printer will take. This page
-          does everything on your device &mdash; nothing is uploaded anywhere.
+          Drop in any model and get one your Bambu printer will take. Too big for
+          your bed? Split it and spread it over as many plates as it needs. This
+          page does everything on your device &mdash; nothing is uploaded anywhere.
         </p>
         <label className="drop">
           <input type="file" onChange={(e) => onFile(e.target.files[0])} />
@@ -155,22 +265,33 @@ export default function LocalApp() {
         </label>
         <p className="hint">STL, 3MF, OBJ or PLY.</p>
         {error && <p className="error">{error}</p>}
+        {donationsEnabled() && (
+          <p className="support">
+            Free, and no account needed.{' '}
+            <a href={DONATION_URL} target="_blank" rel="noopener noreferrer">
+              {DONATION_LABEL}
+            </a>{' '}
+            if it saves you some faff.
+          </p>
+        )}
       </main>
     )
   }
 
+  const ceiling = 400
+
   return (
     <main className="app">
-      <Viewer
-        geometry={geometry}
-        base={base}
-        yawDeg={yawDeg}
-        longestMm={longestMm}
+      <PlateViewer
+        parts={onPlate}
         bed={printer.bed_mm}
         height={printer.height_mm}
         colour={colour}
-        onMeasure={onMeasure}
-        onReady={onReady}
+        matrix={shared}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        onMove={onMove}
+        onReady={(s) => { sceneRef.current = s }}
       />
 
       <section className="panel">
@@ -179,9 +300,81 @@ export default function LocalApp() {
           <span className="wordmark">on your device</span>
         </header>
         <div className="row">
-          <button className="link" onClick={() => { setGeometry(null); setWritten(null) }}>
+          <button className="link" onClick={() => { setParts([]); setWritten(null) }}>
             Start over
           </button>
+          <span className="hint">
+            {parts.length} part{parts.length > 1 ? 's' : ''} &middot;{' '}
+            {plateCount} plate{plateCount > 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {/* --- plates ------------------------------------------------------ */}
+        <div className="field">
+          <span>Plates</span>
+          <div className="ticks">
+            {Array.from({ length: plateCount }, (_, i) => {
+              const count = parts.filter((p) => p.plate === i).length
+              return (
+                <button
+                  key={i}
+                  className={i === activePlate ? 'tick on' : 'tick'}
+                  onClick={() => setActivePlate(i)}
+                >
+                  Plate {i + 1}
+                  <em>{count ? ` ${count}` : ' empty'}</em>
+                </button>
+              )
+            })}
+            <button className="tick" onClick={() => {
+              setPlateCount((n) => n + 1); setActivePlate(plateCount)
+            }}>
+              + Add
+            </button>
+          </div>
+          {plateCount > 1 && !parts.some((p) => p.plate === activePlate) && (
+            <p className="reason">
+              This plate is empty. Bambu Studio refuses a file with an empty
+              plate, so it will be left out unless you put something on it.
+            </p>
+          )}
+        </div>
+
+        {/* --- parts ------------------------------------------------------- */}
+        <div className="field">
+          <span>
+            On this plate
+            <em>{onPlate.length ? 'tap one, then drag it' : ''}</em>
+          </span>
+          <div className="ticks">
+            {onPlate.map((part) => (
+              <button
+                key={part.id}
+                className={part.id === selectedId ? 'tick on' : 'tick'}
+                onClick={() => setSelectedId(part.id)}
+                title={part.name}
+              >
+                {part.name.length > 18 ? `${part.name.slice(0, 17)}…` : part.name}
+              </button>
+            ))}
+          </div>
+          {selectedId != null && plateCount > 1 && (
+            <div className="ticks">
+              {Array.from({ length: plateCount }, (_, i) => (
+                <button
+                  key={i} className="tick"
+                  disabled={parts.find((p) => p.id === selectedId)?.plate === i}
+                  onClick={() => movePartToPlate(selectedId, i)}
+                >
+                  Send to {i + 1}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="nudges">
+            <button onClick={onSplit}>Split into parts</button>
+            <button onClick={() => onArrange()}>Arrange</button>
+          </div>
         </div>
 
         <label className="field">
@@ -203,26 +396,78 @@ export default function LocalApp() {
           </select>
         </label>
 
+        {/* --- size -------------------------------------------------------- */}
         <div className="field">
           <span>
             How big
             <em>
               {measured
-                ? ` ${mm(measured.size[0])} x ${mm(measured.size[1])} x ${mm(measured.size[2])}`
+                ? ` ${mm(measured[0])} x ${mm(measured[1])} x ${mm(measured[2])}`
                 : ''}
             </em>
           </span>
-          <input
-            type="range" min="10" max="400" value={longestMm}
-            onChange={(e) => setLongestMm(Number(e.target.value))}
-          />
+
+          {uniform ? (
+            <>
+              <input
+                type="range" min="10" max={ceiling} value={Math.min(longestMm, ceiling)}
+                onChange={(e) => setLongestMm(Number(e.target.value))}
+              />
+              <div className="ticks">
+                {[['Keychain', 35], ['Desk size', 100]].map(([label, value]) => (
+                  <button
+                    key={label}
+                    className={Math.abs(longestMm - value) < 2 ? 'tick on' : 'tick'}
+                    onClick={() => setLongestMm(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <button
+                  className="tick"
+                  onClick={() => {
+                    setUniform(true); setSizeMm(null)
+                    setLongestMm(Math.round(Math.max(...(nativeSize || [80]))))
+                  }}
+                >
+                  Original size
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="axes">
+              {['Across', 'Deep', 'Tall'].map((label, i) => (
+                <label key={label} className="axis">
+                  <span>{label}<em>{Math.round(sizeMm?.[i] ?? 0)} mm</em></span>
+                  <input
+                    type="range" min="1" max="400"
+                    value={Math.round(sizeMm?.[i] ?? 0)}
+                    onChange={(e) => setSizeMm((v) => {
+                      const next = [...(v || [0, 0, 0])]
+                      next[i] = Number(e.target.value)
+                      return next
+                    })}
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+
+          <label className="check">
+            <input
+              type="checkbox" checked={uniform}
+              onChange={(e) => unlockAxes(e.target.checked)}
+            />
+            <span>Keep its shape</span>
+          </label>
         </div>
 
+        {/* --- orientation -------------------------------------------------- */}
         <div className="field">
           <span>Which way up</span>
           <div className="nudges">
             {TIPS.map((t) => (
-              <button key={t.label} onClick={() => { setBase(turn(base, t.axis, t.deg)); }}>
+              <button key={t.label} onClick={() => setBase(turn(base, t.axis, t.deg))}>
                 {t.label}
               </button>
             ))}
@@ -256,24 +501,41 @@ export default function LocalApp() {
           </div>
         </div>
 
-        {measured && !measured.fits && (
-          <p className="warn">
-            Bigger than your printer&rsquo;s bed. Make it smaller.
-          </p>
-        )}
+        {note && <p className="reason">{note}</p>}
         {error && <p className="error">{error}</p>}
 
         {written ? (
           <div className="done">
             <p>
-              {written.size.map((v) => Math.round(v)).join(' x ')} mm,{' '}
+              {written.objects} part{written.objects > 1 ? 's' : ''} across{' '}
+              {written.plates} plate{written.plates > 1 ? 's' : ''},{' '}
               {(written.bytes / 1024).toFixed(0)} KB. Written on this device.
             </p>
             <a href={written.url} download={written.fileName}>Save the file</a>
             <p className="hint">
-              Upload it to MakerWorld as a private model. If it takes it, the
-              whole thing works with no server.
+              Upload it to MakerWorld as a private model, then print it from
+              Bambu Handy.
             </p>
+            {donationsEnabled() && !hideReminder && (
+              <div className="support">
+                <p>
+                  This is free and stays free.{' '}
+                  <a href={DONATION_URL} target="_blank" rel="noopener noreferrer">
+                    {DONATION_LABEL}
+                  </a>{' '}
+                  if it was useful.
+                </p>
+                <label className="check">
+                  <input
+                    type="checkbox" checked={hideReminder}
+                    onChange={(e) => {
+                      setHideReminder(e.target.checked); muteReminder(e.target.checked)
+                    }}
+                  />
+                  <span>Don&rsquo;t remind me again</span>
+                </label>
+              </div>
+            )}
           </div>
         ) : (
           <button className="go" disabled={!!busy} onClick={build}>
