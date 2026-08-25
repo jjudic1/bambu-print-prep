@@ -133,6 +133,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 }
 .check input { width: 1.05rem; height: 1.05rem; accent-color: var(--accent); }
 
+/* The colour a part will be drawn in, shown on its button in the parts list --
+   so a plate of six parts can be told apart without selecting each one. */
+.tick .dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%;
+             margin-right: .38rem; vertical-align: baseline;
+             border: 1px solid rgba(255, 255, 255, .22); }
+
 .support {
   border-top: 1px solid var(--line); padding-top: .8rem; margin: .4rem 0 0;
   color: var(--dim); font-size: .87rem;
@@ -141,3 +147,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .support p { margin: 0; }
 .support a { color: var(--accent); font-weight: 700; }
 .landing .support { border: 0; padding: 0; margin-top: .5rem; text-align: center; }
+
+/* The picture and the instructions sit under the model, not beside it: the
+   model is the thing they came for, and these two are what make it usable. */
+.extras { display: flex; flex-wrap: wrap; gap: .5rem; margin: .6rem 0 0; }
+.extras a { flex: 1 1 auto; text-align: center; font-size: .92rem;
+            padding: .55rem .8rem; border-radius: 10px;
+            border: 1px solid var(--line); color: var(--ink);
+            text-decoration: none; background: transparent; }
