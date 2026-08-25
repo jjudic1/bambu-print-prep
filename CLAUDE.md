@@ -58,6 +58,13 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   the accepted one used Bambu Studio's). Never hard-code a bed size.
 - **The writer exists twice**: `prep/write3mf.py` and `web/src/make3mf.js`.
   `tests/test_web3mf.py` diffs them on every run — keep them in step.
+- **`/local` orients per part but sizes as one model.** `base` is the whole
+  model's pose *and* the frame Across/Deep/Tall are measured in; each part
+  carries its own `spin`/`yaw` on top. Measure size in any other frame and
+  the sliders scale the wrong axis the moment anything is tipped.
+  `web/parts-check.mjs` (run by `tests/test_local_parts.py`) checks the
+  split, the poses and the layout by signed volume as well as size — a
+  mirror leaves the bounding box alone.
 
 ## Working rules for this project
 

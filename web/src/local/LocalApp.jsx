@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import PlateViewer from './PlateViewer.jsx'
 import printerData from '../data/printers.json'
 import { makeProject3mf } from '../make3mf.js'
-import { IDENTITY, turn } from '../orientation.js'
+import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import { plateImages, readModel, toArrays } from './mesh.js'
 import { arrange, footprint, splitParts } from './parts.js'
 import {
@@ -19,9 +19,16 @@ import {
  * the device. What it gives up is the judgement half -- no repair, no analysis,
  * no orientation solver, because those need real mesh libraries.
  *
- * Orientation and size are shared by every part, which is the right default for
- * the case this exists for: one model, split, laid across plates because the bed
- * is too small. Position and plate are per part.
+ * A pose lives in two places, and that split is what makes the controls behave:
+ *
+ *   base        the model as a whole. Everything is measured in this frame, so
+ *               "Across / Deep / Tall" mean the bed's own directions.
+ *   spin, yaw   per part, on top of that: which face this one piece lands on,
+ *               and how far it is spun once it is there.
+ *
+ * Size stays a property of the model rather than of each part, because "make it
+ * 80 mm" said of an assembly that has been cut up means 80 mm of assembly. A
+ * part tipped onto its side must not become a different size for it.
  */
 
 const TIPS = [
@@ -38,7 +45,15 @@ const COLOURS = [
 ]
 
 const mm = (v) => `${Math.round(v)} mm`
+const short = (s) => (s.length > 18 ? `${s.slice(0, 17)}…` : s)
+const straight = (part) => sameOrientation(part.spin, IDENTITY) && !part.yaw
+
 let nextId = 1
+
+/** A part as it starts life: on the plate, facing the way it arrived. */
+const freshPart = (geometry, name, x, y) => ({
+  id: nextId++, geometry, name, plate: 0, x, y, spin: IDENTITY, yaw: 0,
+})
 
 export default function LocalApp() {
   const printers = printerData.printers
@@ -49,16 +64,16 @@ export default function LocalApp() {
   const [colour, setColour] = useState(
     () => Number(localStorage.getItem('colour')) || COLOURS[0].hex)
 
-  const [parts, setParts] = useState([])          // {id, geometry, name, plate, x, y}
+  // {id, geometry, name, plate, x, y, spin, yaw}
+  const [parts, setParts] = useState([])
   const [plateCount, setPlateCount] = useState(1)
   const [activePlate, setActivePlate] = useState(0)
   const [selectedId, setSelectedId] = useState(null)
+  const [beforeSplit, setBeforeSplit] = useState(null)
   const [name, setName] = useState('')
 
   const [base, setBase] = useState(IDENTITY)
-  const [yawDeg, setYawDeg] = useState(0)
   const [longestMm, setLongestMm] = useState(80)
-  const [nativeSize, setNativeSize] = useState(null)
   const [uniform, setUniform] = useState(true)
   const [sizeMm, setSizeMm] = useState(null)
 
@@ -81,32 +96,83 @@ export default function LocalApp() {
   }, [materials, material])
 
   /**
-   * The rotation and scale every part shares.
+   * How big the model is, unscaled, in the frame the sliders talk about.
    *
-   * Built once and handed to the viewer and the writer, so what is drawn and
-   * what is written cannot drift. Order matches the server: face down, scale in
-   * that frame, then spin on the plate -- a non-uniform scale and a rotation do
-   * not commute, so this is not free to reorder.
+   * This is what the size controls divide by, and measuring it in the wrong
+   * frame is the bug this replaces: taken before `base` was applied, asking for
+   * 40 mm deep on a tipped model scaled whichever axis used to be depth, and
+   * the readout then disagreed with the slider that had just set it.
+   *
+   * Keyed on which parts exist rather than on the parts themselves. A part's
+   * geometry never changes once it has an id -- only its place on the bed does
+   * -- and dragging one across the plate must not re-measure every mesh in the
+   * file on every pointer move.
    */
-  const shared = useMemo(() => {
+  const shapeKey = parts.map((p) => p.id).join(',')
+  const baseSize = useMemo(() => {
+    if (!parts.length) return null
     const m = new THREE.Matrix4().makeRotationFromQuaternion(
       new THREE.Quaternion(...base))
-    if (!nativeSize) return m
+    const box = new THREE.Box3()
+    for (const part of parts) box.union(footprint(part.geometry, m).box)
+    const size = box.getSize(new THREE.Vector3())
+    return [size.x, size.y, size.z]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shapeKey, base])
 
-    const factors = !uniform && sizeMm
-      ? sizeMm.map((v, i) => v / (nativeSize[i] || 1))
-      : Array(3).fill(longestMm / (Math.max(...nativeSize) || 1))
-    m.premultiply(new THREE.Matrix4().makeScale(...factors))
-    if (yawDeg) {
-      m.premultiply(new THREE.Matrix4().makeRotationZ(THREE.MathUtils.degToRad(yawDeg)))
+  /** One scale factor per bed axis, whichever control is driving. */
+  const factors = useMemo(() => {
+    if (!baseSize) return [1, 1, 1]
+    if (!uniform && sizeMm) return sizeMm.map((v, i) => v / (baseSize[i] || 1))
+    return Array(3).fill(longestMm / (Math.max(...baseSize) || 1))
+  }, [baseSize, uniform, sizeMm, longestMm])
+
+  /**
+   * The model's own transform: face it down, then scale in that frame.
+   *
+   * A non-uniform scale and a rotation do not commute, so the order is not free
+   * to change -- the scale has to happen in the frame whose axes the labels
+   * name.
+   */
+  const modelMatrix = useMemo(() => {
+    const m = new THREE.Matrix4().makeRotationFromQuaternion(
+      new THREE.Quaternion(...base))
+    return m.premultiply(new THREE.Matrix4().makeScale(...factors))
+  }, [base, factors])
+
+  /**
+   * Where one part actually ends up: the model's pose, then that part's own.
+   *
+   * Handed to the viewer and to the writer both, so what is drawn and what is
+   * written cannot drift apart.
+   */
+  const matrixFor = useCallback((part) => {
+    const m = modelMatrix.clone()
+    if (!sameOrientation(part.spin, IDENTITY)) {
+      m.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(
+        new THREE.Quaternion(...part.spin)))
+    }
+    if (part.yaw) {
+      m.premultiply(new THREE.Matrix4().makeRotationZ(
+        THREE.MathUtils.degToRad(part.yaw)))
     }
     return m
-  }, [base, yawDeg, longestMm, sizeMm, uniform, nativeSize])
+  }, [modelMatrix])
 
-  useEffect(() => { setWritten(null) }, [shared, parts, plateCount, printerId, material])
+  useEffect(() => { setWritten(null) },
+    [modelMatrix, parts, plateCount, printerId, material])
 
   const onPlate = useMemo(
     () => parts.filter((p) => p.plate === activePlate), [parts, activePlate])
+  const selected = useMemo(
+    () => parts.find((p) => p.id === selectedId) || null, [parts, selectedId])
+
+  // Size in millimetres, along the bed's axes. The scale is axis-aligned in the
+  // base frame, so this is exact rather than a re-measurement -- and with the
+  // axes unlocked it hands the slider values straight back, which is the point.
+  const measured = useMemo(
+    () => (baseSize ? baseSize.map((v, i) => v * factors[i]) : null),
+    [baseSize, factors])
 
   async function onFile(file) {
     if (!file) return
@@ -118,13 +184,11 @@ export default function LocalApp() {
       const size = geometry.boundingBox.getSize(new THREE.Vector3())
       const [bx, by] = printer.bed_mm
 
-      setParts([{
-        id: nextId++, geometry, name: file.name, plate: 0, x: bx / 2, y: by / 2,
-      }])
-      setNativeSize([size.x, size.y, size.z])
+      setParts([freshPart(geometry, file.name, bx / 2, by / 2)])
       setPlateCount(1); setActivePlate(0); setSelectedId(null)
+      setBeforeSplit(null)
       setName(file.name.replace(/\.[^.]+$/, ''))
-      setBase(IDENTITY); setYawDeg(0); setUniform(true); setSizeMm(null)
+      setBase(IDENTITY); setUniform(true); setSizeMm(null)
       setLongestMm(Math.round(Math.max(size.x, size.y, size.z)) || 80)
     } catch (e) {
       console.error(e)
@@ -134,36 +198,68 @@ export default function LocalApp() {
     } finally { setBusy('') }
   }
 
-  function onSplit() {
-    setError(''); setNote('')
+  /**
+   * Lay a list of parts out, and say where they went.
+   *
+   * Everything that changes how many parts there are comes through here, so a
+   * split never leaves a heap of pieces stacked on one spot -- which is what it
+   * used to do, and which looked exactly like the split having failed.
+   */
+  function layOut(list, lead) {
+    const { placements, plateCount: needed, tooBig } =
+      arrange(list, printer, matrixFor)
+    const byId = new Map(placements.map((p) => [p.id, p]))
+    setParts(list.map((p) => ({ ...p, ...byId.get(p.id) })))
+    setPlateCount(needed)
+    setActivePlate(0)
+    setSelectedId(null)
+
+    const where = `${lead || 'Laid out'} across ${needed} plate${needed > 1 ? 's' : ''}.`
+    setNote(tooBig.length
+      ? `${where} ${tooBig.length} part${tooBig.length > 1 ? 's are' : ' is'} too big for the bed on its own - make it smaller, or turn it onto a different face.`
+      : `${where} Tap a part to turn just that one, or drag it about.`)
+  }
+
+  function runSplit() {
     try {
       const pieces = []
       for (const part of parts) {
         const split = splitParts(part.geometry)
         if (!split) { pieces.push(part); continue }
-        for (const [i, geometry] of split.entries()) {
-          pieces.push({ ...part, id: nextId++, geometry,
-                        name: `${part.name} (${i + 1})` })
-        }
+        for (const geometry of split) pieces.push({ ...part, id: nextId++, geometry })
       }
       if (pieces.length === parts.length) {
         setNote('That model is one connected piece - there is nothing to split.')
         return
       }
-      setParts(pieces)
-      setNote(`Split into ${pieces.length} parts. Arrange them, or drag them about.`)
-    } catch (e) { setError(e.message) }
+      // Renumbered as a set so the labels match what is on screen. Biggest
+      // first, because splitParts has already ordered them that way.
+      const named = pieces.map((p, i) => ({ ...p, name: `Part ${i + 1}` }))
+      setBeforeSplit(parts)
+      layOut(named, `Split into ${named.length} parts, laid out`)
+    } catch (e) {
+      setError(e.message)
+    } finally { setBusy('') }
   }
 
-  function onArrange(list = parts) {
-    const { placements, plateCount: needed, tooBig } = arrange(list, printer, shared)
-    const byId = new Map(placements.map((p) => [p.id, p]))
-    setParts(list.map((p) => ({ ...p, ...byId.get(p.id) })))
-    setPlateCount(needed)
-    setActivePlate(0)
-    setNote(tooBig.length
-      ? `${tooBig.length} part${tooBig.length > 1 ? 's are' : ' is'} bigger than the bed on its own - make it smaller or cut it up.`
-      : `Laid out across ${needed} plate${needed > 1 ? 's' : ''}.`)
+  function onSplit() {
+    setError(''); setNote('')
+    setBusy('Splitting it up...')
+    // Union-find over a big mesh blocks the thread for a beat, so the label
+    // wants a chance to paint first. A timer, not requestAnimationFrame: a tab
+    // that is not compositing -- backgrounded, or the preview pane here --
+    // never runs the callback at all, and the button sticks on "Splitting it
+    // up..." with the whole panel disabled behind it. A timer always fires, and
+    // the worst it costs is the label appearing a frame late.
+    setTimeout(runSplit, 32)
+  }
+
+  function undoSplit() {
+    if (!beforeSplit) return
+    setParts(beforeSplit)
+    setPlateCount(Math.max(1, ...beforeSplit.map((p) => p.plate + 1)))
+    setActivePlate(0); setSelectedId(null); setBeforeSplit(null)
+    setNote('Put back together.')
   }
 
   const onMove = useCallback((id, x, y) => {
@@ -176,6 +272,44 @@ export default function LocalApp() {
       p.id === id ? { ...p, plate, x: bx / 2, y: by / 2 } : p)))
     setActivePlate(plate)
   }
+
+  // --- turning --------------------------------------------------------------
+  //
+  // With a part picked, these turn that part. With nothing picked they turn the
+  // model, which is what a one-piece file wants and is also the only way to keep
+  // the size frame meaning anything: `base` is what Across, Deep and Tall are
+  // measured along, so it has to stay a property of the whole model.
+
+  function tip(axis, deg) {
+    if (selected) {
+      setParts((list) => list.map((p) => (
+        p.id === selected.id ? { ...p, spin: turn(p.spin, axis, deg) } : p)))
+    } else {
+      setBase((b) => turn(b, axis, deg))
+    }
+  }
+
+  function setYaw(deg) {
+    setParts((list) => list.map((p) => (
+      !selected || p.id === selected.id ? { ...p, yaw: deg } : p)))
+  }
+
+  function straighten() {
+    if (selected) {
+      setParts((list) => list.map((p) => (
+        p.id === selected.id ? { ...p, spin: IDENTITY, yaw: 0 } : p)))
+      return
+    }
+    setBase(IDENTITY)
+    setParts((list) => list.map((p) => ({ ...p, spin: IDENTITY, yaw: 0 })))
+  }
+
+  const yawValue = selected
+    ? selected.yaw
+    : (parts.every((p) => p.yaw === parts[0]?.yaw) ? (parts[0]?.yaw ?? 0) : 0)
+  const turned = selected
+    ? !straight(selected)
+    : !sameOrientation(base, IDENTITY) || parts.some((p) => !straight(p))
 
   function build() {
     setBusy('Writing the file...')
@@ -190,7 +324,7 @@ export default function LocalApp() {
         plates.push({
           objects: here.map((part) => {
             const geometry = part.geometry.clone()
-            geometry.applyMatrix4(shared)
+            geometry.applyMatrix4(matrixFor(part))
             geometry.computeBoundingBox()
             const box = geometry.boundingBox
             const centre = box.getCenter(new THREE.Vector3())
@@ -216,7 +350,11 @@ export default function LocalApp() {
       })
       setWritten({
         url: URL.createObjectURL(new Blob([zip], { type: 'model/3mf' })),
-        fileName: `${name}-${Math.round(longestMm)}mm.3mf`,
+        // The size it actually is, not the slider that happens to be showing.
+        // With the axes unlocked `longestMm` is whatever it was before they
+        // were unlocked, and a file called 200mm holding a 400 mm model is a
+        // lie the user only finds out about on the plate.
+        fileName: `${name}-${Math.round(Math.max(...(measured || [longestMm])))}mm.3mf`,
         bytes: zip.length,
         plates: plates.length,
         objects: plates.reduce((n, p) => n + p.objects.length, 0),
@@ -227,23 +365,12 @@ export default function LocalApp() {
     } finally { setBusy('') }
   }
 
-  // Everything the sliders need to know about the current, shared pose.
-  const measured = useMemo(() => {
-    if (!parts.length) return null
-    const box = new THREE.Box3()
-    for (const part of parts) {
-      box.union(footprint(part.geometry, shared).box)
-    }
-    const size = box.getSize(new THREE.Vector3())
-    return [size.x, size.y, size.z]
-  }, [parts, shared])
-
   function unlockAxes(next) {
     setUniform(next)
     if (!next) {
-      const scale = nativeSize ? longestMm / (Math.max(...nativeSize) || 1) : 1
-      setSizeMm((nativeSize || [50, 50, 50])
-        .map((v) => Math.max(1, Math.round(v * scale))))
+      // Hand over the size it is now, so unticking the box changes nothing on
+      // its own and the sliders start where the model already is.
+      setSizeMm((measured || [50, 50, 50]).map((v) => Math.max(1, Math.round(v))))
       return
     }
     if (sizeMm) setLongestMm(Math.max(1, Math.round(Math.max(...sizeMm))))
@@ -287,7 +414,7 @@ export default function LocalApp() {
         bed={printer.bed_mm}
         height={printer.height_mm}
         colour={colour}
-        matrix={shared}
+        matrixFor={matrixFor}
         selectedId={selectedId}
         onSelect={setSelectedId}
         onMove={onMove}
@@ -300,7 +427,9 @@ export default function LocalApp() {
           <span className="wordmark">on your device</span>
         </header>
         <div className="row">
-          <button className="link" onClick={() => { setParts([]); setWritten(null) }}>
+          <button className="link" onClick={() => {
+            setParts([]); setWritten(null); setBeforeSplit(null); setNote('')
+          }}>
             Start over
           </button>
           <span className="hint">
@@ -319,7 +448,7 @@ export default function LocalApp() {
                 <button
                   key={i}
                   className={i === activePlate ? 'tick on' : 'tick'}
-                  onClick={() => setActivePlate(i)}
+                  onClick={() => { setActivePlate(i); setSelectedId(null) }}
                 >
                   Plate {i + 1}
                   <em>{count ? ` ${count}` : ' empty'}</em>
@@ -327,7 +456,9 @@ export default function LocalApp() {
               )
             })}
             <button className="tick" onClick={() => {
-              setPlateCount((n) => n + 1); setActivePlate(plateCount)
+              setPlateCount((n) => n + 1)
+              setActivePlate(plateCount)
+              setSelectedId(null)
             }}>
               + Add
             </button>
@@ -344,27 +475,36 @@ export default function LocalApp() {
         <div className="field">
           <span>
             On this plate
-            <em>{onPlate.length ? 'tap one, then drag it' : ''}</em>
+            <em>{onPlate.length ? ' tap one to turn just that part' : ''}</em>
           </span>
           <div className="ticks">
+            {parts.length > 1 && (
+              <button
+                className={selectedId == null ? 'tick on' : 'tick'}
+                onClick={() => setSelectedId(null)}
+              >
+                Everything
+              </button>
+            )}
             {onPlate.map((part) => (
               <button
                 key={part.id}
                 className={part.id === selectedId ? 'tick on' : 'tick'}
-                onClick={() => setSelectedId(part.id)}
+                onClick={() => setSelectedId(part.id === selectedId ? null : part.id)}
                 title={part.name}
               >
-                {part.name.length > 18 ? `${part.name.slice(0, 17)}…` : part.name}
+                {short(part.name)}
+                <em>{straight(part) ? '' : ' turned'}</em>
               </button>
             ))}
           </div>
-          {selectedId != null && plateCount > 1 && (
+          {selected && plateCount > 1 && (
             <div className="ticks">
               {Array.from({ length: plateCount }, (_, i) => (
                 <button
                   key={i} className="tick"
-                  disabled={parts.find((p) => p.id === selectedId)?.plate === i}
-                  onClick={() => movePartToPlate(selectedId, i)}
+                  disabled={selected.plate === i}
+                  onClick={() => movePartToPlate(selected.id, i)}
                 >
                   Send to {i + 1}
                 </button>
@@ -372,8 +512,13 @@ export default function LocalApp() {
             </div>
           )}
           <div className="nudges">
-            <button onClick={onSplit}>Split into parts</button>
-            <button onClick={() => onArrange()}>Arrange</button>
+            <button onClick={onSplit} disabled={!!busy}>
+              {busy === 'Splitting it up...' ? busy : 'Split into parts'}
+            </button>
+            {beforeSplit && (
+              <button onClick={undoSplit}>Put it back together</button>
+            )}
+            <button onClick={() => layOut(parts)}>Arrange</button>
           </div>
         </div>
 
@@ -427,7 +572,7 @@ export default function LocalApp() {
                   className="tick"
                   onClick={() => {
                     setUniform(true); setSizeMm(null)
-                    setLongestMm(Math.round(Math.max(...(nativeSize || [80]))))
+                    setLongestMm(Math.round(Math.max(...(baseSize || [80]))))
                   }}
                 >
                   Original size
@@ -440,8 +585,8 @@ export default function LocalApp() {
                 <label key={label} className="axis">
                   <span>{label}<em>{Math.round(sizeMm?.[i] ?? 0)} mm</em></span>
                   <input
-                    type="range" min="1" max="400"
-                    value={Math.round(sizeMm?.[i] ?? 0)}
+                    type="range" min="1" max={ceiling}
+                    value={Math.min(Math.round(sizeMm?.[i] ?? 0), ceiling)}
                     onChange={(e) => setSizeMm((v) => {
                       const next = [...(v || [0, 0, 0])]
                       next[i] = Number(e.target.value)
@@ -460,28 +605,50 @@ export default function LocalApp() {
             />
             <span>Keep its shape</span>
           </label>
+          {!uniform && (
+            <p className="reason">
+              Across, deep and tall are the bed&rsquo;s own directions, so they
+              follow the model when you turn it over.
+            </p>
+          )}
         </div>
 
         {/* --- orientation -------------------------------------------------- */}
         <div className="field">
-          <span>Which way up</span>
+          <span>
+            Which way up
+            <em>
+              {selected
+                ? ` ${short(selected.name)}`
+                : (parts.length > 1 ? ' every part' : '')}
+            </em>
+          </span>
           <div className="nudges">
             {TIPS.map((t) => (
-              <button key={t.label} onClick={() => setBase(turn(base, t.axis, t.deg))}>
+              <button key={t.label} onClick={() => tip(t.axis, t.deg)}>
                 {t.label}
               </button>
             ))}
+            {turned && (
+              <button onClick={straighten}>
+                {selected ? 'Straighten this part' : 'Straighten it up'}
+              </button>
+            )}
           </div>
           <p className="reason">
-            No solver here &mdash; that needs the hosted version. Turn it yourself.
+            No solver here &mdash; that needs the hosted version. Turn it
+            yourself.{' '}
+            {parts.length > 1 && (selected
+              ? 'This turns one part. Tap it again, or Everything, for the lot.'
+              : 'Tap a part above to lay just that one on a different face.')}
           </p>
         </div>
 
         <div className="field">
-          <span>Turn it round<em>{yawDeg}&deg;</em></span>
+          <span>Turn it round<em>{yawValue}&deg;</em></span>
           <input
-            type="range" min="0" max="360" value={yawDeg}
-            onChange={(e) => setYawDeg(Number(e.target.value))}
+            type="range" min="0" max="360" value={yawValue}
+            onChange={(e) => setYaw(Number(e.target.value))}
           />
         </div>
 

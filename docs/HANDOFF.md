@@ -1,7 +1,7 @@
 # Handoff — read this first
 
 **Date:** 2026-08-24 · **Repo:** https://github.com/jjudic1/bambu-print-prep ·
-**Tests:** 282 passing · **Live:** https://bambu-print-prep.vercel.app
+**Tests:** 284 passing · **Live:** https://bambu-print-prep.vercel.app
 
 The spec is [print-prep-service-spec.md](print-prep-service-spec.md). This
 document is the delta: what has been proven, what it cost, and what to do next.
@@ -200,6 +200,12 @@ Three corrections got it here:
 - **Plates are regions of world space.** Stride is **1.2× the bed** and the wrap
   column is **two**. Get it wrong and objects land on no plate and are **silently
   dropped** — the file still opens.
+- **Orientation is per part, size is not, and that asymmetry is deliberate.**
+  `base` is the model's own pose and the frame the size sliders measure in;
+  `spin`/`yaw` are per part on top of it. Scaling per part would make "make it
+  80 mm" meaningless once an assembly has been cut up, and measuring size in any
+  frame but `base` puts Across/Deep/Tall on the wrong axes the moment anything
+  is tipped -- which is what it used to do. `web/parts-check.mjs` pins both.
 - **Vendored profiles decide the output.** OrcaSlicer's tree yields 326 settings
   and an X1C filament for a P1S; Bambu Studio's yields 487 and the right one. The
   accepted file used Bambu Studio's, so that is what `prep/data/profiles` holds.
@@ -214,6 +220,13 @@ Three corrections got it here:
   *everything*. Never add it back.
 - **trimesh exports GLB with no NORMAL attribute**, so a lit material renders flat
   black. `computeVertexNormals()` on load.
+- **Strip every attribute but position before `mergeVertices`.** Loader normals
+  differ across a hard edge, so nothing welds, and the splitter then reports a
+  cube as six separate parts. `readModel` does this; anything feeding it
+  geometry must too.
+- **Never defer work with `requestAnimationFrame`.** A tab that is not
+  compositing -- backgrounded, or the preview pane here -- never runs the
+  callback, so the UI sticks on its busy label forever. Use a timer.
 - **three.js's 3MF loader cannot follow `p:path`**, so it fails on every Bambu
   Studio project file. We use our own reader.
 - **Cloud Run throttles CPU outside request processing.** Work scheduled after the
@@ -252,9 +265,11 @@ Three corrections got it here:
 
 **Known gaps in `/local`:**
 
-- Orientation and size are **shared by all parts**, not per-part.
 - Only the **active plate** gets a true render; the others reuse it.
 - No repair, no analysis, no orientation solver.
+- The split is **connected components only**. It separates an assembly that
+  already comes apart; it cannot *cut* a model that is one piece, which is the
+  other half of "too big for the bed".
 
 **Do not:**
 
