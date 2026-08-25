@@ -11,11 +11,11 @@
 import * as THREE from 'three'
 import { STLLoader } from 'three/addons/loaders/STLLoader.js'
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'
-import { ThreeMFLoader } from 'three/addons/loaders/3MFLoader.js'
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js'
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
 
 import { writePng } from '../make3mf.js'
+import { read3mf } from './read3mf.js'
 
 /** Pull every mesh out of a loaded scene into one geometry. */
 function flatten(object) {
@@ -62,7 +62,9 @@ export async function readModel(file) {
   if (name.endsWith('.stl')) {
     geometry = new STLLoader().parse(buffer)
   } else if (name.endsWith('.3mf')) {
-    geometry = flatten(new ThreeMFLoader().parse(buffer))
+    // Our own reader, not three.js's -- theirs cannot follow the p:path
+    // components that Bambu Studio (and this app) write. See read3mf.js.
+    geometry = read3mf(buffer)
   } else if (name.endsWith('.obj')) {
     geometry = flatten(new OBJLoader().parse(new TextDecoder().decode(buffer)))
   } else if (name.endsWith('.ply')) {
@@ -76,6 +78,13 @@ export async function readModel(file) {
   }
   const indexed = geometry.index ? geometry : mergeVertices(geometry, 1e-5)
   indexed.computeVertexNormals()
+
+  // A file that parses but describes nothing is a real outcome -- an empty
+  // build section, a 3MF of only metadata -- and it should say so rather than
+  // handing an empty plate to the viewer.
+  if (!indexed.getAttribute('position')?.count) {
+    throw new Error('That file has no shape in it we can read.')
+  }
   return indexed
 }
 
