@@ -84,7 +84,13 @@ export default function LocalApp() {
       setYawDeg(0)
       setLongestMm(Math.round(Math.max(size.x, size.y, size.z)) || 80)
     } catch (e) {
-      setError(e.message)
+      // A parser's own words ("Cannot read properties of undefined") tell the
+      // user nothing they can act on. Ours are written for a person; anything
+      // else gets replaced and logged for us instead.
+      console.error(e)
+      setError(/^[A-Z][^:]*: /.test(e.message) || !/[a-z] [a-z]/.test(e.message)
+        ? "We couldn't read that file. Try exporting it again as an STL."
+        : e.message)
     } finally {
       setBusy('')
     }
