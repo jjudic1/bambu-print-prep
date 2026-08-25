@@ -5,6 +5,7 @@ import PlateViewer from './PlateViewer.jsx'
 import printerData from '../data/printers.json'
 import { makeProject3mf } from '../make3mf.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
+import { renderHandoff } from './handoff.js'
 import { plateImages, readModel, toArrays } from './mesh.js'
 import { arrange, footprint, splitParts } from './parts.js'
 import {
@@ -47,12 +48,39 @@ const COLOURS = [
 const mm = (v) => `${Math.round(v)} mm`
 const short = (s) => (s.length > 18 ? `${s.slice(0, 17)}…` : s)
 const straight = (part) => sameOrientation(part.spin, IDENTITY) && !part.yaw
+const resized = (part) => Math.abs((part.scale ?? 1) - 1) > 1e-6
+const untouched = (part) => straight(part) && !resized(part) && part.colour == null
+
+/**
+ * Base64 for a PNG that is about to be inlined into the instructions page.
+ *
+ * Chunked, because spreading a few hundred thousand bytes into
+ * String.fromCharCode as arguments overflows the call stack -- a 512x512 render
+ * is comfortably past it.
+ */
+function toBase64(bytes) {
+  let binary = ''
+  const size = 0x8000
+  for (let i = 0; i < bytes.length; i += size) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + size))
+  }
+  return btoa(binary)
+}
+
+/** Hand back the blob URLs from a previous build, so they do not pile up. */
+function revoke(written) {
+  if (!written) return
+  for (const url of [written.url, written.pictureUrl, written.pageUrl]) {
+    if (url) URL.revokeObjectURL(url)
+  }
+}
 
 let nextId = 1
 
 /** A part as it starts life: on the plate, facing the way it arrived. */
 const freshPart = (geometry, name, x, y) => ({
   id: nextId++, geometry, name, plate: 0, x, y, spin: IDENTITY, yaw: 0,
+  scale: 1, colour: null,       // null: follows the model's colour
 })
 
 export default function LocalApp() {
@@ -148,6 +176,15 @@ export default function LocalApp() {
    */
   const matrixFor = useCallback((part) => {
     const m = modelMatrix.clone()
+    // A part's own resize is deliberately uniform, which is why it can sit
+    // here rather than inside the model's frame: a uniform scale commutes with
+    // rotation, so it means the same thing whichever face the part is on.
+    // Per-axis stretching stays a model-level control, because Across/Deep/Tall
+    // are directions on the bed and a part tipped on its side has its own idea
+    // of which way is across.
+    if (part.scale && part.scale !== 1) {
+      m.premultiply(new THREE.Matrix4().makeScale(part.scale, part.scale, part.scale))
+    }
     if (!sameOrientation(part.spin, IDENTITY)) {
       m.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(
         new THREE.Quaternion(...part.spin)))
@@ -158,6 +195,13 @@ export default function LocalApp() {
     }
     return m
   }, [modelMatrix])
+
+  /** A part's own size on the bed, in millimetres, in its own pose. */
+  const sizeOfPart = useCallback((part) => {
+    const box = footprint(part.geometry, matrixFor(part)).box
+    const size = box.getSize(new THREE.Vector3())
+    return [size.x, size.y, size.z]
+  }, [matrixFor])
 
   useEffect(() => { setWritten(null) },
     [modelMatrix, parts, plateCount, printerId, material])
@@ -304,12 +348,41 @@ export default function LocalApp() {
     setParts((list) => list.map((p) => ({ ...p, spin: IDENTITY, yaw: 0 })))
   }
 
+  /** Paint the selected part, or the whole model when nothing is picked. */
+  function paint(hex) {
+    if (selected) {
+      setParts((list) => list.map((p) => (
+        p.id === selected.id ? { ...p, colour: hex } : p)))
+      return
+    }
+    // Setting the model's colour clears the per-part overrides, because the
+    // alternative -- a swatch that visibly does nothing to five of six parts --
+    // reads as broken rather than as "those are overridden".
+    setColour(hex)
+    setParts((list) => list.map((p) => ({ ...p, colour: null })))
+  }
+
+  /**
+   * Resize one part on its own.
+   *
+   * Measured against the part at scale 1 rather than against its current size,
+   * so dragging the slider does not compound rounding error into a part that
+   * drifts a little smaller every time it is touched.
+   */
+  function resizePart(part, longest) {
+    const unit = Math.max(...sizeOfPart({ ...part, scale: 1 }))
+    if (!(unit > 0)) return
+    setParts((list) => list.map((p) => (
+      p.id === part.id ? { ...p, scale: longest / unit } : p)))
+  }
+
   const yawValue = selected
     ? selected.yaw
     : (parts.every((p) => p.yaw === parts[0]?.yaw) ? (parts[0]?.yaw ?? 0) : 0)
   const turned = selected
     ? !straight(selected)
     : !sameOrientation(base, IDENTITY) || parts.some((p) => !straight(p))
+  const partColour = (part) => part.colour ?? colour
 
   function build() {
     setBusy('Writing the file...')
@@ -340,7 +413,8 @@ export default function LocalApp() {
           // One picture per plate. The viewer shows the active plate, so only
           // that one gets a true render; the rest reuse it rather than shipping
           // a blank, because a container missing members is untested ground.
-          thumbnails: scene ? plateImages(scene.scene, scene.camera, { colour }) : null,
+          // Colour is not passed: the scene already carries it, per part.
+          thumbnails: scene ? plateImages(scene.scene, scene.camera) : null,
         })
       }
       if (!plates.length) throw new Error('There is nothing on any plate yet.')
@@ -348,16 +422,45 @@ export default function LocalApp() {
       const zip = makeProject3mf({
         printer, material, title: `${name}.stl`, plates,
       })
+
+      // The size it actually is, not the slider that happens to be showing.
+      // With the axes unlocked `longestMm` is whatever it was before they were
+      // unlocked, and a file called 200mm holding a 400 mm model is a lie the
+      // user only finds out about on the plate.
+      const longest = Math.round(Math.max(...(measured || [longestMm])))
+      const stem = `${name}-${longest}mm`
+      const sizeText = measured
+        ? `${mm(measured[0])} x ${mm(measured[1])} x ${mm(measured[2])}`
+        : ''
+
+      // Three files that only work together, the same three the hosted app
+      // sends: the model, the picture of it, and the page telling you what to
+      // do with them. The picture is the plate render the container already
+      // carries -- MakerWorld will not accept it as the listing photo, which is
+      // exactly what step 4 of the instructions warns about, but it is what
+      // tells the user at a glance that they built the right thing.
+      const shot = plates[0].thumbnails?.plate || null
+      const page = renderHandoff({
+        modelName: name,
+        fileName: `${stem}.3mf`,
+        printer: printer.model,
+        sizeText,
+        material,
+        preview: shot ? toBase64(shot) : null,
+      })
+
+      revoke(written)
       setWritten({
         url: URL.createObjectURL(new Blob([zip], { type: 'model/3mf' })),
-        // The size it actually is, not the slider that happens to be showing.
-        // With the axes unlocked `longestMm` is whatever it was before they
-        // were unlocked, and a file called 200mm holding a 400 mm model is a
-        // lie the user only finds out about on the plate.
-        fileName: `${name}-${Math.round(Math.max(...(measured || [longestMm])))}mm.3mf`,
+        fileName: `${stem}.3mf`,
         bytes: zip.length,
         plates: plates.length,
         objects: plates.reduce((n, p) => n + p.objects.length, 0),
+        pictureUrl: shot
+          ? URL.createObjectURL(new Blob([shot], { type: 'image/png' })) : null,
+        pictureName: `${stem}.png`,
+        pageUrl: URL.createObjectURL(new Blob([page], { type: 'text/html' })),
+        pageName: `How to print ${name}.html`,
       })
     } catch (e) {
       console.error(e)
@@ -428,6 +531,7 @@ export default function LocalApp() {
         </header>
         <div className="row">
           <button className="link" onClick={() => {
+            revoke(written)
             setParts([]); setWritten(null); setBeforeSplit(null); setNote('')
           }}>
             Start over
@@ -493,8 +597,10 @@ export default function LocalApp() {
                 onClick={() => setSelectedId(part.id === selectedId ? null : part.id)}
                 title={part.name}
               >
+                <i className="dot"
+                   style={{ background: `#${partColour(part).toString(16).padStart(6, '0')}` }} />
                 {short(part.name)}
-                <em>{straight(part) ? '' : ' turned'}</em>
+                <em>{untouched(part) ? '' : ' changed'}</em>
               </button>
             ))}
           </div>
@@ -542,6 +648,43 @@ export default function LocalApp() {
         </label>
 
         {/* --- size -------------------------------------------------------- */}
+        {selected ? (
+          /* One part on its own. Uniform only -- Across/Deep/Tall are the
+             bed's directions, and a part tipped onto its side has its own idea
+             of which way is across, so per-axis stretching stays with the
+             model. */
+          <div className="field">
+            <span>
+              How big<em>{` ${short(selected.name)}`}</em>
+            </span>
+            {(() => {
+              const size = sizeOfPart(selected)
+              const longest = Math.max(...size)
+              return (
+                <>
+                  <div className="hint">
+                    {`${mm(size[0])} x ${mm(size[1])} x ${mm(size[2])}`}
+                  </div>
+                  <input
+                    type="range" min="5" max={ceiling}
+                    value={Math.min(Math.round(longest), ceiling)}
+                    onChange={(e) => resizePart(selected, Number(e.target.value))}
+                  />
+                </>
+              )
+            })()}
+            {resized(selected) && (
+              <button className="link" onClick={() => setParts((list) => list.map(
+                (p) => (p.id === selected.id ? { ...p, scale: 1 } : p)))}>
+                Back to its share of the model
+              </button>
+            )}
+            <p className="reason">
+              This resizes just this part. To resize the whole thing, tap
+              Everything above.
+            </p>
+          </div>
+        ) : (
         <div className="field">
           <span>
             How big
@@ -611,7 +754,14 @@ export default function LocalApp() {
               follow the model when you turn it over.
             </p>
           )}
+          {parts.length > 1 && (
+            <p className="reason">
+              This sizes the whole model. Tap a part above to resize just that
+              one.
+            </p>
+          )}
         </div>
+        )}
 
         {/* --- orientation -------------------------------------------------- */}
         <div className="field">
@@ -653,19 +803,39 @@ export default function LocalApp() {
         </div>
 
         <div className="field">
-          <span>Colour</span>
+          <span>
+            Colour
+            <em>
+              {selected
+                ? ` ${short(selected.name)}`
+                : (parts.length > 1 ? ' every part' : '')}
+            </em>
+          </span>
           <div className="swatches">
-            {COLOURS.map((c) => (
-              <button
-                key={c.name}
-                className={colour === c.hex ? 'swatch on' : 'swatch'}
-                style={{ background: `#${c.hex.toString(16).padStart(6, '0')}` }}
-                onClick={() => setColour(c.hex)}
-                title={c.name}
-                aria-label={c.name}
-              />
-            ))}
+            {COLOURS.map((c) => {
+              const on = selected ? partColour(selected) === c.hex : colour === c.hex
+              return (
+                <button
+                  key={c.name}
+                  className={on ? 'swatch on' : 'swatch'}
+                  style={{ background: `#${c.hex.toString(16).padStart(6, '0')}` }}
+                  onClick={() => paint(c.hex)}
+                  title={c.name}
+                  aria-label={c.name}
+                />
+              )
+            })}
           </div>
+          {selected && selected.colour != null && (
+            <button className="link" onClick={() => setParts((list) => list.map(
+              (p) => (p.id === selected.id ? { ...p, colour: null } : p)))}>
+              Use the same colour as the rest
+            </button>
+          )}
+          <p className="reason">
+            This is what the picture shows. Your printer prints in whatever
+            colour you load into it &mdash; you pick that in Bambu Handy.
+          </p>
         </div>
 
         {note && <p className="reason">{note}</p>}
@@ -679,9 +849,20 @@ export default function LocalApp() {
               {(written.bytes / 1024).toFixed(0)} KB. Written on this device.
             </p>
             <a href={written.url} download={written.fileName}>Save the file</a>
+            <div className="extras">
+              {written.pictureUrl && (
+                <a href={written.pictureUrl} download={written.pictureName}>
+                  Save the picture
+                </a>
+              )}
+              <a href={written.pageUrl} download={written.pageName}>
+                Save the how-to-print page
+              </a>
+            </div>
             <p className="hint">
-              Upload it to MakerWorld as a private model, then print it from
-              Bambu Handy.
+              Save all three into Files. The how-to-print page walks you through
+              MakerWorld and Bambu Handy, step by step &mdash; keep it, it is the
+              same steps every time.
             </p>
             {donationsEnabled() && !hideReminder && (
               <div className="support">
