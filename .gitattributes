@@ -1,0 +1,10 @@
+# Binary files git must not "helpfully" convert line endings in.
+#
+# This machine checks out with CRLF, and without these rules git treats a PDF
+# or a PNG as text: every 0x0A inside the file becomes 0x0D 0x0A on checkout and
+# the file is corrupt. It committed fine, it just cannot be opened again.
+*.pdf   binary
+*.png   binary
+*.3mf   binary
+*.stl   binary
+*.glb   binary

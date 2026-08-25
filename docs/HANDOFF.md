@@ -292,10 +292,12 @@ what capping it costs in accuracy.
 1. **Milestone 6 — a real user test.** Still the only milestone that proves
    anything. Someone non-technical, an iPad, no help. Watch where they stall; fix
    nothing until you have watched it fail once.
-   **The protocol is written: [milestone-6-user-test.md](milestone-6-user-test.md).**
-   It names eight predicted stall points so they get noticed rather than
-   reconstructed afterwards, and two of them are new and deliberate — the
-   three-file output, and colour that is only a picture.
+   **The protocol is written: [milestone-6-user-test.pdf](milestone-6-user-test.pdf)**
+   — five pages, printed and written on, not read off a screen. It names eight
+   predicted stall points so they get noticed rather than reconstructed
+   afterwards, and two of them are new and deliberate — the three-file output,
+   and colour that is only a picture. The words live in
+   [make_user_test_pdf.py](make_user_test_pdf.py); edit there and re-run it.
 2. ~~**Profile `prep/orient.py`.**~~ **Done (2026-08-25)** -- see "What
    profiling found". 2.1x faster, benchmark unmoved, and the 19 s figure turned
    out to be Cloud Run rather than the algorithm. The remaining lever is the
