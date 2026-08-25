@@ -56,8 +56,27 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
 - Printer geometry is resolved from **vendored Bambu Studio profiles** in
   `prep/data/profiles` (not OrcaSlicer's — the two produce different files, and
   the accepted one used Bambu Studio's). Never hard-code a bed size.
+- **The handoff page exists twice too**: `prep/handoff.py` and
+  `web/src/local/handoff.js`, diffed by `tests/test_web_handoff.py`. The copy is
+  not invented — it is the delivery loop someone actually walked — so treat a
+  reworded step as a change to verified evidence, not to prose.
+- **`/local` colour is a picture, not a print instruction.** It reaches the
+  viewer and the plate photo. The container has no RGB and gives every object
+  `extruder="1"`, so the printer uses whatever filament is loaded.
+- **Render targets need `colorSpace: SRGBColorSpace` set explicitly.** three.js
+  applies `outputColorSpace` when drawing to the canvas but not into a render
+  target, so `readRenderTargetPixels` returns linear values and every plate
+  picture came out about half as bright as the viewer next to it. Only the PNG's
+  dimensions were ever asserted, so it went unnoticed.
 - **The writer exists twice**: `prep/write3mf.py` and `web/src/make3mf.js`.
   `tests/test_web3mf.py` diffs them on every run — keep them in step.
+- **`/local` orients per part but sizes as one model.** `base` is the whole
+  model's pose *and* the frame Across/Deep/Tall are measured in; each part
+  carries its own `spin`/`yaw` on top. Measure size in any other frame and
+  the sliders scale the wrong axis the moment anything is tipped.
+  `web/parts-check.mjs` (run by `tests/test_local_parts.py`) checks the
+  split, the poses and the layout by signed volume as well as size — a
+  mirror leaves the bounding box alone.
 
 ## Working rules for this project
 

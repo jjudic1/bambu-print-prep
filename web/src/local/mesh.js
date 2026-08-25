@@ -108,13 +108,21 @@ export function toArrays(geometry) {
  * would also be at whatever size the window happens to be. A render target is
  * exact, works while the tab is hidden, and gives the sizes Bambu writes.
  */
-export function plateImages(scene, camera, { colour = 0x22a45d } = {}) {
+export function plateImages(scene, camera) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setClearColor(0x000000, 0)
 
   const shoot = (px) => {
+    // sRGB on the target's texture, not just on the renderer. three.js applies
+    // outputColorSpace when it draws to the canvas but not when it draws into a
+    // render target, so reading one back gives linear values -- the picture came
+    // out roughly half as bright as the viewer beside it, a 0x101215 background
+    // landing at (1,1,2) and a red part at (97,11,8) instead of (196,68,58).
+    // Nothing asserted on it, because the container only ever checked the PNG's
+    // dimensions.
     const target = new THREE.WebGLRenderTarget(px, px, {
       minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      colorSpace: THREE.SRGBColorSpace,
     })
     renderer.setSize(px, px, false)
     renderer.setRenderTarget(target)

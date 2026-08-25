@@ -87,7 +87,7 @@ export function splitParts(geometry, { maxParts = 64 } = {}) {
   })
 }
 
-/** Footprint of a geometry after the shared rotation and scale. */
+/** Footprint of a geometry under a given pose. */
 export function footprint(geometry, matrix) {
   const box = new THREE.Box3().setFromBufferAttribute(
     geometry.getAttribute('position')).applyMatrix4(matrix)
@@ -107,14 +107,19 @@ export function footprint(geometry, matrix) {
  * A part too big for the bed on its own is placed anyway, on its own plate, and
  * reported. Refusing to place it would leave the user with no way to see the
  * problem.
+ *
+ * `matrixFor` is a function rather than one matrix because parts no longer share
+ * a pose -- each can be tipped onto its own face -- and a part's footprint is
+ * what decides where it fits. Passing one shared matrix would lay out the shapes
+ * the parts used to be.
  */
-export function arrange(parts, printer, matrix, { gap = 6, margin = 8 } = {}) {
+export function arrange(parts, printer, matrixFor, { gap = 6, margin = 8 } = {}) {
   const [bedX, bedY] = printer.bed_mm
   const usableX = bedX - margin * 2
   const usableY = bedY - margin * 2
 
   const measured = parts.map((part) => ({
-    part, ...footprint(part.geometry, matrix),
+    part, ...footprint(part.geometry, matrixFor(part)),
   }))
   const order = [...measured].sort((a, b) => b.depth - a.depth || b.width - a.width)
 
