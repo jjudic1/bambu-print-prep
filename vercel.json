@@ -9,6 +9,13 @@
       "source": "/api/:path*",
       "destination": "https://print-prep-api-23515929262.us-central1.run.app/api/:path*"
     },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/local",
+      "destination": "/local.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
