@@ -13,6 +13,11 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
  *
  * Coordinates are the printer's own -- millimetres, Z up, origin at the front
  * left of the bed -- and a part's x/y is where its centre sits on that bed.
+ *
+ * `matrixFor` gives a part's pose. It is a function, not one shared matrix,
+ * because each part can be tipped onto its own face; every part is still
+ * re-centred on its own footprint and dropped to the plate afterwards, so
+ * turning one part never pushes it through the bed or off the edge.
  */
 
 const UP = new THREE.Vector3(0, 0, 1)
@@ -23,13 +28,13 @@ const TOO_BIG = 0xc4463a
 const SELECTED = 0xffffff
 
 export default function PlateViewer({
-  parts, bed, height, colour = 0x22a45d, selectedId, matrix,
+  parts, bed, height, colour = 0x22a45d, selectedId, matrixFor,
   onSelect, onMove, onReady,
 }) {
   const mount = useRef(null)
   const state = useRef({})
   const live = useRef({})
-  live.current = { parts, bed, height, colour, selectedId, matrix, onSelect, onMove }
+  live.current = { parts, bed, height, colour, selectedId, matrixFor, onSelect, onMove }
 
   // --- scene, once ----------------------------------------------------------
   useEffect(() => {
@@ -204,7 +209,7 @@ export default function PlateViewer({
 
     for (const part of parts) {
       const geometry = part.geometry.clone()
-      geometry.applyMatrix4(matrix)
+      geometry.applyMatrix4(matrixFor(part))
       geometry.computeBoundingBox()
       const box = geometry.boundingBox
       const centre = box.getCenter(new THREE.Vector3())
@@ -230,7 +235,7 @@ export default function PlateViewer({
     }
 
     models.userData.anyTooBig = anyTooBig
-  }, [parts, matrix, colour, selectedId, bed[0], bed[1], height])
+  }, [parts, matrixFor, colour, selectedId, bed[0], bed[1], height])
 
   return <div ref={mount} className="viewer" />
 }
