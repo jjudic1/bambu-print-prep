@@ -222,8 +222,10 @@ export default function PlateViewer({
       const fits = size.x <= bx && size.y <= by && size.z <= height
       if (!fits) anyTooBig = true
 
+      // A part may carry its own colour; `colour` is the model's default.
+      // Too-big still wins, because that is a warning and not a preference.
       const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-        color: fits ? colour : TOO_BIG,
+        color: fits ? (part.colour ?? colour) : TOO_BIG,
         roughness: 0.55,
         metalness: 0.05,
         emissive: part.id === selectedId ? SELECTED : 0x000000,

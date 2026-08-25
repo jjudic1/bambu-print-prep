@@ -40,6 +40,9 @@ const modelMatrixOf = (base, factors) =>
     .premultiply(new THREE.Matrix4().makeScale(...factors))
 const matrixForOf = (modelMatrix) => (part) => {
   const m = modelMatrix.clone()
+  if (part.scale && part.scale !== 1) {
+    m.premultiply(new THREE.Matrix4().makeScale(part.scale, part.scale, part.scale))
+  }
   if (!sameOrientation(part.spin, IDENTITY)) {
     m.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion(...part.spin)))
   }
@@ -128,7 +131,7 @@ check('every piece keeps its winding -- a flipped one would print inside out',
 let id = 1
 const parts = split.map((geometry) => ({
   id: id++, geometry, name: `Part ${id - 1}`, plate: 0, x: 90, y: 90,
-  spin: IDENTITY, yaw: 0,
+  spin: IDENTITY, yaw: 0, scale: 1,
 }))
 
 console.log('\n--- size frame: the bug this fixes ------------------------------')
@@ -168,6 +171,38 @@ console.log('\n--- per-part turning --------------------------------------------
   const spun = { ...laid, yaw: 90 }
   check('yaw on that part spins its footprint, not the others',
     extents(spun.geometry, matrixForOf(model)(spun)), [90, 30, 30])
+}
+
+console.log('\n--- per-part resize ---------------------------------------------')
+{
+  const bs = baseSizeOf(parts, IDENTITY)
+  const f = factorsOf(bs, true, null, Math.max(...bs))
+  const model = modelMatrixOf(IDENTITY, f)
+  const matrixFor = matrixForOf(model)
+
+  const one = parts.find((p) => extents(p.geometry, model)[0] === 100)
+  check('the part is 100 x 40 x 20 to start',
+    extents(one.geometry, matrixFor(one)), [100, 40, 20])
+
+  const half = { ...one, scale: 0.5 }
+  check('halving that part halves every axis of it',
+    extents(half.geometry, matrixFor(half)), [50, 20, 10])
+
+  const others = parts.filter((p) => p.id !== one.id)
+  check('and leaves every other part the size it was',
+    others.map((p) => extents(p.geometry, matrixFor(p))),
+    others.map((p) => extents(p.geometry, model)))
+
+  // A uniform scale commutes with rotation, which is the whole reason it can
+  // live outside the model's frame. If it did not, a tipped part would come out
+  // a different size from the same part upright.
+  const tipped = { ...half, spin: turn(IDENTITY, [1, 0, 0], 90) }
+  check('a resized part is the same size whichever face it is on',
+    extents(tipped.geometry, matrixFor(tipped)).slice().sort((a, b) => a - b),
+    extents(half.geometry, matrixFor(half)).slice().sort((a, b) => a - b))
+
+  const g = half.geometry.clone(); g.applyMatrix4(matrixFor(half))
+  check('resizing never mirrors a part', signedVolume(g) > 0, true)
 }
 
 console.log("\n--- arrange uses each part's own footprint -----------------------")

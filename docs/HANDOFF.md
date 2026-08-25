@@ -1,7 +1,7 @@
 # Handoff — read this first
 
-**Date:** 2026-08-24 · **Repo:** https://github.com/jjudic1/bambu-print-prep ·
-**Tests:** 284 passing · **Live:** https://bambu-print-prep.vercel.app
+**Date:** 2026-08-25 · **Repo:** https://github.com/jjudic1/bambu-print-prep ·
+**Tests:** 289 passing · **Live:** https://bambu-print-prep.vercel.app
 
 The spec is [print-prep-service-spec.md](print-prep-service-spec.md). This
 document is the delta: what has been proven, what it cost, and what to do next.
@@ -183,6 +183,46 @@ Three corrections got it here:
 
 **Re-run the benchmark after any change here.**
 
+### What profiling found (2026-08-25)
+
+The "19 s for a 20k-face mesh" in the old plan pointed at the wrong variable.
+
+- **19 s was Cloud Run, not the algorithm.** The same class of mesh solves in
+  **1.4-5.2 s** on this desktop. Cloud Run is roughly 8x slower and CPU-throttled.
+- **Candidate count drives it, not face count.** A 19k-face AMS mount produced
+  **203 candidates** and took 2.4 s; a 59k-face model produced 72 and took 1.4 s.
+  The hull's facet count is the variable, and the docstring's "~30 candidates"
+  is wrong for anything machined.
+- **Stage one was not doing geometry, it was thrashing a cache.** It copied the
+  mesh and transformed it per candidate, and each transform invalidated
+  trimesh's cache so normals, areas and centroids were re-derived every time.
+  Every stage-one metric depends only on *z after rotation*, which is one dot
+  product with one row of R, and areas are rotation-invariant outright.
+  Rewritten that way: **~8x on stage one.**
+- **Then the bottleneck moved to `_stress_index`** -- up to **96%** of solve(),
+  building shapely polygon hierarchies (2951 `repair_invalid` calls on a pin-art
+  model) to read back one number. Replaced with a contour integral over the
+  triangles crossing the plane, **8-40x faster and equal to 8e-9** -- but only on
+  a watertight mesh, so it falls back to slicing otherwise. About **45%** of the
+  corpus takes the fast path.
+- **Net: 2.1x end to end, and the benchmark did not move** -- 54/60, naive
+  50/60, broke 2, identical to before. Median solve **0.34 s**.
+
+Two traps found on the way, both pre-existing:
+
+- **The 45 degree overhang threshold was a knife edge.** A face at exactly 45
+  degrees is the canonical printable overhang, but rotation moves normals by
+  ~1e-12 and any machined part is full of exact 45 degree chamfers -- one corpus
+  model had **109 faces within 5e-13 of the threshold**, half a percent of its
+  area, landing on whichever side rounding put them. `OVERHANG_EPSILON` now puts
+  them firmly on the printable side.
+- **The obvious shortcut for section area is wrong.** Summing a signed shoelace
+  over trimesh's own section loops is 60-200% out, because those loops are not
+  consistently wound. The orientation has to come from the surface normal.
+
+**Still open:** 203 candidates is the remaining lever and nobody has measured
+what capping it costs in accuracy.
+
 ---
 
 ## Gotchas that cost real time
@@ -252,10 +292,10 @@ Three corrections got it here:
 1. **Milestone 6 — a real user test.** Still the only milestone that proves
    anything. Someone non-technical, an iPad, no help. Watch where they stall; fix
    nothing until you have watched it fail once.
-2. **Profile `prep/orient.py`.** 19 s for a 20k-face mesh is the bottleneck for
-   everything: the user's patience, the Cloud Run bill, and whether the solver
-   could ever run in the browser. It already works on a decimated proxy, so that
-   is slower than it should be.
+2. ~~**Profile `prep/orient.py`.**~~ **Done (2026-08-25)** -- see "What
+   profiling found". 2.1x faster, benchmark unmoved, and the 19 s figure turned
+   out to be Cloud Run rather than the algorithm. The remaining lever is the
+   candidate count.
 3. **Decide what the hosted app is for.** If the on-device page handles
    transport, the server exists only for repair, analysis and orientation. That is
    a product decision, not a cleanup.
@@ -267,6 +307,11 @@ Three corrections got it here:
 
 - Only the **active plate** gets a true render; the others reuse it.
 - No repair, no analysis, no orientation solver.
+- **Colour is a picture, not a print instruction.** Per-part colour reaches the
+  viewer and the plate photo, and nothing else: the container gives every object
+  `extruder="1"` and carries no RGB anywhere. An AMS user who wants parts printed
+  in different filaments needs per-object extruder indices, which nobody has
+  written or tested against Bambu Studio.
 - The split is **connected components only**. It separates an assembly that
   already comes apart; it cannot *cut* a model that is one piece, which is the
   other half of "too big for the bed".
