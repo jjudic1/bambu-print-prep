@@ -46,6 +46,13 @@
             clip-path: inset(100% 0 0 0);
             animation: b-made 13s linear infinite; }
 
+    /* both ends of the throw are a screen taking the colour: the iPad as it
+       lets go, the printer as it arrives. No rings and nothing radiating --
+       a ripple leaving a tablet reads as broadcasting. */
+    .launch { position: absolute; left: 28px; top: 155px; width: 106px; height: 138px;
+              border-radius: 12%; pointer-events: none; opacity: 0;
+              background: radial-gradient(closest-side, rgba(34,164,93,.55), rgba(34,164,93,0));
+              animation: b-launch 13s linear infinite; }
     /* the machine is paint and cannot be relit, so the light comes to it */
     .glow { position: absolute; left: 228px; top: 130px; width: 240px; height: 200px;
             border-radius: 50%; pointer-events: none; opacity: 0;
@@ -103,6 +110,13 @@
       90%       { transform: translate(0, 105px); }
       93%, 100% { transform: translate(0, 0); }
     }
+    @keyframes b-launch {
+      0%,  3.9% { opacity: 0; }
+      5%        { opacity: 1; }
+      9%        { opacity: .5; }
+      12%       { opacity: .75; }
+      20%, 100% { opacity: 0; }
+    }
     @keyframes b-glow {
       0%,  63.9% { opacity: 0; }
       65%        { opacity: 1; }
@@ -118,8 +132,8 @@
 
     /* asked to stop moving things, it holds the last frame: the plane, printed */
     @media (prefers-reduced-motion: reduce) {
-      .fly, .glow, .made, .head, .beam { animation: none; }
-      .fly, .glow { opacity: 0; }
+      .fly, .glow, .launch, .made, .head, .beam { animation: none; }
+      .fly, .glow, .launch { opacity: 0; }
       .made { clip-path: inset(0 0 0 0); }
     }
 
@@ -137,6 +151,7 @@
   <div class="stage">
     <div class="scene">
       <img class="plate" src="scene.jpg" alt="">
+      <div class="launch"></div>
       <img class="part beam" src="beam.webp" alt="">
       <div class="glow"></div>
       <img class="made" src="plane.webp" alt="">
