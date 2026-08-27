@@ -128,6 +128,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 }
 .hint { color: var(--dim); }
 
+/* Whose job is whose: dim, but on screen beside the button that makes the file
+   rather than behind a link nobody opens. */
+.duty { margin: 0; font-size: .8rem; line-height: 1.5; color: var(--dim); }
+.duty b { color: var(--ink); }
+.landing .duty { max-width: 28rem; text-align: center; }
+
 .swatches { display: flex; gap: .45rem; flex-wrap: wrap; }
 .swatch {
   width: 2rem; height: 2rem; border-radius: 50%; cursor: pointer;

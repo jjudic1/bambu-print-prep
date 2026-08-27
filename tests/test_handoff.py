@@ -87,6 +87,32 @@ def test_it_links_only_to_a_url_that_was_actually_visited(page):
     assert links == ["https://makerworld.com"]
 
 
+# --- whose job is whose ------------------------------------------------------
+#
+# Nobody at this end has printed the file, and MakerWorld will not let an
+# unprinted model go public. Both facts belong to the user and both are easy to
+# edit out of a page that is otherwise all encouragement, so they are pinned.
+
+def test_it_says_the_user_has_to_check_the_print_themselves(page):
+    assert "You are the one at the printer" in page
+    assert "Nobody has printed this file" in page
+    assert "yours to check" in page
+
+
+def test_it_puts_damage_to_the_printer_on_the_user(page):
+    assert "Any damage to your printer" in page
+    assert "your responsibility" in page
+
+
+def test_it_says_a_model_may_not_go_public_unprinted(page):
+    # Verified at §A2: MakerWorld refuses a render as the listing photo, and its
+    # terms want the real thing. Publishing without one is a breach, not a
+    # preference -- if that ever changes, change this test and say so here.
+    assert "Keep it private until you have printed it" in page
+    assert "photo of the real thing" in page
+    assert "breaks the terms" in page
+
+
 # --- §6 copy rules ----------------------------------------------------------
 
 BANNED = ["mesh", "manifold", "topology", "normals", "infill",

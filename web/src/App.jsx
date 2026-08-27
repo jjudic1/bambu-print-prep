@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Disclaimer from './disclaimer.jsx'
 import Viewer from './Viewer.jsx'
 import { fileUrl, listPrinters, meshUrl, prepare, uploadAndWait } from './api.js'
 import { IDENTITY, bake, compose, sameOrientation, turn } from './orientation.js'
@@ -245,6 +246,7 @@ export default function App() {
           <span>{busy || 'Choose a model'}</span>
         </label>
         <p className="hint">STL, 3MF, OBJ, GLB or PLY.</p>
+        <Disclaimer short />
         {error && <p className="error">{error}</p>}
 
         {donationsEnabled() && (
@@ -460,6 +462,8 @@ export default function App() {
           </p>
         )}
         {error && <p className="error">{error}</p>}
+
+        <Disclaimer />
 
         {result ? (
           <div className="done">
