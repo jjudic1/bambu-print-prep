@@ -295,6 +295,13 @@ def _report_to_human(ingested, report, repair_log, chosen, flattened, sizing,
         print(f"    how to print it: {instructions.path}")
         print("    send all of these to the iPad together")
 
+    # The two things nothing here can do for the user. The handoff page says it
+    # at length; this is for whoever never opens it.
+    print("  nobody has printed this file yet - watch the first few minutes,")
+    print("  and it is your printer and your responsibility if it goes wrong")
+    print("  keep the model private on MakerWorld until you have printed it")
+    print("  and can show a photo of the real thing - their terms require one")
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

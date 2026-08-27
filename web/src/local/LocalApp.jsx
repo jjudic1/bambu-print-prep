@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 
 import PlateViewer from './PlateViewer.jsx'
+import Disclaimer from '../disclaimer.jsx'
 import printerData from '../data/printers.json'
 import { frameBed } from '../framing.js'
 import { makeProject3mf } from '../make3mf.js'
@@ -508,6 +509,7 @@ export default function LocalApp() {
           <span>{busy || 'Choose a model'}</span>
         </label>
         <p className="hint">STL, 3MF, OBJ or PLY.</p>
+        <Disclaimer short />
         {error && <p className="error">{error}</p>}
         {donationsEnabled() && (
           <p className="support">
@@ -854,6 +856,8 @@ export default function LocalApp() {
 
         {note && <p className="reason">{note}</p>}
         {error && <p className="error">{error}</p>}
+
+        <Disclaimer />
 
         {written ? (
           <div className="done">

@@ -83,6 +83,24 @@ From a shell, the same thing:
 New here? Read [docs/HANDOFF.md](docs/HANDOFF.md) first, then
 [docs/transport-findings.md](docs/transport-findings.md) for the evidence.
 
+## Whose job is whose
+
+The tool prepares a file. It does not print it, and it has never printed it.
+
+- **Checking the print is the user's.** The settings come from Bambu's own
+  profiles, but no one has run this file on their machine. Watch the first few
+  minutes; stop the printer if it looks wrong.
+- **The printer is the user's.** Damage to it, or to anything else, is theirs
+  and not the tool's.
+- **A model may not go public unprinted.** MakerWorld only allows a public
+  listing once you have printed the thing yourself and can show a photo of it;
+  publishing without that breaks their terms of service. Private is fine, and
+  is what the handoff page tells the user to pick (§A2).
+
+Said in three places, because a user who reads one may not see the others: on
+both app screens (`web/src/disclaimer.jsx`), on the page that ships beside the
+file (`prep/handoff.py` and its port), and in the launcher's own output.
+
 ## Layout
 
 | Path | What |

@@ -60,6 +60,29 @@ FALLBACK_ROUTE = (
 )
 
 
+# The two things this tool cannot do for anyone: stand next to the printer, and
+# print the thing before it goes public. Both are the user's, and saying so in
+# the app is not enough -- the page is what they still have in front of them
+# when they are actually at the printer, days later.
+DUTY = (
+    "<b>You are the one at the printer.</b> Nobody has printed this file "
+    "before you. Whether these settings suit your machine is yours to check: "
+    "stay with it for the first few minutes and stop the printer if anything "
+    "does not look right. Any damage to your printer, or to anything else, is "
+    "your responsibility and not this tool's."
+)
+
+# Verified in the A2 run: MakerWorld refuses our render as the listing photo,
+# and its rules ask for the real thing. Publishing something nobody has printed
+# is a breach of their terms, not a matter of taste.
+PUBLISHING = (
+    "<b>Keep it private until you have printed it.</b> MakerWorld only lets a "
+    "model be made public once you have printed it yourself and can show a "
+    "photo of the real thing. Making one public without that photo breaks the "
+    "terms you agreed to when you signed up."
+)
+
+
 # Profile names carry hardware detail the user never chose and cannot act on --
 # "Bambu Lab P1S 0.4 nozzle" is the printer they own plus a fact about it. §6's
 # copy rules want the printer, so drop the rest.
@@ -167,6 +190,9 @@ li b { color: var(--ink); }
 a { color: var(--accent); }
 .note { border-left: 3px solid var(--line); padding: .1rem 0 .1rem 1rem;
         margin: 0 0 2rem 3.1rem; color: var(--dim); font-size: .93rem; }
+.duty { border-left: 3px solid var(--accent); padding: .1rem 0 .1rem 1rem;
+        margin: 0 0 1.4rem; color: var(--dim); font-size: .93rem; }
+.duty b { color: var(--ink); }
 .framing { border-top: 1px solid var(--line); padding-top: 1.4rem;
            color: var(--dim); font-size: .93rem; }
 .framing b { color: var(--ink); }
@@ -205,6 +231,8 @@ def render(*, model_name: str, file_name: str, printer: str,
         + _picture_tag(preview) + "\n" + facts + "\n"
         "<ol>" + steps + "</ol>\n"
         '<p class="note">' + _dashes(FALLBACK_ROUTE) + "</p>\n"
+        '<p class="duty">' + _dashes(DUTY) + "</p>\n"
+        '<p class="duty">' + _dashes(PUBLISHING) + "</p>\n"
         '<p class="framing">' + _dashes(HONEST_FRAMING) + "<br><br>\n"
         "Keep this page. You will want it again next time &mdash; it is the "
         "same steps every time. <b>Prepared " + date.today().isoformat()
