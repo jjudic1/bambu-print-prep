@@ -9,10 +9,15 @@
  * is that it works on the device.
  *
  * The motion is in styles.css next to the rest of the landing. Two clocks
- * there, deliberately: the paper world runs on held frames the way stop-motion
- * does, and the machine runs smooth, because a machine does. Anyone who has
- * asked their device to stop moving things gets the last frame -- the plane,
- * printed -- and nothing moves.
+ * there, deliberately: the paper runs on held frames the way stop-motion does,
+ * and the machines run smooth, because machines do. Anyone who has asked their
+ * device to stop moving things gets the last frame -- the plane, printed -- and
+ * nothing moves.
+ *
+ * Both ends of the throw are a screen lighting up: the iPad pulses and the
+ * plane comes out of it, the printer pulses when the plane arrives. Nothing
+ * radiates out of the iPad, deliberately -- ripples read as broadcasting, and
+ * the whole point of this page is that nothing leaves the device.
  */
 export default function PlaneHero() {
   return (
@@ -23,13 +28,12 @@ export default function PlaneHero() {
         {/* the surface it all stands on */}
         <path className="hero-faint" d="M 90 340 H 1140" />
 
-        {/* the iPad */}
-        <g transform="rotate(-5 244 258)">
-          <rect className="hero-ink" x="196" y="192" width="96" height="132" rx="9" />
-          <rect className="hero-faint" x="204" y="200" width="80" height="116" rx="3" />
-          <circle className="hero-faint" cx="244" cy="196" r="1.6" />
+        {/* the iPad, standing on the line rather than propped on a stand */}
+        <g id="hero-ipad" className="hero-ink">
+          <rect x="196" y="196" width="100" height="144" rx="10" />
+          <rect className="hero-screen" x="205" y="205" width="82" height="126" rx="3" />
+          <circle className="hero-faint" cx="246" cy="200.5" r="1.6" />
         </g>
-        <path className="hero-ink" d="M 286 320 L 304 340" />
 
         {/* the printer: base, plate, column, and the arm that carries the head */}
         <g id="hero-printer" className="hero-ink">
@@ -57,16 +61,6 @@ export default function PlaneHero() {
           <circle className="hero-paper hero-ring" r="14" />
           <circle className="hero-paper hero-ring b" r="14" />
           <circle className="hero-paper hero-ring c" r="14" />
-        </g>
-
-        {/* the hand, drawn around the pinch so the plane's tail sits in it */}
-        <g id="hero-hand">
-          <g className="hero-ink" transform="scale(1.15)">
-            <path d="M -8 -7 L -36 -7 q -9 0 -9 7 q 0 7 9 7 L -8 7 q 7 0 7 -7 q 0 -7 -7 -7 Z" />
-            <path d="M -16 -6 q -5 -11 3 -14 q 9 -3 12 5 q 2 6 -3 8" />
-            <path d="M -45 -3 L -74 15" />
-            <path d="M -43 9 L -70 27" />
-          </g>
         </g>
 
         {/* the plane itself, drawn around its own origin so it can be flown */}

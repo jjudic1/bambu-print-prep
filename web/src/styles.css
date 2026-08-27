@@ -67,76 +67,75 @@ button, select, input { font: inherit; color: inherit; }
 .hero-faint { fill: none; stroke: var(--dim); stroke-width: calc(var(--line-w) * .8); stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
 .hero-paper { fill: none; stroke: var(--accent); stroke-width: calc(var(--line-w) * 1.1); stroke-linecap: round; stroke-linejoin: round; }
 
-#hero-plane, #hero-hand {
+#hero-plane {
   animation-duration: 13s; animation-iteration-count: infinite;
   animation-timing-function: steps(1, end);
 }
-#hero-gantry, #hero-toolhead, #hero-printer, .hero-ring, .hero-printed {
+#hero-gantry, #hero-toolhead, #hero-printer, #hero-ipad, .hero-screen,
+.hero-ring, .hero-printed {
   animation-duration: 13s; animation-iteration-count: infinite;
   animation-timing-function: linear;
 }
 #hero-plane    { animation-name: hero-flight; }
-#hero-hand     { animation-name: hero-reach; }
+#hero-ipad     { animation-name: hero-pulse-ipad; }
+.hero-screen   { animation-name: hero-screen; }
 #hero-printer  { animation-name: hero-pulse; }
 #hero-gantry   { animation-name: hero-gantry; }
 #hero-toolhead { animation-name: hero-sweep; }
 .hero-printed  { animation-name: hero-extrude; stroke-dasharray: 176; stroke-dashoffset: 176; }
 .hero-printed.hero-crease { animation-name: hero-crease; stroke-dasharray: 55; stroke-dashoffset: 55; }
+.hero-screen   { fill: none; stroke: var(--dim); stroke-width: calc(var(--line-w) * .8);
+                 stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
 .hero-ring     { animation-name: hero-ring; opacity: 0; }
 .hero-ring.b   { animation-delay: .2s; }
 .hero-ring.c   { animation-delay: .4s; }
 
-/* Appears above the iPad, is taken, is thrown, flies, is gone. */
+/* The iPad lights up and shoots it out of the screen; it climbs, loops once,
+   and glides the length of the room into the printer. */
 @keyframes hero-flight {
-  0%,   5.9% { opacity: 0; transform: translate(244px, 110px) rotate(-12deg) scale(.5); }
-  6%         { opacity: 1; transform: translate(244px, 110px) rotate(-14deg) scale(.5); }
-  7.5%       { transform: translate(244px, 108px) rotate(-8deg) scale(1.12); }
-  9%         { transform: translate(244px, 110px) rotate(-6deg) scale(1); }
-  11%        { transform: translate(244px, 102px) rotate(-3deg) scale(1); }
-  13%        { transform: translate(244px, 110px) rotate(-7deg) scale(1); }
-  15%        { transform: translate(244px, 104px) rotate(-4deg) scale(1); }
-  18%        { transform: translate(245px, 111px) rotate(-6deg) scale(1); }
-  20%, 22%   { transform: translate(244px, 113px) rotate(-6deg) scale(1); }
-  24%        { transform: translate(226px, 128px) rotate(6deg) scale(1); }
-  26%        { transform: translate(218px, 134px) rotate(11deg) scale(1); }
-  28%        { transform: translate(256px, 120px) rotate(-6deg) scale(1); }
-  30%        { transform: translate(292px, 110px) rotate(-12deg) scale(1); }
-  32%        { transform: translate(350px, 96px)  rotate(-12deg) scale(1); }
-  34%        { transform: translate(410px, 86px)  rotate(-8deg) scale(1); }
-  36%        { transform: translate(462px, 84px)  rotate(-3deg) scale(1); }
-  38%        { transform: translate(500px, 94px)  rotate(-8deg) scale(1); }
-  40%        { transform: translate(540px, 80px)  rotate(-60deg) scale(1); }
-  42%        { transform: translate(576px, 92px)  rotate(-130deg) scale(1); }
-  44%        { transform: translate(590px, 126px) rotate(-200deg) scale(1); }
-  46%        { transform: translate(564px, 152px) rotate(-270deg) scale(1); }
-  48%        { transform: translate(528px, 140px) rotate(-330deg) scale(1); }
-  50%        { transform: translate(522px, 110px) rotate(-366deg) scale(1); }
-  52%        { transform: translate(590px, 104px) rotate(-366deg) scale(1); }
-  54%        { transform: translate(674px, 116px) rotate(-360deg) scale(1); }
-  56%        { transform: translate(760px, 136px) rotate(-356deg) scale(1); }
-  58%        { transform: translate(846px, 160px) rotate(-352deg) scale(1); }
-  59.5%      { transform: translate(908px, 180px) rotate(-348deg) scale(1); }
-  60%        { opacity: 1; transform: translate(930px, 194px) rotate(-346deg) scale(.8); }
-  60.4%, 100% { opacity: 0; transform: translate(930px, 194px) rotate(-346deg) scale(.6); }
+  0%,  12.4% { opacity: 0; transform: translate(246px, 268px) rotate(-20deg) scale(.12); }
+  12.5%      { opacity: 1; transform: translate(246px, 266px) rotate(-24deg) scale(.22); }
+  13.5%      { transform: translate(262px, 246px) rotate(-22deg) scale(.42); }
+  14.5%      { transform: translate(286px, 220px) rotate(-20deg) scale(.66); }
+  15.5%      { transform: translate(316px, 192px) rotate(-18deg) scale(.86); }
+  16.5%      { transform: translate(352px, 166px) rotate(-16deg) scale(1); }
+  18%        { transform: translate(392px, 140px) rotate(-14deg) scale(1); }
+  20%        { transform: translate(430px, 116px) rotate(-10deg) scale(1); }
+  22%        { transform: translate(470px, 100px) rotate(-6deg) scale(1); }
+  24%        { transform: translate(508px, 92px)  rotate(-2deg) scale(1); }
+  26%        { transform: translate(540px, 94px)  rotate(-14deg) scale(1); }
+  28%        { transform: translate(572px, 80px)  rotate(-60deg) scale(1); }
+  30%        { transform: translate(604px, 96px)  rotate(-130deg) scale(1); }
+  32%        { transform: translate(614px, 128px) rotate(-200deg) scale(1); }
+  34%        { transform: translate(588px, 152px) rotate(-270deg) scale(1); }
+  36%        { transform: translate(554px, 142px) rotate(-330deg) scale(1); }
+  38%        { transform: translate(548px, 114px) rotate(-366deg) scale(1); }
+  40%        { transform: translate(592px, 104px) rotate(-368deg) scale(1); }
+  43%        { transform: translate(660px, 110px) rotate(-362deg) scale(1); }
+  46%        { transform: translate(724px, 124px) rotate(-358deg) scale(1); }
+  49%        { transform: translate(786px, 140px) rotate(-356deg) scale(1); }
+  52%        { transform: translate(846px, 158px) rotate(-352deg) scale(1); }
+  55%        { transform: translate(890px, 174px) rotate(-350deg) scale(1); }
+  58%        { transform: translate(920px, 188px) rotate(-348deg) scale(1); }
+  59.5%      { opacity: 1; transform: translate(930px, 194px) rotate(-346deg) scale(.8); }
+  60%, 100%  { opacity: 0; transform: translate(930px, 194px) rotate(-346deg) scale(.6); }
 }
 
-/* Up from below, pinch, wind, throw, gone. Its origin is the pinch itself, so
-   the plane's tail sits between finger and thumb. */
-@keyframes hero-reach {
-  0%,  13.9% { transform: translate(150px, 420px) rotate(0deg); }
-  14%        { transform: translate(170px, 390px) rotate(-4deg); }
-  16%        { transform: translate(190px, 300px) rotate(-6deg); }
-  18%        { transform: translate(204px, 200px) rotate(-8deg); }
-  20%        { transform: translate(212px, 140px) rotate(-10deg); }
-  22%        { transform: translate(216px, 116px) rotate(-8deg); }
-  24%        { transform: translate(198px, 134px) rotate(4deg); }
-  26%        { transform: translate(190px, 140px) rotate(9deg); }
-  28%        { transform: translate(228px, 124px) rotate(-8deg); }
-  30%        { transform: translate(264px, 112px) rotate(-14deg); }
-  32%        { transform: translate(240px, 170px) rotate(-6deg); }
-  34%        { transform: translate(210px, 260px) rotate(-2deg); }
-  36%        { transform: translate(176px, 350px) rotate(0deg); }
-  38%, 100%  { transform: translate(150px, 420px) rotate(0deg); }
+/* The screen wakes, then hands the plane over. Nothing radiates out of it:
+   ripples read as broadcasting, and nothing here leaves the device. */
+@keyframes hero-pulse-ipad {
+  0%,   8%   { stroke: var(--ink); stroke-width: var(--line-w); }
+  9.5%       { stroke: var(--accent); stroke-width: var(--line-w-fat); }
+  11%        { stroke: var(--accent); stroke-width: calc(var(--line-w) * 1.1); }
+  12.5%      { stroke: var(--accent); stroke-width: calc(var(--line-w-fat) * .9); }
+  16%        { stroke: var(--accent); stroke-width: var(--line-w); }
+  19%, 100%  { stroke: var(--ink); stroke-width: var(--line-w); }
+}
+@keyframes hero-screen {
+  0%,   8%   { stroke: var(--dim); opacity: .55; }
+  10%        { stroke: var(--accent); opacity: .95; }
+  13%        { stroke: var(--accent); opacity: .7; }
+  17%, 100%  { stroke: var(--dim); opacity: .55; }
 }
 
 /* It lands: the printer takes the colour for a moment. */
@@ -190,9 +189,9 @@ button, select, input { font: inherit; color: inherit; }
 
 /* Asked to stop moving things, it holds the last frame: the plane, printed. */
 @media (prefers-reduced-motion: reduce) {
-  #hero-plane, #hero-hand, #hero-printer, #hero-gantry, #hero-toolhead,
-  .hero-ring, .hero-printed { animation: none; }
-  #hero-plane, #hero-hand, .hero-ring { opacity: 0; }
+  #hero-plane, #hero-ipad, .hero-screen, #hero-printer, #hero-gantry,
+  #hero-toolhead, .hero-ring, .hero-printed { animation: none; }
+  #hero-plane, .hero-ring { opacity: 0; }
   .hero-printed { stroke-dashoffset: 0; }
   #hero-gantry { transform: translateY(31px); }
 }
