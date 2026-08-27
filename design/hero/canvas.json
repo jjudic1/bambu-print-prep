@@ -1,0 +1,24 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "The design" },
+    { "id": "page-2", "name": "Not chosen" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Landing screen", "page": "page-1", "x": 0, "y": 0, "w": 620, "h": 780 },
+    { "file": "ApproachA.dc.html", "title": "A - Layered sprites", "page": "page-2", "x": 0, "y": 0, "w": 620, "h": 780 },
+    { "file": "ApproachC.dc.html", "title": "C - Frame sequence", "page": "page-2", "x": 720, "y": 0, "w": 620, "h": 780 }
+  ],
+  "annotations": [
+    {
+      "id": "the-design",
+      "x": 700, "y": 0, "w": 420, "page": "page-1",
+      "text": "THE PRINTER\n\nA cantilever machine: one vertical column on the right, the arm reaching left off it, a chunky print head, and a small square textured plate on a wide flat base, with a filament spool on its own holder. No enclosure, no cube.\n\nI drew the shape rather than the brand - there is no logo or wordmark on it, which is deliberate. The build plate is empty in the painting, so the printed plane arrives on bare metal.\n\nTHE SEQUENCE\n\n1. The plane sits on the iPad's screen, the model waiting to be made.\n2. It lifts off the screen, rises and levels out.\n3. It hovers, dips, then arcs across the empty top of the frame.\n4. It drops in past the parked head and lands on the plate.\n5. The beam carries the head down to the plate and the head runs back and forth, the stroke shortening as the piece fills in.\n6. The plane grows up off the plate a layer at a time, and the head parks again.\n\nHOW THE HEAD MOVES\n\nThe head and its beam were cut out of the painting and are laid back over it as their own pieces - that is the only way either can move, since everything else here is baked pixels. The hole left behind was filled with the wall's own colour and the rail redrawn full width with a capped end, so the beam reads as a finished rail whatever the head is doing.\n\nBecause they came out of this painting rather than a second render, they cannot drift out of style with it.\n\nThe beam takes the drop and the head rides it, which is how a cantilever actually works - the head alone would have detached from the arm.\n\n57 KB of painting and 25 KB of moving parts."
+    },
+    {
+      "id": "not-chosen",
+      "x": 0, "y": -190, "w": 560, "page": "page-2",
+      "text": "KEPT FOR REFERENCE - neither of these is the design.\n\nA kept the whole throw, hand and all, by flying four separate painted objects on the old keyframes. It still has the printer from the first pass, not the cantilever one.\n\nC is the frame sequence, kept because it is the clearest evidence for why we are not doing it: watch the printer change shape, colour and size between frames."
+    }
+  ],
+  "launch": { "view": "canvas", "page": "page-1" }
+}

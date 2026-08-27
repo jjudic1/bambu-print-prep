@@ -52,148 +52,130 @@ button, select, input { font: inherit; color: inherit; }
 .drop input { display: none; }
 .drop span { color: var(--accent); font-weight: 700; }
 
-/* --- the landing animation ------------------------------------------- */
-/* Drawn in web/src/PlaneHero.jsx. It takes the app's own tokens, so it can
-   never drift from the theme, and it runs on two clocks on purpose: the paper
-   world on held frames, the way stop-motion does, and the machine smoothly,
-   because a machine does. */
-.hero { width: 100%; max-width: 34rem; margin-bottom: .25rem; --line-w: 2; --line-w-fat: 3.4; }
-/* A phone gives the scene a third of the width an iPad does, and a 2px line at
-   that scale is a grey suggestion. The weight is a variable so the printer's
-   pulse -- which animates stroke-width -- stays in proportion with it. */
-@media (max-width: 560px) { .hero { --line-w: 2.9; --line-w-fat: 4.6; } }
-.hero svg { display: block; width: 100%; height: auto; }
-.hero-ink   { fill: none; stroke: var(--ink); stroke-width: var(--line-w); stroke-linecap: round; stroke-linejoin: round; }
-.hero-faint { fill: none; stroke: var(--dim); stroke-width: calc(var(--line-w) * .8); stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
-.hero-paper { fill: none; stroke: var(--accent); stroke-width: calc(var(--line-w) * 1.1); stroke-linecap: round; stroke-linejoin: round; }
+/* --- the landing animation -------------------------------------------- */
+/* A painting, not a line drawing: one gouache plate carries the tabletop and
+   only the pieces that must move sit over it -- the plane, and the printer's
+   beam and print head, both cut out of that same painting. See PlaneHero.jsx.
 
-#hero-plane {
-  animation-duration: 13s; animation-iteration-count: infinite;
-  animation-timing-function: steps(1, end);
+   Authored in a 544px space, which is .hero's max-width, and expressed in cqw
+   against it, so 1cqw is 5.44px at full size and the whole scene scales down
+   intact on a phone. Two clocks: the paper world on held frames, the machine
+   smooth, because a machine does. */
+.hero {
+  container-type: inline-size;
+  width: 100%; max-width: 34rem; margin-bottom: .25rem;
 }
-#hero-gantry, #hero-toolhead, #hero-printer, #hero-ipad, .hero-screen,
-.hero-ring, .hero-printed {
-  animation-duration: 13s; animation-iteration-count: infinite;
-  animation-timing-function: linear;
-}
-#hero-plane    { animation-name: hero-flight; }
-#hero-ipad     { animation-name: hero-pulse-ipad; }
-.hero-screen   { animation-name: hero-screen; }
-#hero-printer  { animation-name: hero-pulse; }
-#hero-gantry   { animation-name: hero-gantry; }
-#hero-toolhead { animation-name: hero-sweep; }
-.hero-printed  { animation-name: hero-extrude; stroke-dasharray: 176; stroke-dashoffset: 176; }
-.hero-printed.hero-crease { animation-name: hero-crease; stroke-dasharray: 55; stroke-dashoffset: 55; }
-.hero-screen   { fill: none; stroke: var(--dim); stroke-width: calc(var(--line-w) * .8);
-                 stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
-.hero-ring     { animation-name: hero-ring; opacity: 0; }
-.hero-ring.b   { animation-delay: .2s; }
-.hero-ring.c   { animation-delay: .4s; }
+.hero-stage { position: relative; width: 100%; height: 49.2647cqw;
+              overflow: hidden; border-radius: 10px; }
+.hero-scene { position: absolute; left: 0; top: -9.5588cqw; width: 100%; height: 66.7279cqw; }
+.hero-plate { display: block; width: 100%; height: 100%; }
+.hero-part, .hero-fly, .hero-made { position: absolute; display: block; }
 
-/* The iPad lights up and shoots it out of the screen; it climbs, loops once,
-   and glides the length of the room into the printer. */
-@keyframes hero-flight {
-  0%,  12.4% { opacity: 0; transform: translate(246px, 268px) rotate(-20deg) scale(.12); }
-  12.5%      { opacity: 1; transform: translate(246px, 266px) rotate(-24deg) scale(.22); }
-  13.5%      { transform: translate(262px, 246px) rotate(-22deg) scale(.42); }
-  14.5%      { transform: translate(286px, 220px) rotate(-20deg) scale(.66); }
-  15.5%      { transform: translate(316px, 192px) rotate(-18deg) scale(.86); }
-  16.5%      { transform: translate(352px, 166px) rotate(-16deg) scale(1); }
-  18%        { transform: translate(392px, 140px) rotate(-14deg) scale(1); }
-  20%        { transform: translate(430px, 116px) rotate(-10deg) scale(1); }
-  22%        { transform: translate(470px, 100px) rotate(-6deg) scale(1); }
-  24%        { transform: translate(508px, 92px)  rotate(-2deg) scale(1); }
-  26%        { transform: translate(540px, 94px)  rotate(-14deg) scale(1); }
-  28%        { transform: translate(572px, 80px)  rotate(-60deg) scale(1); }
-  30%        { transform: translate(604px, 96px)  rotate(-130deg) scale(1); }
-  32%        { transform: translate(614px, 128px) rotate(-200deg) scale(1); }
-  34%        { transform: translate(588px, 152px) rotate(-270deg) scale(1); }
-  36%        { transform: translate(554px, 142px) rotate(-330deg) scale(1); }
-  38%        { transform: translate(548px, 114px) rotate(-366deg) scale(1); }
-  40%        { transform: translate(592px, 104px) rotate(-368deg) scale(1); }
-  43%        { transform: translate(660px, 110px) rotate(-362deg) scale(1); }
-  46%        { transform: translate(724px, 124px) rotate(-358deg) scale(1); }
-  49%        { transform: translate(786px, 140px) rotate(-356deg) scale(1); }
-  52%        { transform: translate(846px, 158px) rotate(-352deg) scale(1); }
-  55%        { transform: translate(890px, 174px) rotate(-350deg) scale(1); }
-  58%        { transform: translate(920px, 188px) rotate(-348deg) scale(1); }
-  59.5%      { opacity: 1; transform: translate(930px, 194px) rotate(-346deg) scale(.8); }
-  60%, 100%  { opacity: 0; transform: translate(930px, 194px) rotate(-346deg) scale(.6); }
-}
+/* the beam carries the head, so it takes the Z move and nothing else */
+.hero-beam { left: 55.1471cqw; top: 15.4412cqw; width: 22.7941cqw; height: 6.25cqw;
+             animation: hero-gantry 13s linear infinite; }
+.hero-head { left: 60.8456cqw; top: 11.3971cqw; width: 11.2132cqw; height: 15.0735cqw;
+             animation: hero-head 13s linear infinite; }
 
-/* The screen wakes, then hands the plane over. Nothing radiates out of it:
-   ripples read as broadcasting, and nothing here leaves the device. */
-@keyframes hero-pulse-ipad {
-  0%,   8%   { stroke: var(--ink); stroke-width: var(--line-w); }
-  9.5%       { stroke: var(--accent); stroke-width: var(--line-w-fat); }
-  11%        { stroke: var(--accent); stroke-width: calc(var(--line-w) * 1.1); }
-  12.5%      { stroke: var(--accent); stroke-width: calc(var(--line-w-fat) * .9); }
-  16%        { stroke: var(--accent); stroke-width: var(--line-w); }
-  19%, 100%  { stroke: var(--ink); stroke-width: var(--line-w); }
-}
-@keyframes hero-screen {
-  0%,   8%   { stroke: var(--dim); opacity: .55; }
-  10%        { stroke: var(--accent); opacity: .95; }
-  13%        { stroke: var(--accent); opacity: .7; }
-  17%, 100%  { stroke: var(--dim); opacity: .55; }
+/* the plane: shown on the iPad first, then lifted off it and flown */
+.hero-fly { left: 0; top: 0; height: 5.5147cqw; transform-origin: 50% 50%;
+            animation: hero-fly 13s steps(1, end) infinite; }
+/* and the copy that grows on the plate, which is empty in the painting */
+.hero-made { left: 57.7206cqw; top: 44.1176cqw; height: 4.7794cqw;
+             clip-path: inset(100% 0 0 0);
+             animation: hero-made 13s linear infinite; }
+/* Both ends of the throw are a screen lighting up: this is the iPad's half,
+   over its screen as the plane leaves it. No rings and nothing radiating --
+   a ripple leaving a tablet reads as broadcasting, and the claim this page
+   makes is that nothing leaves the device. */
+.hero-launch { position: absolute; left: 5.1471cqw; top: 28.4926cqw;
+               width: 19.4853cqw; height: 25.3676cqw;
+               border-radius: 12%; pointer-events: none; opacity: 0;
+               background: radial-gradient(closest-side, rgba(34, 164, 93, .55), rgba(34, 164, 93, 0));
+               animation: hero-launch 13s linear infinite; }
+/* the machine is paint and cannot be relit, so the light comes to it */
+.hero-glow { position: absolute; left: 41.9118cqw; top: 23.8971cqw;
+             width: 44.1176cqw; height: 36.7647cqw;
+             border-radius: 50%; pointer-events: none; opacity: 0;
+             background: radial-gradient(closest-side, rgba(34, 164, 93, .5), rgba(34, 164, 93, 0));
+             animation: hero-glow 13s linear infinite; }
+
+/* It sits on the iPad's screen for the first beat, lifts off, hovers, then
+   arcs across the top and drops in past the parked head onto the plate. */
+@keyframes hero-fly {
+  0%, 5%       { transform: translate(9.0074cqw, 38.2353cqw) rotate(7deg) scale(0.9); }
+  7%           { transform: translate(9.9265cqw, 36.0294cqw) rotate(2deg) scale(0.92); }
+  9%           { transform: translate(12.1324cqw, 31.9853cqw) rotate(-4deg) scale(0.96); }
+  11%          { transform: translate(15.4412cqw, 27.2059cqw) rotate(-9deg); }
+  13%          { transform: translate(19.1176cqw, 22.4265cqw) rotate(-11deg); }
+  15%          { transform: translate(22.4265cqw, 19.1176cqw) rotate(-8deg); }
+  17%          { transform: translate(23.8971cqw, 17.6471cqw) rotate(-5deg); }
+  19%          { transform: translate(23.1618cqw, 18.75cqw) rotate(-8deg); }
+  21%          { transform: translate(24.6324cqw, 17.2794cqw) rotate(-4deg); }
+  23%          { transform: translate(23.5294cqw, 18.3824cqw) rotate(-7deg); }
+  25%          { transform: translate(22.0588cqw, 20.5882cqw) rotate(6deg); }
+  28%          { transform: translate(29.0441cqw, 16.9118cqw) rotate(-12deg); }
+  32%          { transform: translate(35.2941cqw, 13.9706cqw) rotate(-11deg); }
+  36%          { transform: translate(40.8088cqw, 12.1324cqw) rotate(-6deg); }
+  40%          { transform: translate(45.5882cqw, 11.7647cqw) rotate(0deg); }
+  44%          { transform: translate(48.8971cqw, 13.6029cqw) rotate(8deg); }
+  48%          { transform: translate(48.5294cqw, 19.1176cqw) rotate(18deg); }
+  52%          { transform: translate(47.7941cqw, 27.2059cqw) rotate(30deg); }
+  56%          { transform: translate(50.7353cqw, 35.6618cqw) rotate(42deg) scale(0.96); }
+  60%          { transform: translate(53.6765cqw, 41.5441cqw) rotate(50deg) scale(0.88); }
+  62%          { opacity: 1; transform: translate(57.7206cqw, 43.3824cqw) rotate(52deg) scale(.8); }
+  62.5%, 100%  { opacity: 0; transform: translate(57.7206cqw, 43.3824cqw) rotate(52deg) scale(.7); }
 }
 
-/* It lands: the printer takes the colour for a moment. */
-@keyframes hero-pulse {
-  0%,  59.9% { stroke: var(--ink); stroke-width: var(--line-w); }
-  60.5%      { stroke: var(--accent); stroke-width: var(--line-w-fat); }
-  64%        { stroke: var(--accent); stroke-width: calc(var(--line-w) * 1.1); }
-  67%        { stroke: var(--accent); stroke-width: calc(var(--line-w-fat) * .88); }
-  73%, 100%  { stroke: var(--ink); stroke-width: var(--line-w); }
-}
-@keyframes hero-ring {
-  0%,  59.9% { opacity: 0; transform: scale(.2); }
-  60%        { opacity: .8; transform: scale(.2); }
-  66%, 100%  { opacity: 0; transform: scale(3.6); }
-}
-
-/* Then it prints it: the arm comes down to the plate, the head runs back and
-   forth, and the same plane draws itself. */
+/* the beam drops to the plate and lifts away again when the piece is done */
 @keyframes hero-gantry {
-  0%,  62%  { transform: translateY(0); }
-  67%       { transform: translateY(38px); }
-  92%       { transform: translateY(31px); }
-  97%, 100% { transform: translateY(0); }
+  0%,  62%     { transform: translateY(0); }
+  65%, 90%     { transform: translateY(19.3015cqw); }
+  93%, 100%    { transform: translateY(0); }
 }
-@keyframes hero-sweep {
-  0%,  67%  { transform: translateX(0); }
-  69%       { transform: translateX(-40px); }
-  71%       { transform: translateX(46px); }
-  73%       { transform: translateX(-40px); }
-  75%       { transform: translateX(46px); }
-  77%       { transform: translateX(-36px); }
-  79%       { transform: translateX(42px); }
-  81%       { transform: translateX(-32px); }
-  83%       { transform: translateX(38px); }
-  85%       { transform: translateX(-26px); }
-  87%       { transform: translateX(34px); }
-  89%       { transform: translateX(-18px); }
-  91%       { transform: translateX(26px); }
-  93%, 100% { transform: translateX(0); }
+/* and the head runs back and forth on it, the stroke shortening as it fills */
+@keyframes hero-head {
+  0%, 62%      { transform: translate(0, 0); }
+  65%          { transform: translate(0, 19.3015cqw); }
+  68%          { transform: translate(-4.5956cqw, 19.3015cqw); }
+  71%          { transform: translate(3.3088cqw, 19.3015cqw); }
+  74%          { transform: translate(-4.0441cqw, 19.3015cqw); }
+  77%          { transform: translate(2.9412cqw, 19.3015cqw); }
+  80%          { transform: translate(-3.3088cqw, 19.3015cqw); }
+  83%          { transform: translate(2.2059cqw, 19.3015cqw); }
+  86%          { transform: translate(-2.5735cqw, 19.3015cqw); }
+  88%          { transform: translate(1.4706cqw, 19.3015cqw); }
+  90%          { transform: translate(0, 19.3015cqw); }
+  93%, 100%    { transform: translate(0, 0); }
 }
-@keyframes hero-extrude {
-  0%,  68%    { stroke-dashoffset: 176; opacity: 1; }
-  91%, 97%    { stroke-dashoffset: 0; opacity: 1; }
-  99.5%, 100% { stroke-dashoffset: 0; opacity: 0; }
+/* the iPad takes the colour as it lets the plane go */
+@keyframes hero-launch {
+  0%,  3.9%    { opacity: 0; }
+  5%           { opacity: 1; }
+  9%           { opacity: .5; }
+  12%          { opacity: .75; }
+  20%, 100%    { opacity: 0; }
 }
-@keyframes hero-crease {
-  0%,  86%    { stroke-dashoffset: 55; opacity: 1; }
-  93%, 97%    { stroke-dashoffset: 0; opacity: 1; }
-  99.5%, 100% { stroke-dashoffset: 0; opacity: 0; }
+/* it lands: the machine takes the colour for a moment */
+@keyframes hero-glow {
+  0%,  63.9%   { opacity: 0; }
+  65%          { opacity: 1; }
+  72%          { opacity: .45; }
+  80%          { opacity: .8; }
+  92%, 100%    { opacity: 0; }
+}
+/* then the plane grows up off the plate, a layer at a time */
+@keyframes hero-made {
+  0%,  66%     { clip-path: inset(100% 0 0 0); opacity: 1; }
+  90%, 97%     { clip-path: inset(0 0 0 0); opacity: 1; }
+  99.5%, 100%  { clip-path: inset(0 0 0 0); opacity: 0; }
 }
 
 /* Asked to stop moving things, it holds the last frame: the plane, printed. */
 @media (prefers-reduced-motion: reduce) {
-  #hero-plane, #hero-ipad, .hero-screen, #hero-printer, #hero-gantry,
-  #hero-toolhead, .hero-ring, .hero-printed { animation: none; }
-  #hero-plane, .hero-ring { opacity: 0; }
-  .hero-printed { stroke-dashoffset: 0; }
-  #hero-gantry { transform: translateY(31px); }
+  .hero-fly, .hero-glow, .hero-launch, .hero-made, .hero-head, .hero-beam { animation: none; }
+  .hero-fly, .hero-glow, .hero-launch { opacity: 0; }
+  .hero-made { clip-path: inset(0 0 0 0); }
 }
 
 /* --- app ------------------------------------------------------------- */
