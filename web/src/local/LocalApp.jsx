@@ -3,6 +3,7 @@ import * as THREE from 'three'
 
 import PlateViewer from './PlateViewer.jsx'
 import printerData from '../data/printers.json'
+import { frameBed } from '../framing.js'
 import { makeProject3mf } from '../make3mf.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import { renderHandoff } from './handoff.js'
@@ -389,6 +390,19 @@ export default function LocalApp() {
     setError('')
     try {
       const scene = sceneRef.current
+
+      // The pictures are square and the viewer is not, so they are shot with a
+      // camera of their own rather than with the one on screen: taking them
+      // through a camera framed for someone's phone would crop the plate to the
+      // shape of their window, and the file has to be the same file whoever
+      // made it.
+      const lens = scene?.camera.clone()
+      if (lens) {
+        lens.aspect = 1
+        lens.updateProjectionMatrix()
+        frameBed(lens, null, printer.bed_mm, printer.height_mm)
+      }
+
       const plates = []
       for (let index = 0; index < plateCount; index++) {
         const here = parts.filter((p) => p.plate === index)
@@ -414,7 +428,7 @@ export default function LocalApp() {
           // that one gets a true render; the rest reuse it rather than shipping
           // a blank, because a container missing members is untested ground.
           // Colour is not passed: the scene already carries it, per part.
-          thumbnails: scene ? plateImages(scene.scene, scene.camera) : null,
+          thumbnails: lens ? plateImages(scene.scene, lens) : null,
         })
       }
       if (!plates.length) throw new Error('There is nothing on any plate yet.')

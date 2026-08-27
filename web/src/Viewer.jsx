@@ -3,6 +3,8 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
+import { frameBed } from './framing.js'
+
 // The scene works in the printer's own frame: millimetres, Z up, origin at the
 // front-left corner of the bed. That is not the three.js default (Y up), and it
 // is deliberate.
@@ -26,6 +28,8 @@ export default function Viewer({ glbUrl, geometry, base, yawDeg, longestMm, size
                                  bed, height, colour = MODEL, onMeasure, onReady }) {
   const mount = useRef(null)
   const state = useRef({})
+  const live = useRef({})
+  live.current = { bed, height }
 
   // --- set the scene up once ------------------------------------------------
   useEffect(() => {
@@ -76,18 +80,37 @@ export default function Viewer({ glbUrl, geometry, base, yawDeg, longestMm, size
     }
     tick()
 
+    // The framing is solved for the shape of the element, not fixed: a phone
+    // leaves a short, wide strip above the controls where a tablet gives a box
+    // nearly square, and one distance cannot fit the bed into both. It stops
+    // being re-solved once the user has moved the camera themselves, so that a
+    // resize -- iOS showing its address bar, say -- does not undo their pinch.
+    // Moved means the camera is no longer where the last framing put it, so a
+    // tap that hits nothing does not count as moving it.
+    const placed = new THREE.Vector3()
+    let moved = false
+    const reframe = () => {
+      moved = false
+      frameBed(camera, controls, live.current.bed, live.current.height)
+      placed.copy(camera.position)
+    }
+    controls.addEventListener('end', () => { moved = !camera.position.equals(placed) })
+
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = el
       if (!w || !h) return
       camera.aspect = w / h
       camera.updateProjectionMatrix()
       renderer.setSize(w, h, false)
+      if (!moved) reframe()
     }
     const observer = new ResizeObserver(resize)
     observer.observe(el)
     resize()
 
-    state.current = { scene, camera, renderer, controls, world, model, stretch, pose }
+    state.current = {
+      scene, camera, renderer, controls, world, model, stretch, pose, reframe,
+    }
 
     return () => {
       cancelAnimationFrame(frame)
@@ -100,7 +123,7 @@ export default function Viewer({ glbUrl, geometry, base, yawDeg, longestMm, size
 
   // --- the bed, redrawn whenever the printer changes ------------------------
   useEffect(() => {
-    const { world, camera, controls } = state.current
+    const { world } = state.current
     if (!world) return
 
     world.clear()
@@ -135,9 +158,9 @@ export default function Viewer({ glbUrl, geometry, base, yawDeg, longestMm, size
     helper.material.opacity = 0.28
     world.add(helper)
 
-    controls.target.set(bx / 2, by / 2, height * 0.18)
-    camera.position.set(bx * 1.35, -by * 0.95, height * 0.95)
-    controls.update()
+    // A new printer is a new bed to look at, so the camera goes back to a view
+    // of the whole of it.
+    state.current.reframe()
   }, [bed[0], bed[1], height])
 
   // --- the model ------------------------------------------------------------

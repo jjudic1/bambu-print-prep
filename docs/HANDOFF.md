@@ -60,6 +60,7 @@ web/           two Vite entries sharing one writer
 | `Prepare for printing.bat` | Drag a model onto it. The original desktop front end. |
 | `web/src/make3mf.js` | The container writer, in JavaScript. Port of `prep/write3mf.py`. |
 | `web/src/local/` | The no-server page: reader, splitter, arranger, plate viewer |
+| `web/src/framing.js` | Where the camera goes, solved from the shape of the viewer |
 | `bench/orient_bench.py` | Orientation solver measured against a real corpus |
 | `spikes/` | Throwaway probes, kept because they document how things were proven |
 | `docs/deploy.md` | Hosting, costs, and what the live deploy measured |
