@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Disclaimer from './disclaimer.jsx'
+import PlaneHero from './PlaneHero.jsx'
 import Viewer from './Viewer.jsx'
+import { BRAND, TAGLINE } from './brand.js'
 import { fileUrl, listPrinters, meshUrl, prepare, uploadAndWait } from './api.js'
 import { IDENTITY, bake, compose, sameOrientation, turn } from './orientation.js'
 import {
@@ -220,8 +222,9 @@ export default function App() {
   if (!job) {
     return (
       <main className="landing">
-        <h1>EZslicer3D</h1>
-        <p className="tagline">3D print&hellip; no computer necessary</p>
+        <PlaneHero />
+        <h1>{BRAND}</h1>
+        <p className="tagline">{TAGLINE}</p>
         <p className="lede">
           Bring a model. We&rsquo;ll work out which way up it goes and how big it
           should be, and hand you a file your printer understands.
@@ -279,7 +282,7 @@ export default function App() {
       <section className="panel">
         <header className="row">
           <strong>{job.name}</strong>
-          <span className="wordmark">EZslicer3D</span>
+          <span className="wordmark">{BRAND}</span>
         </header>
         <div className="row">
           <button className="link" onClick={() => { setJob(null); setResult(null) }}>
