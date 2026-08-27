@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
+import { frameBed } from '../framing.js'
+
 /**
  * One plate, with the parts that sit on it, draggable.
  *
@@ -71,12 +73,28 @@ export default function PlateViewer({
     }
     tick()
 
+    // A phone leaves a short, wide strip above the controls and a tablet a box
+    // nearly square, so the framing is re-solved for whatever shape the element
+    // has -- but only until the user moves the camera themselves. After that,
+    // re-framing on a resize would undo their pinch every time iOS shows or
+    // hides its address bar. Moved means the camera is no longer where the last
+    // framing put it, so tapping a part to select it does not count as moving.
+    const placed = new THREE.Vector3()
+    let moved = false
+    const reframe = () => {
+      moved = false
+      frameBed(camera, controls, live.current.bed, live.current.height)
+      placed.copy(camera.position)
+    }
+    controls.addEventListener('end', () => { moved = !camera.position.equals(placed) })
+
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = el
       if (!w || !h) return
       camera.aspect = w / h
       camera.updateProjectionMatrix()
       renderer.setSize(w, h, false)
+      if (!moved) reframe()
     }
     const observer = new ResizeObserver(resize)
     observer.observe(el)
@@ -148,7 +166,7 @@ export default function PlateViewer({
     renderer.domElement.addEventListener('pointerup', onUp)
     renderer.domElement.addEventListener('pointercancel', onUp)
 
-    state.current = { scene, camera, renderer, controls, world, models }
+    state.current = { scene, camera, renderer, controls, world, models, reframe }
     onReady?.(state.current)
 
     return () => {
@@ -166,7 +184,7 @@ export default function PlateViewer({
 
   // --- the bed --------------------------------------------------------------
   useEffect(() => {
-    const { world, camera, controls } = state.current
+    const { world } = state.current
     if (!world) return
     world.clear()
     const [bx, by] = bed
@@ -193,9 +211,9 @@ export default function PlateViewer({
     helper.material.opacity = 0.28
     world.add(helper)
 
-    controls.target.set(bx / 2, by / 2, height * 0.18)
-    camera.position.set(bx * 1.35, -by * 0.95, height * 0.95)
-    controls.update()
+    // A new printer is a new bed to look at, so the camera goes back to a view
+    // of the whole of it.
+    state.current.reframe()
   }, [bed[0], bed[1], height])
 
   // --- the parts ------------------------------------------------------------

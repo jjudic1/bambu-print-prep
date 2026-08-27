@@ -68,6 +68,19 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   target, so `readRenderTargetPixels` returns linear values and every plate
   picture came out about half as bright as the viewer next to it. Only the PNG's
   dimensions were ever asserted, so it went unnoticed.
+- **The viewer's camera is solved, not placed** (`web/src/framing.js`). A
+  distance fixed to the bed frames it for one shape of window only: narrowing a
+  viewport narrows the horizontal field of view and nothing else, so the plate
+  ran off the sides of a tall window and off the front of a short one. A phone
+  lost it both ways at once. `web/framing-check.mjs` (run by
+  `tests/test_view_framing.py`) projects the bed's corners for every bed against
+  a spread of viewport shapes, and checks the bed fills the frame as well as
+  fits in it -- "fits" is satisfied by standing far enough away.
+- **Size the page in `dvh`, never `vh` or `height: 100%`.** iOS measures both
+  against the screen with the address bar retracted, so a page sized in them is
+  taller than the part you can see -- which is how an iPhone ended up with the
+  controls over four fifths of the screen and the plate a strip at the top,
+  while the same page on an iPad looked right.
 - **The writer exists twice**: `prep/write3mf.py` and `web/src/make3mf.js`.
   `tests/test_web3mf.py` diffs them on every run — keep them in step.
 - **`/local` orients per part but sizes as one model.** `base` is the whole
