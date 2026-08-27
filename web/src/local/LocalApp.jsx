@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 
 import PlateViewer from './PlateViewer.jsx'
+import PlaneHero from '../PlaneHero.jsx'
+import { BRAND, TAGLINE } from '../brand.js'
 import Disclaimer from '../disclaimer.jsx'
 import printerData from '../data/printers.json'
 import { frameBed } from '../framing.js'
@@ -497,8 +499,9 @@ export default function LocalApp() {
   if (!parts.length) {
     return (
       <main className="landing">
-        <h1>EZslicer3D</h1>
-        <p className="tagline">3D print&hellip; no computer necessary</p>
+        <PlaneHero />
+        <h1>{BRAND}</h1>
+        <p className="tagline">{TAGLINE}</p>
         <p className="lede">
           Drop in any model and get one your Bambu printer will take. Too big for
           your bed? Split it and spread it over as many plates as it needs. This

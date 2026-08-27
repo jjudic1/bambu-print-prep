@@ -52,6 +52,151 @@ button, select, input { font: inherit; color: inherit; }
 .drop input { display: none; }
 .drop span { color: var(--accent); font-weight: 700; }
 
+/* --- the landing animation ------------------------------------------- */
+/* Drawn in web/src/PlaneHero.jsx. It takes the app's own tokens, so it can
+   never drift from the theme, and it runs on two clocks on purpose: the paper
+   world on held frames, the way stop-motion does, and the machine smoothly,
+   because a machine does. */
+.hero { width: 100%; max-width: 34rem; margin-bottom: .25rem; --line-w: 2; --line-w-fat: 3.4; }
+/* A phone gives the scene a third of the width an iPad does, and a 2px line at
+   that scale is a grey suggestion. The weight is a variable so the printer's
+   pulse -- which animates stroke-width -- stays in proportion with it. */
+@media (max-width: 560px) { .hero { --line-w: 2.9; --line-w-fat: 4.6; } }
+.hero svg { display: block; width: 100%; height: auto; }
+.hero-ink   { fill: none; stroke: var(--ink); stroke-width: var(--line-w); stroke-linecap: round; stroke-linejoin: round; }
+.hero-faint { fill: none; stroke: var(--dim); stroke-width: calc(var(--line-w) * .8); stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
+.hero-paper { fill: none; stroke: var(--accent); stroke-width: calc(var(--line-w) * 1.1); stroke-linecap: round; stroke-linejoin: round; }
+
+#hero-plane, #hero-hand {
+  animation-duration: 13s; animation-iteration-count: infinite;
+  animation-timing-function: steps(1, end);
+}
+#hero-gantry, #hero-toolhead, #hero-printer, .hero-ring, .hero-printed {
+  animation-duration: 13s; animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+#hero-plane    { animation-name: hero-flight; }
+#hero-hand     { animation-name: hero-reach; }
+#hero-printer  { animation-name: hero-pulse; }
+#hero-gantry   { animation-name: hero-gantry; }
+#hero-toolhead { animation-name: hero-sweep; }
+.hero-printed  { animation-name: hero-extrude; stroke-dasharray: 176; stroke-dashoffset: 176; }
+.hero-printed.hero-crease { animation-name: hero-crease; stroke-dasharray: 55; stroke-dashoffset: 55; }
+.hero-ring     { animation-name: hero-ring; opacity: 0; }
+.hero-ring.b   { animation-delay: .2s; }
+.hero-ring.c   { animation-delay: .4s; }
+
+/* Appears above the iPad, is taken, is thrown, flies, is gone. */
+@keyframes hero-flight {
+  0%,   5.9% { opacity: 0; transform: translate(244px, 110px) rotate(-12deg) scale(.5); }
+  6%         { opacity: 1; transform: translate(244px, 110px) rotate(-14deg) scale(.5); }
+  7.5%       { transform: translate(244px, 108px) rotate(-8deg) scale(1.12); }
+  9%         { transform: translate(244px, 110px) rotate(-6deg) scale(1); }
+  11%        { transform: translate(244px, 102px) rotate(-3deg) scale(1); }
+  13%        { transform: translate(244px, 110px) rotate(-7deg) scale(1); }
+  15%        { transform: translate(244px, 104px) rotate(-4deg) scale(1); }
+  18%        { transform: translate(245px, 111px) rotate(-6deg) scale(1); }
+  20%, 22%   { transform: translate(244px, 113px) rotate(-6deg) scale(1); }
+  24%        { transform: translate(226px, 128px) rotate(6deg) scale(1); }
+  26%        { transform: translate(218px, 134px) rotate(11deg) scale(1); }
+  28%        { transform: translate(256px, 120px) rotate(-6deg) scale(1); }
+  30%        { transform: translate(292px, 110px) rotate(-12deg) scale(1); }
+  32%        { transform: translate(350px, 96px)  rotate(-12deg) scale(1); }
+  34%        { transform: translate(410px, 86px)  rotate(-8deg) scale(1); }
+  36%        { transform: translate(462px, 84px)  rotate(-3deg) scale(1); }
+  38%        { transform: translate(500px, 94px)  rotate(-8deg) scale(1); }
+  40%        { transform: translate(540px, 80px)  rotate(-60deg) scale(1); }
+  42%        { transform: translate(576px, 92px)  rotate(-130deg) scale(1); }
+  44%        { transform: translate(590px, 126px) rotate(-200deg) scale(1); }
+  46%        { transform: translate(564px, 152px) rotate(-270deg) scale(1); }
+  48%        { transform: translate(528px, 140px) rotate(-330deg) scale(1); }
+  50%        { transform: translate(522px, 110px) rotate(-366deg) scale(1); }
+  52%        { transform: translate(590px, 104px) rotate(-366deg) scale(1); }
+  54%        { transform: translate(674px, 116px) rotate(-360deg) scale(1); }
+  56%        { transform: translate(760px, 136px) rotate(-356deg) scale(1); }
+  58%        { transform: translate(846px, 160px) rotate(-352deg) scale(1); }
+  59.5%      { transform: translate(908px, 180px) rotate(-348deg) scale(1); }
+  60%        { opacity: 1; transform: translate(930px, 194px) rotate(-346deg) scale(.8); }
+  60.4%, 100% { opacity: 0; transform: translate(930px, 194px) rotate(-346deg) scale(.6); }
+}
+
+/* Up from below, pinch, wind, throw, gone. Its origin is the pinch itself, so
+   the plane's tail sits between finger and thumb. */
+@keyframes hero-reach {
+  0%,  13.9% { transform: translate(150px, 420px) rotate(0deg); }
+  14%        { transform: translate(170px, 390px) rotate(-4deg); }
+  16%        { transform: translate(190px, 300px) rotate(-6deg); }
+  18%        { transform: translate(204px, 200px) rotate(-8deg); }
+  20%        { transform: translate(212px, 140px) rotate(-10deg); }
+  22%        { transform: translate(216px, 116px) rotate(-8deg); }
+  24%        { transform: translate(198px, 134px) rotate(4deg); }
+  26%        { transform: translate(190px, 140px) rotate(9deg); }
+  28%        { transform: translate(228px, 124px) rotate(-8deg); }
+  30%        { transform: translate(264px, 112px) rotate(-14deg); }
+  32%        { transform: translate(240px, 170px) rotate(-6deg); }
+  34%        { transform: translate(210px, 260px) rotate(-2deg); }
+  36%        { transform: translate(176px, 350px) rotate(0deg); }
+  38%, 100%  { transform: translate(150px, 420px) rotate(0deg); }
+}
+
+/* It lands: the printer takes the colour for a moment. */
+@keyframes hero-pulse {
+  0%,  59.9% { stroke: var(--ink); stroke-width: var(--line-w); }
+  60.5%      { stroke: var(--accent); stroke-width: var(--line-w-fat); }
+  64%        { stroke: var(--accent); stroke-width: calc(var(--line-w) * 1.1); }
+  67%        { stroke: var(--accent); stroke-width: calc(var(--line-w-fat) * .88); }
+  73%, 100%  { stroke: var(--ink); stroke-width: var(--line-w); }
+}
+@keyframes hero-ring {
+  0%,  59.9% { opacity: 0; transform: scale(.2); }
+  60%        { opacity: .8; transform: scale(.2); }
+  66%, 100%  { opacity: 0; transform: scale(3.6); }
+}
+
+/* Then it prints it: the arm comes down to the plate, the head runs back and
+   forth, and the same plane draws itself. */
+@keyframes hero-gantry {
+  0%,  62%  { transform: translateY(0); }
+  67%       { transform: translateY(38px); }
+  92%       { transform: translateY(31px); }
+  97%, 100% { transform: translateY(0); }
+}
+@keyframes hero-sweep {
+  0%,  67%  { transform: translateX(0); }
+  69%       { transform: translateX(-40px); }
+  71%       { transform: translateX(46px); }
+  73%       { transform: translateX(-40px); }
+  75%       { transform: translateX(46px); }
+  77%       { transform: translateX(-36px); }
+  79%       { transform: translateX(42px); }
+  81%       { transform: translateX(-32px); }
+  83%       { transform: translateX(38px); }
+  85%       { transform: translateX(-26px); }
+  87%       { transform: translateX(34px); }
+  89%       { transform: translateX(-18px); }
+  91%       { transform: translateX(26px); }
+  93%, 100% { transform: translateX(0); }
+}
+@keyframes hero-extrude {
+  0%,  68%    { stroke-dashoffset: 176; opacity: 1; }
+  91%, 97%    { stroke-dashoffset: 0; opacity: 1; }
+  99.5%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes hero-crease {
+  0%,  86%    { stroke-dashoffset: 55; opacity: 1; }
+  93%, 97%    { stroke-dashoffset: 0; opacity: 1; }
+  99.5%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+/* Asked to stop moving things, it holds the last frame: the plane, printed. */
+@media (prefers-reduced-motion: reduce) {
+  #hero-plane, #hero-hand, #hero-printer, #hero-gantry, #hero-toolhead,
+  .hero-ring, .hero-printed { animation: none; }
+  #hero-plane, #hero-hand, .hero-ring { opacity: 0; }
+  .hero-printed { stroke-dashoffset: 0; }
+  #hero-gantry { transform: translateY(31px); }
+}
+
 /* --- app ------------------------------------------------------------- */
 /* Two fixed shares rather than "controls take what they need": the panel is
    always taller than a phone screen, so an auto row gave it everything and left
