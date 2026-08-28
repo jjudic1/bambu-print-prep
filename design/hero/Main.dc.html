@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    a { color: #22a45d; } a:hover { color: #1a8049; }
+    .wrap {
+      position: relative;
+      width: 620px; height: 780px; background: #101215; color: #e9ecef;
+      font: 500 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 1rem; padding: 2rem; box-sizing: border-box;
+      text-align: center; overflow: hidden;
+    }
+
+    /* One painted plate, cropped to a hero band. The inner box is the whole
+       painting; the outer one is the window we see it through, so every
+       overlay sits in the painting's own coordinates.
+       The print head and its beam were cut out of the painting and are laid
+       back over it as their own pieces, which is the only way either can move
+       -- everything else here is baked pixels. */
+    .stage { position: relative; width: 544px; height: 268px; overflow: hidden;
+             border-radius: 10px; }
+    .scene { position: absolute; left: 0; top: -52px; width: 544px; height: 363px; }
+    .scene img.plate { display: block; width: 544px; height: 363px; }
+    .scene img.part, .scene .fly, .scene .made { position: absolute; display: block; }
+
+    /* the beam carries the head, so it takes the Z move and nothing else */
+    .beam { left: 300px; top: 84px; width: 124px; height: 34px;
+            animation: b-gantry 13s linear infinite; }
+    .head { left: 331px; top: 62px; width: 61px; height: 82px;
+            animation: b-head 13s linear infinite; }
+
+    /* the plane: shown on the iPad first, then lifted off and flown */
+    .fly { left: 0; top: 0; height: 30px; transform-origin: 50% 50%;
+           animation: b-fly 13s steps(1, end) infinite; }
+
+    /* and the copy that grows on the plate, which is empty in the painting */
+    .made { left: 314px; top: 240px; height: 26px;
+            clip-path: inset(100% 0 0 0);
+            animation: b-made 13s linear infinite; }
+
+    /* both ends of the throw are a screen taking the colour: the iPad as it
+       lets go, the printer as it arrives. No rings and nothing radiating --
+       a ripple leaving a tablet reads as broadcasting. */
+    .launch { position: absolute; left: 28px; top: 155px; width: 106px; height: 138px;
+              border-radius: 12%; pointer-events: none; opacity: 0;
+              background: radial-gradient(closest-side, rgba(34,164,93,.55), rgba(34,164,93,0));
+              animation: b-launch 13s linear infinite; }
+    /* the machine is paint and cannot be relit, so the light comes to it */
+    .glow { position: absolute; left: 228px; top: 130px; width: 240px; height: 200px;
+            border-radius: 50%; pointer-events: none; opacity: 0;
+            background: radial-gradient(closest-side, rgba(34,164,93,.5), rgba(34,164,93,0));
+            animation: b-glow 13s linear infinite; }
+
+    /* Paper world on held frames, the way stop-motion does. It sits on the
+       iPad's screen for the first beat, lifts off it, hovers, then goes. */
+    @keyframes b-fly {
+      0%,  5%  { transform: translate(49px, 208px) rotate(7deg) scale(.9); }
+      7%       { transform: translate(54px, 196px) rotate(2deg) scale(.92); }
+      9%       { transform: translate(66px, 174px) rotate(-4deg) scale(.96); }
+      11%      { transform: translate(84px, 148px) rotate(-9deg) scale(1); }
+      13%      { transform: translate(104px, 122px) rotate(-11deg) scale(1); }
+      15%      { transform: translate(122px, 104px) rotate(-8deg) scale(1); }
+      17%      { transform: translate(130px, 96px) rotate(-5deg) scale(1); }
+      19%      { transform: translate(126px, 102px) rotate(-8deg) scale(1); }
+      21%      { transform: translate(134px, 94px) rotate(-4deg) scale(1); }
+      23%      { transform: translate(128px, 100px) rotate(-7deg) scale(1); }
+      25%      { transform: translate(120px, 112px) rotate(6deg) scale(1); }
+      28%      { transform: translate(158px, 92px) rotate(-12deg) scale(1); }
+      32%      { transform: translate(192px, 76px) rotate(-11deg) scale(1); }
+      36%      { transform: translate(222px, 66px) rotate(-6deg) scale(1); }
+      40%      { transform: translate(248px, 64px) rotate(0deg) scale(1); }
+      44%      { transform: translate(266px, 74px) rotate(8deg) scale(1); }
+      /* down the clear air left of the parked head, never across it */
+      48%      { transform: translate(264px, 104px) rotate(18deg) scale(1); }
+      52%      { transform: translate(260px, 148px) rotate(30deg) scale(1); }
+      56%      { transform: translate(276px, 194px) rotate(42deg) scale(.96); }
+      60%      { transform: translate(292px, 226px) rotate(50deg) scale(.88); }
+      62%      { opacity: 1; transform: translate(314px, 236px) rotate(52deg) scale(.8); }
+      62.5%, 100% { opacity: 0; transform: translate(314px, 236px) rotate(52deg) scale(.7); }
+    }
+
+    /* The machine runs smooth, because a machine does. The beam drops to the
+       plate, the head runs back and forth with the stroke decaying as the
+       piece fills in, then it parks again. */
+    @keyframes b-gantry {
+      0%,  62%  { transform: translateY(0); }
+      65%       { transform: translateY(105px); }
+      90%       { transform: translateY(105px); }
+      93%, 100% { transform: translateY(0); }
+    }
+    @keyframes b-head {
+      0%,  62%  { transform: translate(0, 0); }
+      65%       { transform: translate(0, 105px); }
+      68%       { transform: translate(-25px, 105px); }
+      71%       { transform: translate(18px, 105px); }
+      74%       { transform: translate(-22px, 105px); }
+      77%       { transform: translate(16px, 105px); }
+      80%       { transform: translate(-18px, 105px); }
+      83%       { transform: translate(12px, 105px); }
+      86%       { transform: translate(-14px, 105px); }
+      88%       { transform: translate(8px, 105px); }
+      90%       { transform: translate(0, 105px); }
+      93%, 100% { transform: translate(0, 0); }
+    }
+    @keyframes b-launch {
+      0%,  3.9% { opacity: 0; }
+      5%        { opacity: 1; }
+      9%        { opacity: .5; }
+      12%       { opacity: .75; }
+      20%, 100% { opacity: 0; }
+    }
+    @keyframes b-glow {
+      0%,  63.9% { opacity: 0; }
+      65%        { opacity: 1; }
+      72%        { opacity: .45; }
+      80%        { opacity: .8; }
+      92%, 100%  { opacity: 0; }
+    }
+    @keyframes b-made {
+      0%,  66%    { clip-path: inset(100% 0 0 0); opacity: 1; }
+      90%, 97%    { clip-path: inset(0 0 0 0); opacity: 1; }
+      99.5%, 100% { clip-path: inset(0 0 0 0); opacity: 0; }
+    }
+
+    /* asked to stop moving things, it holds the last frame: the plane, printed */
+    @media (prefers-reduced-motion: reduce) {
+      .fly, .glow, .launch, .made, .head, .beam { animation: none; }
+      .fly, .glow, .launch { opacity: 0; }
+      .made { clip-path: inset(0 0 0 0); }
+    }
+
+    h1 { font-size: 2.4rem; margin: 0; letter-spacing: -.02em; font-weight: 800; }
+    .tagline { margin: .15rem 0 .6rem; color: #22a45d; font-size: .95rem;
+               font-weight: 600; letter-spacing: .01em; }
+    .lede { color: #949ba6; max-width: 28rem; margin: 0; text-wrap: pretty; }
+    .drop { margin-top: 1rem; padding: 2.5rem 3rem; border: 2px dashed #262b33;
+            border-radius: 18px; background: #171a1f; }
+    .drop span { color: #22a45d; font-weight: 700; }
+    .hint { color: #949ba6; font-size: .82rem; margin: .6rem 0 0; }
+  </style>
+</helmet>
+<div class="wrap">
+  <div class="stage">
+    <div class="scene">
+      <img class="plate" src="scene.jpg" alt="">
+      <div class="launch"></div>
+      <img class="part beam" src="beam.webp" alt="">
+      <div class="glow"></div>
+      <img class="made" src="plane.webp" alt="">
+      <img class="part head" src="head.webp" alt="">
+      <img class="fly" src="plane.webp" alt="">
+    </div>
+  </div>
+
+  <h1>Handoff3D</h1>
+  <p class="tagline">3D print&hellip; no computer necessary</p>
+  <p class="lede">
+    Bring a model. We&rsquo;ll work out which way up it goes and how big it
+    should be, and hand you a file your printer understands.
+  </p>
+  <div class="drop"><span>Choose a model</span></div>
+  <p class="hint">STL, 3MF, OBJ, GLB or PLY.</p>
+</div>
+</x-dc>
+</body>
+</html>

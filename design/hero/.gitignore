@@ -1,0 +1,9 @@
+# The generated source art: 36 MB of PNG masters against a 3 MB repo, and
+# everything the site actually serves is derived from them into ../../web/src/hero
+# (and assets/ for the design canvas). Kept locally rather than committed --
+# archive them somewhere if they matter, because regenerating costs API credit.
+masters/
+
+# Seeded design-canvas payload: ~3 MB, rebuilt from the .dc.html files by the
+# design skill's helper whenever it is republished.
+illustrated-hero.html
