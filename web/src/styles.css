@@ -64,12 +64,15 @@ button, select, input { font: inherit; color: inherit; }
 .hero {
   container-type: inline-size;
   width: 100%; max-width: 34rem; margin-bottom: .25rem;
+  /* the length of the flight path in PlaneHero.jsx; measured, not guessed,
+     and the two have to change together */
+  --trail-len: 698;
 }
 .hero-stage { position: relative; width: 100%; height: 49.2647cqw;
               overflow: hidden; border-radius: 10px; }
 .hero-scene { position: absolute; left: 0; top: -9.5588cqw; width: 100%; height: 66.7279cqw; }
 .hero-plate { display: block; width: 100%; height: 100%; }
-.hero-part, .hero-fly, .hero-made { position: absolute; display: block; }
+.hero-part, .hero-made { position: absolute; display: block; }
 
 /* the beam carries the head, so it takes the Z move and nothing else */
 .hero-beam { left: 55.1471cqw; top: 15.4412cqw; width: 22.7941cqw; height: 6.25cqw;
@@ -77,9 +80,17 @@ button, select, input { font: inherit; color: inherit; }
 .hero-head { left: 60.8456cqw; top: 11.3971cqw; width: 11.2132cqw; height: 15.0735cqw;
              animation: hero-head 13s linear infinite; }
 
-/* the plane: shown on the iPad first, then lifted off it and flown */
-.hero-fly { left: 0; top: 0; height: 5.5147cqw; transform-origin: 50% 50%;
-            animation: hero-fly 13s steps(1, end) infinite; }
+/* The air over the painting: the flight and its trail, in the same 544-wide
+   space the scene is authored in, so both scale with the container. */
+.hero-air { position: absolute; inset: 0; width: 100%; height: 100%;
+            overflow: visible; pointer-events: none; }
+.hero-fly { animation: hero-fly 13s linear infinite; }
+.hero-trail { fill: none; stroke: var(--accent); stroke-width: 1.6;
+              stroke-linecap: round; stroke-dasharray: 6 9; opacity: 0;
+              animation: hero-trail-show 13s linear infinite; }
+.hero-trail-reveal { fill: none; stroke: #fff; stroke-width: 20; stroke-linecap: round;
+                     stroke-dasharray: var(--trail-len); stroke-dashoffset: var(--trail-len);
+                     animation: hero-trace 13s linear infinite; }
 /* and the copy that grows on the plate, which is empty in the painting */
 .hero-made { left: 57.7206cqw; top: 44.1176cqw; height: 4.7794cqw;
              clip-path: inset(100% 0 0 0);
@@ -100,34 +111,38 @@ button, select, input { font: inherit; color: inherit; }
              background: radial-gradient(closest-side, rgba(34, 164, 93, .5), rgba(34, 164, 93, 0));
              animation: hero-glow 13s linear infinite; }
 
-/* It sits on the iPad's screen for the first beat, lifts off, hovers, then
-   arcs across the top and drops in past the parked head onto the plate. */
+/* It sits on the iPad's screen for the first beat, lifts off it, hangs for a
+   moment before committing, loops once in the clear air, and comes down past
+   the parked head onto the plate. Distance along the path, not a pose list:
+   the loop was six scattered positions before, which reads as hesitating.
+   The trail below uncovers on exactly these percentages, which is what keeps
+   it under the plane rather than near it. */
 @keyframes hero-fly {
-  0%, 5%       { transform: translate(9.0074cqw, 38.2353cqw) rotate(7deg) scale(0.9); }
-  7%           { transform: translate(9.9265cqw, 36.0294cqw) rotate(2deg) scale(0.92); }
-  9%           { transform: translate(12.1324cqw, 31.9853cqw) rotate(-4deg) scale(0.96); }
-  11%          { transform: translate(15.4412cqw, 27.2059cqw) rotate(-9deg); }
-  13%          { transform: translate(19.1176cqw, 22.4265cqw) rotate(-11deg); }
-  15%          { transform: translate(22.4265cqw, 19.1176cqw) rotate(-8deg); }
-  17%          { transform: translate(23.8971cqw, 17.6471cqw) rotate(-5deg); }
-  19%          { transform: translate(23.1618cqw, 18.75cqw) rotate(-8deg); }
-  21%          { transform: translate(24.6324cqw, 17.2794cqw) rotate(-4deg); }
-  23%          { transform: translate(23.5294cqw, 18.3824cqw) rotate(-7deg); }
-  25%          { transform: translate(22.0588cqw, 20.5882cqw) rotate(6deg); }
-  28%          { transform: translate(29.0441cqw, 16.9118cqw) rotate(-12deg); }
-  32%          { transform: translate(35.2941cqw, 13.9706cqw) rotate(-11deg); }
-  36%          { transform: translate(40.8088cqw, 12.1324cqw) rotate(-6deg); }
-  40%          { transform: translate(45.5882cqw, 11.7647cqw) rotate(0deg); }
-  44%          { transform: translate(48.8971cqw, 13.6029cqw) rotate(8deg); }
-  48%          { transform: translate(48.5294cqw, 19.1176cqw) rotate(18deg); }
-  52%          { transform: translate(47.7941cqw, 27.2059cqw) rotate(30deg); }
-  56%          { transform: translate(50.7353cqw, 35.6618cqw) rotate(42deg) scale(0.96); }
-  60%          { transform: translate(53.6765cqw, 41.5441cqw) rotate(50deg) scale(0.88); }
-  62%          { opacity: 1; transform: translate(57.7206cqw, 43.3824cqw) rotate(52deg) scale(.8); }
-  62.5%, 100%  { opacity: 0; transform: translate(57.7206cqw, 43.3824cqw) rotate(52deg) scale(.7); }
+  0%,   5%    { offset-distance: 0%; opacity: 1; }
+  13%         { offset-distance: 14%; }
+  18%         { offset-distance: 19.5%; }
+  19.5%       { offset-distance: 20.5%; }
+  38%         { offset-distance: 58%; }
+  62%         { offset-distance: 100%; opacity: 1; }
+  62.5%, 100% { offset-distance: 100%; opacity: 0; }
+}
+@keyframes hero-trace {
+  0%,   5%    { stroke-dashoffset: var(--trail-len); }
+  13%         { stroke-dashoffset: calc(var(--trail-len) * .86); }
+  18%         { stroke-dashoffset: calc(var(--trail-len) * .805); }
+  19.5%       { stroke-dashoffset: calc(var(--trail-len) * .795); }
+  38%         { stroke-dashoffset: calc(var(--trail-len) * .42); }
+  62%, 100%   { stroke-dashoffset: 0; }
+}
+/* The trail stays after the plane has gone -- that the thing crossed the room
+   is the point of the picture -- and clears when the print does. */
+@keyframes hero-trail-show {
+  0%,   4.9%  { opacity: 0; }
+  6%          { opacity: .55; }
+  90%         { opacity: .55; }
+  96%, 100%   { opacity: 0; }
 }
 
-/* the beam drops to the plate and lifts away again when the piece is done */
 @keyframes hero-gantry {
   0%,  62%     { transform: translateY(0); }
   65%, 90%     { transform: translateY(19.3015cqw); }
@@ -171,10 +186,28 @@ button, select, input { font: inherit; color: inherit; }
   99.5%, 100%  { clip-path: inset(0 0 0 0); opacity: 0; }
 }
 
+/* Safari before 16 has no motion path, and without one the plane would sit in
+   the corner of the frame it rides. It gets the shape of the flight instead --
+   an arc, no loop, no banking -- and the trail still draws, because that is a
+   dash offset and needs nothing special. */
+@supports not (offset-path: path("M 0 0 L 1 1")) {
+  .hero-fly { animation: hero-fly-flat 13s linear infinite; }
+  @keyframes hero-fly-flat {
+    0%,   5%    { transform: translate(79px, 223px); opacity: 1; }
+    19%         { transform: translate(180px, 150px); }
+    38%         { transform: translate(250px, 120px); }
+    62%         { transform: translate(344px, 251px); opacity: 1; }
+    62.5%, 100% { transform: translate(344px, 251px); opacity: 0; }
+  }
+}
+
 /* Asked to stop moving things, it holds the last frame: the plane, printed. */
 @media (prefers-reduced-motion: reduce) {
-  .hero-fly, .hero-glow, .hero-launch, .hero-made, .hero-head, .hero-beam { animation: none; }
+  .hero-fly, .hero-glow, .hero-launch, .hero-made, .hero-head, .hero-beam,
+  .hero-trail, .hero-trail-reveal { animation: none; }
   .hero-fly, .hero-glow, .hero-launch { opacity: 0; }
+  .hero-trail { opacity: .4; }
+  .hero-trail-reveal { stroke-dashoffset: 0; }
   .hero-made { clip-path: inset(0 0 0 0); }
 }
 
