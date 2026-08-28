@@ -57,7 +57,11 @@ button, select, input { font: inherit; color: inherit; }
    never drift from the theme, and it runs on two clocks on purpose: the paper
    world on held frames, the way stop-motion does, and the machine smoothly,
    because a machine does. */
-.hero { width: 100%; max-width: 34rem; margin-bottom: .25rem; --line-w: 2; --line-w-fat: 3.4; }
+.hero { width: 100%; max-width: 34rem; margin-bottom: .25rem;
+         --line-w: 2; --line-w-fat: 3.4;
+         /* the length of the flight path in PlaneHero.jsx; measured, not
+            guessed, and the two have to change together */
+         --trail-len: 979px; }
 /* A phone gives the scene a third of the width an iPad does, and a 2px line at
    that scale is a grey suggestion. The weight is a variable so the printer's
    pulse -- which animates stroke-width -- stays in proportion with it. */
@@ -67,16 +71,22 @@ button, select, input { font: inherit; color: inherit; }
 .hero-faint { fill: none; stroke: var(--dim); stroke-width: calc(var(--line-w) * .8); stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
 .hero-paper { fill: none; stroke: var(--accent); stroke-width: calc(var(--line-w) * 1.1); stroke-linecap: round; stroke-linejoin: round; }
 
-#hero-plane {
-  animation-duration: 13s; animation-iteration-count: infinite;
-  animation-timing-function: steps(1, end);
-}
 #hero-gantry, #hero-toolhead, #hero-printer, #hero-ipad, .hero-screen,
-.hero-ring, .hero-printed {
+.hero-ring, .hero-printed, .hero-trail, .hero-trail-reveal {
   animation-duration: 13s; animation-iteration-count: infinite;
   animation-timing-function: linear;
 }
-#hero-plane    { animation-name: hero-flight; }
+/* Two animations, two clocks: the plane travels the path smoothly, and pops
+   into existence on held frames as it clears the screen. */
+#hero-plane {
+  animation: hero-fly 13s linear infinite, hero-pop 13s steps(1, end) infinite;
+}
+.hero-trail { fill: none; stroke: var(--accent); stroke-width: calc(var(--line-w) * .55);
+              stroke-linecap: round; stroke-dasharray: 5 9; opacity: 0;
+              animation-name: hero-trail-show; }
+.hero-trail-reveal { fill: none; stroke: #fff; stroke-width: 18; stroke-linecap: round;
+                     stroke-dasharray: var(--trail-len); stroke-dashoffset: var(--trail-len);
+                     animation-name: hero-trace; }
 #hero-ipad     { animation-name: hero-pulse-ipad; }
 .hero-screen   { animation-name: hero-screen; }
 #hero-printer  { animation-name: hero-pulse; }
@@ -90,35 +100,41 @@ button, select, input { font: inherit; color: inherit; }
 .hero-ring.b   { animation-delay: .2s; }
 .hero-ring.c   { animation-delay: .4s; }
 
-/* The iPad lights up and shoots it out of the screen; it climbs, loops once,
-   and glides the length of the room into the printer. */
-@keyframes hero-flight {
-  0%,  12.4% { opacity: 0; transform: translate(246px, 268px) rotate(-20deg) scale(.12); }
-  12.5%      { opacity: 1; transform: translate(246px, 266px) rotate(-24deg) scale(.22); }
-  13.5%      { transform: translate(262px, 246px) rotate(-22deg) scale(.42); }
-  14.5%      { transform: translate(286px, 220px) rotate(-20deg) scale(.66); }
-  15.5%      { transform: translate(316px, 192px) rotate(-18deg) scale(.86); }
-  16.5%      { transform: translate(352px, 166px) rotate(-16deg) scale(1); }
-  18%        { transform: translate(392px, 140px) rotate(-14deg) scale(1); }
-  20%        { transform: translate(430px, 116px) rotate(-10deg) scale(1); }
-  22%        { transform: translate(470px, 100px) rotate(-6deg) scale(1); }
-  24%        { transform: translate(508px, 92px)  rotate(-2deg) scale(1); }
-  26%        { transform: translate(540px, 94px)  rotate(-14deg) scale(1); }
-  28%        { transform: translate(572px, 80px)  rotate(-60deg) scale(1); }
-  30%        { transform: translate(604px, 96px)  rotate(-130deg) scale(1); }
-  32%        { transform: translate(614px, 128px) rotate(-200deg) scale(1); }
-  34%        { transform: translate(588px, 152px) rotate(-270deg) scale(1); }
-  36%        { transform: translate(554px, 142px) rotate(-330deg) scale(1); }
-  38%        { transform: translate(548px, 114px) rotate(-366deg) scale(1); }
-  40%        { transform: translate(592px, 104px) rotate(-368deg) scale(1); }
-  43%        { transform: translate(660px, 110px) rotate(-362deg) scale(1); }
-  46%        { transform: translate(724px, 124px) rotate(-358deg) scale(1); }
-  49%        { transform: translate(786px, 140px) rotate(-356deg) scale(1); }
-  52%        { transform: translate(846px, 158px) rotate(-352deg) scale(1); }
-  55%        { transform: translate(890px, 174px) rotate(-350deg) scale(1); }
-  58%        { transform: translate(920px, 188px) rotate(-348deg) scale(1); }
-  59.5%      { opacity: 1; transform: translate(930px, 194px) rotate(-346deg) scale(.8); }
-  60%, 100%  { opacity: 0; transform: translate(930px, 194px) rotate(-346deg) scale(.6); }
+/* Along the path: a burst out of the screen, then a steady cruise through the
+   loop and down the room. The trail below uncovers on exactly these
+   percentages, which is what keeps it under the plane rather than near it. */
+@keyframes hero-fly {
+  0%,  12.5% { offset-distance: 0%; }
+  14.5%      { offset-distance: 9%; }
+  17%        { offset-distance: 14%; }
+  59.5%      { offset-distance: 100%; }
+  100%       { offset-distance: 100%; }
+}
+@keyframes hero-trace {
+  0%,  12.5% { stroke-dashoffset: var(--trail-len); }
+  14.5%      { stroke-dashoffset: calc(var(--trail-len) * .91); }
+  17%        { stroke-dashoffset: calc(var(--trail-len) * .86); }
+  59.5%      { stroke-dashoffset: 0; }
+  100%       { stroke-dashoffset: 0; }
+}
+/* The trail stays after the plane has gone -- it is the point of the picture,
+   that the thing crossed the room -- and clears with everything else. */
+@keyframes hero-trail-show {
+  0%,  12.4% { opacity: 0; }
+  13%        { opacity: .5; }
+  90%        { opacity: .5; }
+  96%, 100%  { opacity: 0; }
+}
+/* Out of the screen it grows, on held frames, where the stutter is the point. */
+@keyframes hero-pop {
+  0%,  12.4% { opacity: 0; transform: scale(.12); }
+  12.5%      { opacity: 1; transform: scale(.3); }
+  13.2%      { transform: scale(.55); }
+  13.9%      { transform: scale(.8); }
+  14.6%      { transform: scale(1); }
+  59.4%      { opacity: 1; transform: scale(1); }
+  59.5%      { opacity: 1; transform: scale(.8); }
+  60%, 100%  { opacity: 0; transform: scale(.6); }
 }
 
 /* The screen wakes, then hands the plane over. Nothing radiates out of it:
@@ -187,11 +203,31 @@ button, select, input { font: inherit; color: inherit; }
   99.5%, 100% { stroke-dashoffset: 0; opacity: 0; }
 }
 
+/* Safari before 16 has no motion path, and without one the plane would sit in
+   the corner untransformed. It gets the old shape of the flight instead -- an
+   arc, no loop, no banking -- and the trail still draws, because that is a
+   dash offset and needs nothing special. */
+@supports not (offset-path: path("M 0 0 L 1 1")) {
+  #hero-plane { animation: hero-fly-flat 13s linear infinite; }
+  @keyframes hero-fly-flat {
+    0%,  12.4% { opacity: 0; transform: translate(246px, 268px) scale(.2); }
+    12.5%      { opacity: 1; transform: translate(246px, 268px) scale(.3); }
+    17%        { transform: translate(360px, 180px) scale(1); }
+    30%        { transform: translate(520px, 152px) scale(1); }
+    45%        { transform: translate(700px, 140px) scale(1); }
+    59.5%      { opacity: 1; transform: translate(928px, 192px) scale(.8); }
+    60%, 100%  { opacity: 0; transform: translate(928px, 192px) scale(.6); }
+  }
+}
+
 /* Asked to stop moving things, it holds the last frame: the plane, printed. */
 @media (prefers-reduced-motion: reduce) {
   #hero-plane, #hero-ipad, .hero-screen, #hero-printer, #hero-gantry,
-  #hero-toolhead, .hero-ring, .hero-printed { animation: none; }
+  #hero-toolhead, .hero-ring, .hero-printed, .hero-trail,
+  .hero-trail-reveal { animation: none; }
   #hero-plane, .hero-ring { opacity: 0; }
+  .hero-trail { opacity: .35; }
+  .hero-trail-reveal { stroke-dashoffset: 0; }
   .hero-printed { stroke-dashoffset: 0; }
   #hero-gantry { transform: translateY(31px); }
 }
