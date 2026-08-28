@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    a { color: #22a45d; } a:hover { color: #1a8049; }
+    .wrap {
+      position: relative;
+      width: 620px; height: 780px; background: #101215; color: #e9ecef;
+      font: 500 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 1rem; padding: 2rem; box-sizing: border-box;
+      text-align: center; overflow: hidden;
+    }
+    .tag {
+      position: absolute; top: 0; left: 0;
+      background: #c4463a; color: #fff;
+      font: 800 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: .06em; text-transform: uppercase; padding: 7px 10px;
+      border-bottom-right-radius: 8px;
+    }
+
+    /* Six whole paintings, crossfaded. Each is beautiful on its own; the
+       problem is what happens between them. */
+    .stage { position: relative; width: 544px; height: 236px; overflow: hidden;
+             border-radius: 10px; background: #0b0d10; }
+    .stage img {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; object-position: center 60%;
+      opacity: 0; animation: c-frame 13s linear infinite;
+    }
+    /* these must out-rank the `animation` shorthand on `.stage img` above,
+       or its implicit delay:0 wins on specificity and all six fire at once */
+    .stage img.f1 { animation-delay: 0s; }
+    .stage img.f2 { animation-delay: 2.1667s; }
+    .stage img.f3 { animation-delay: 4.3333s; }
+    .stage img.f4 { animation-delay: 6.5s; }
+    .stage img.f5 { animation-delay: 8.6667s; }
+    .stage img.f6 { animation-delay: 10.8333s; }
+
+    /* on screen for one sixth of the loop, with a short dissolve either side */
+    @keyframes c-frame {
+      0%     { opacity: 0; }
+      2%     { opacity: 1; }
+      14.7%  { opacity: 1; }
+      16.7%  { opacity: 0; }
+      100%   { opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stage img { animation: none; opacity: 0; }
+      .stage img.f6 { opacity: 1; }
+    }
+
+    h1 { font-size: 2.4rem; margin: 0; letter-spacing: -.02em; font-weight: 800; }
+    .tagline { margin: .15rem 0 .6rem; color: #22a45d; font-size: .95rem;
+               font-weight: 600; letter-spacing: .01em; }
+    .lede { color: #949ba6; max-width: 28rem; margin: 0; text-wrap: pretty; }
+    .drop { margin-top: 1rem; padding: 2.5rem 3rem; border: 2px dashed #262b33;
+            border-radius: 18px; background: #171a1f; }
+    .drop span { color: #22a45d; font-weight: 700; }
+    .hint { color: #949ba6; font-size: .82rem; margin: .6rem 0 0; }
+  </style>
+</helmet>
+<div class="wrap">
+  <div class="tag">C &middot; frame sequence</div>
+
+  <div class="stage">
+    <img class="f1" src="c1.jpg" alt="">
+    <img class="f2" src="c2.jpg" alt="">
+    <img class="f3" src="c3.jpg" alt="">
+    <img class="f4" src="c4.jpg" alt="">
+    <img class="f5" src="c5.jpg" alt="">
+    <img class="f6" src="c6.jpg" alt="">
+  </div>
+
+  <h1>Handoff3D</h1>
+  <p class="tagline">3D print&hellip; no computer necessary</p>
+  <p class="lede">
+    Bring a model. We&rsquo;ll work out which way up it goes and how big it
+    should be, and hand you a file your printer understands.
+  </p>
+  <div class="drop"><span>Choose a model</span></div>
+  <p class="hint">STL, 3MF, OBJ, GLB or PLY.</p>
+</div>
+</x-dc>
+</body>
+</html>
