@@ -1,6 +1,6 @@
 /**
- * The landing screen's animation: a paper plane thrown from beside an iPad at a
- * printer, which prints it.
+ * The landing screen's animation: a paper plane shot out of an iPad, flown
+ * across the room at a printer, and printed by it.
  *
  * A line drawing rather than a picture, and drawn here rather than fetched:
  * it is a few kB of markup, stays sharp on a Retina iPad, takes the app's own
@@ -8,25 +8,60 @@
  * from it), and needs no network -- which matters for a page whose whole claim
  * is that it works on the device.
  *
- * The motion is in styles.css next to the rest of the landing. Two clocks
- * there, deliberately: the paper runs on held frames the way stop-motion does,
- * and the machines run smooth, because machines do. Anyone who has asked their
- * device to stop moving things gets the last frame -- the plane, printed -- and
- * nothing moves.
+ * The flight is a motion path, not a list of poses. Posing it by hand and
+ * holding each frame -- stop-motion, which is what this did first -- turns a
+ * loop-the-loop into six scattered positions and reads as the plane hesitating
+ * in mid-air. One curve, travelled smoothly, with `offset-rotate: auto` to bank
+ * the plane along its own tangent, is both simpler and right. Only the moment
+ * it leaves the screen still pops on held frames, where the stutter is the
+ * point.
+ *
+ * FLIGHT is that curve, and it is used three times over -- as the plane's
+ * path, as the dashed trail you can see, and as the mask that draws the trail
+ * in behind the plane -- so the trail cannot drift out of step with the plane:
+ * they are the same line, and both are driven from the same percentage.
  *
  * Both ends of the throw are a screen lighting up: the iPad pulses and the
  * plane comes out of it, the printer pulses when the plane arrives. Nothing
  * radiates out of the iPad, deliberately -- ripples read as broadcasting, and
  * the whole point of this page is that nothing leaves the device.
+ *
+ * The motion is in styles.css, next to the rest of the landing.
  */
+
+// Out of the screen, up, once around, and a long glide into the printer. The
+// two arcs are the loop: a circle of r=40 about (560, 124), entered and left at
+// its lowest point, so the plane goes over the top and comes out flying the way
+// it came in. The loop sits low enough that the plane, which is 11 units either
+// side of the line it rides, clears the top of the frame. Its length is 979,
+// which styles.css needs for the trail -- `--trail-len` there and this path
+// have to be measured together.
+const FLIGHT = 'M 246 268 C 252 246 268 222 296 202 C 340 178 386 172 430 168 '
+  + 'C 480 164 526 164 560 164 a 40 40 0 1 0 0 -80 a 40 40 0 1 0 0 80 '
+  + 'C 620 162 690 148 760 152 C 830 156 890 174 928 192'
+
 export default function PlaneHero() {
   return (
     <div className="hero" aria-hidden="true">
       <svg viewBox="0 62 1200 292" role="img"
-           aria-label="A paper plane is thrown from beside an iPad to a printer, which prints the plane">
+           aria-label="A paper plane is shot out of an iPad and flies to a printer, which prints the plane">
+
+        <defs>
+          {/* The trail is dashed and drawn in progressively, and one stroke
+              cannot do both: the dashes are the pattern, so the reveal is this
+              mask -- the same curve under a fat stroke, uncovered in step with
+              the plane. */}
+          <mask id="hero-trail-mask" maskUnits="userSpaceOnUse"
+                x="0" y="0" width="1200" height="380">
+            <path className="hero-trail-reveal" d={FLIGHT} />
+          </mask>
+        </defs>
 
         {/* the surface it all stands on */}
         <path className="hero-faint" d="M 90 340 H 1140" />
+
+        {/* where it has been */}
+        <path className="hero-trail" d={FLIGHT} mask="url(#hero-trail-mask)" />
 
         {/* the iPad, standing on the line rather than propped on a stand */}
         <g id="hero-ipad" className="hero-ink">
@@ -63,8 +98,11 @@ export default function PlaneHero() {
           <circle className="hero-paper hero-ring c" r="14" />
         </g>
 
-        {/* the plane itself, drawn around its own origin so it can be flown */}
-        <g id="hero-plane" className="hero-paper">
+        {/* The plane, drawn nose-first around its own origin: `offset-rotate:
+            auto` points it along the path, so it needs no rotation of its own
+            and banks through the loop for free. */}
+        <g id="hero-plane" className="hero-paper"
+           style={{ offsetPath: `path("${FLIGHT}")`, offsetRotate: 'auto' }}>
           <path d="M 30 0 L -28 -11 L -16 0 L -28 11 Z" />
           <path d="M 30 0 L -16 0" />
         </g>
