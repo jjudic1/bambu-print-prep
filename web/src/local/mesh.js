@@ -54,6 +54,32 @@ function flatten(object) {
  * which would triple the vertex count in the written file for no benefit, so
  * matching positions are merged first.
  */
+/**
+ * What readModel can parse, and the only thing the file picker will offer.
+ *
+ * It is a list rather than four literals because iOS reads it: an <input> with
+ * no `accept` makes Safari offer Photo Library and Take Photo or Video beside
+ * Choose File, and a camera cannot produce a model. Naming the extensions is
+ * what reduces that menu to the Files browser.
+ *
+ * The chain below is the other half of this and has to stay in step -- a format
+ * added there and not here parses fine and cannot be chosen.
+ */
+export const READABLE = ['.stl', '.3mf', '.obj', '.ply']
+
+/**
+ * "STL, 3MF, OBJ and PLY" -- the list as a person reads it.
+ *
+ * The conjunction is a parameter because the two places that say this list want
+ * different ones: the label offers alternatives ("or"), the error says what the
+ * whole set is ("and").
+ */
+export function spoken(conjunction = 'and', extensions = READABLE) {
+  const names = extensions.map((e) => e.replace('.', '').toUpperCase())
+  if (names.length < 2) return names.join('')
+  return `${names.slice(0, -1).join(', ')} ${conjunction} ${names[names.length - 1]}`
+}
+
 export async function readModel(file) {
   const name = (file.name || '').toLowerCase()
   const buffer = await file.arrayBuffer()
@@ -70,7 +96,7 @@ export async function readModel(file) {
   } else if (name.endsWith('.ply')) {
     geometry = new PLYLoader().parse(buffer)
   } else {
-    throw new Error("We can read STL, 3MF, OBJ and PLY files. That one isn't one of those.")
+    throw new Error(`We can read ${spoken()} files. That one isn't one of those.`)
   }
 
   for (const attribute of Object.keys(geometry.attributes)) {

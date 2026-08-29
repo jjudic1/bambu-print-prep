@@ -12,7 +12,7 @@ import { MADE, ON_DEVICE, OPENED, SAVED, STEPS, countStep } from '../metrics.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import { posedGeometry } from './flatten.js'
 import { renderHandoff } from './handoff.js'
-import { plateImages, readModel, toArrays } from './mesh.js'
+import { READABLE, plateImages, readModel, spoken, toArrays } from './mesh.js'
 import { arrange, footprint, splitParts } from './parts.js'
 import {
   DEFAULT_NOZZLE_MM, models, nozzlesFor, pick, startingPrinter,
@@ -646,10 +646,19 @@ export default function LocalApp() {
           this. Your model is not part of that.
         </p>
         <label className="drop">
-          <input type="file" onChange={(e) => onFile(e.target.files[0])} />
+          {/* `accept` is not a filter here so much as a way of not being asked
+              the wrong question. Without it, iOS puts Photo Library and Take
+              Photo or Video above Choose File, and neither of those can produce
+              a model -- the only route in is Files. Naming the extensions
+              reduces the menu to that one. */}
+          <input
+            type="file"
+            accept={READABLE.join(',')}
+            onChange={(e) => onFile(e.target.files[0])}
+          />
           <span>{busy || 'Choose a model'}</span>
         </label>
-        <p className="hint">STL, 3MF, OBJ or PLY.</p>
+        <p className="hint">{spoken('or')}.</p>
         <Disclaimer short />
         {error && <p className="error">{error}</p>}
         {donationsEnabled() && (
