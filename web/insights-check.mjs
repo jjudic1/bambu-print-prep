@@ -53,7 +53,7 @@ function serve(answers) {
 }
 
 /** A Vercel request/response pair, enough of one to call the handler with. */
-async function call({ key, days, env = {}, answers = {} }) {
+async function call({ key, days, raw, env = {}, answers = {} }) {
   const before = { ...process.env }
   for (const [name, value] of Object.entries(env)) {
     if (value === null) delete process.env[name]
@@ -68,9 +68,11 @@ async function call({ key, days, env = {}, answers = {} }) {
     json(body) { sent.body = body; return response },
     setHeader(name, value) { sent[name] = value },
   }
+  const query = {}
+  if (days !== undefined) query.days = String(days)
+  if (raw !== undefined) query.raw = String(raw)
   await handler(
-    { headers: key === undefined ? {} : { 'x-insights-key': key },
-      query: days === undefined ? {} : { days: String(days) } },
+    { headers: key === undefined ? {} : { 'x-insights-key': key }, query },
     response)
 
   globalThis.fetch = realFetch
@@ -248,6 +250,22 @@ console.log('\n--- what it hands back ------------------------------------------
     ...ALL, referrers: rows('referrerHostname', ['', 12]) } })
   check('a row with no referrer is named rather than left blank',
     got.body.referrers[0].label, '(none)')
+}
+
+{
+  // The escape hatch. Reshaping seven upstream answers with no way to see them
+  // is what turned one wrong number into a deploy per guess, so raw mode hands
+  // back what Vercel said and the URL it was asked -- behind the same key as
+  // everything else, and carrying no secret, because the token is a header.
+  const got = await call({ key: 'let-me-in', raw: 1, env: CREDENTIALS, answers: ALL })
+  const totals = got.body.asked.find((a) => a.name === 'totals')
+  check('raw mode hands back the untouched answer and the URL it was asked',
+    [got.code, totals.payload, totals.url.includes('/visits/count?'),
+     totals.url.includes('let-me-in') || totals.url.includes('tok')],
+    [200, { data: { visitors: 40, pageviews: 91 } }, true, false])
+  const shut = await call({ raw: 1, env: CREDENTIALS, answers: ALL })
+  check('and is shut to a request with no key, like the rest of it',
+    shut.code, 401)
 }
 
 console.log('\n--- partly working is a real answer -----------------------------')
