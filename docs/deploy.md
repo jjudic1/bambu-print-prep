@@ -314,27 +314,40 @@ checkbox nobody can set from here.**
    showing an empty chart.
 2. **Make a token** at https://vercel.com/account/tokens, scoped to the team
    that owns the project.
-3. **Give the API the token and a key of your own choosing.** `INSIGHTS_KEY` is
-   what the dashboard asks you for; without it the endpoint refuses every
-   request, including one that sends no key at all. It is not open by default
-   and should not be made so -- it reports where the traffic comes from.
+3. **Give the function the token and a key of your own choosing**, as
+   environment variables on the Vercel project (Settings -> Environment
+   Variables, Production). `INSIGHTS_KEY` is what the dashboard asks you for;
+   without it the endpoint refuses every request, including one that sends no
+   key at all. It is not open by default and should not be made so -- it reports
+   where the traffic comes from.
 
 ```powershell
-gcloud run services update print-prep-api --region us-central1 `
-  --update-env-vars "INSIGHTS_KEY=<pick one>,VERCEL_TOKEN=<token>,VERCEL_PROJECT_ID=prj_qTWpMAa2mO6XgECJhwFDpPIK5QlR,VERCEL_TEAM_ID=team_2VsnfArdtbvj58Oyg13T4Sir"
+vercel env add INSIGHTS_KEY production        # then paste a secret you pick
+vercel env add VERCEL_TOKEN production        # then paste the token from step 2
+vercel env add VERCEL_PROJECT_ID production   # prj_qTWpMAa2mO6XgECJhwFDpPIK5QlR
+vercel env add VERCEL_TEAM_ID production      # team_2VsnfArdtbvj58Oyg13T4Sir
 ```
 
-4. **Deploy the web app**, so the counting script is on the pages. Pushing does
-   that.
+4. **Redeploy**, because environment variables are read at request time but only
+   attach to a new deployment. Pushing anything does it, or `vercel --prod`.
 
-### The catch-all rewrite has to let `_vercel` through
+### The catch-all rewrite has to let `_vercel` and `api` through
 
-`vercel.json` used to end with `"/(.*)" -> "/index.html"`. The counting script
-is served by the platform from `/_vercel/insights/script.js`, and a catch-all
-that broad answers that request with a page of HTML -- the same shape of bug as
-the API rewrite having to stay ahead of the SPA fallback, and just as silent:
-the script tag loads, parses as HTML, and simply never counts anything. The
-source is now `"/((?!_vercel/).*)"`.
+`vercel.json` used to end with `"/(.*)" -> "/index.html"`. Two things need to
+get past it. The counting script is served by the platform from
+`/_vercel/insights/script.js`, and the dashboard's function is at
+`/api/insights`. A catch-all that broad answers either with a page of HTML --
+the same shape of bug as the old API rewrite having to stay ahead of the SPA
+fallback, and just as silent: the script tag loads, parses as HTML, and simply
+never counts anything. The source is now `"/((?!_vercel/|api/).*)"`.
+
+### Vercel will try to build the FastAPI app as serverless functions
+
+Vercel turns every file in a top-level `api/` directory into a function. That
+directory is also the Python API, so without `.vercelignore` excluding
+`api/*.py` the build attempts a serverless function out of `main.py` -- on an
+image with no trimesh, no manifold3d, no scikit-image. Only `api/insights.js` is
+meant to deploy.
 
 ### What the numbers cannot tell you
 
