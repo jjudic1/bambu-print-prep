@@ -54,7 +54,7 @@ from prep.profiles import (
 from prep.repair import repair
 from prep.write3mf import write_project_3mf
 
-from . import limits
+from . import insights, limits
 from .geometry import (
     matrix_to_quaternion,
     preview_glb,
@@ -122,6 +122,12 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# The usage numbers, for /dashboard. Nothing to do with the pipeline -- it is
+# here only because the browser cannot hold a Vercel token and /api/* is already
+# rewritten through to this service. Refuses everything unless INSIGHTS_KEY is
+# set, so mounting it changes nothing until it is deliberately switched on.
+app.include_router(insights.router)
 
 
 # --- what the browser sends -------------------------------------------------

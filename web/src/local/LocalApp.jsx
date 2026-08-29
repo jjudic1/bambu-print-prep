@@ -8,6 +8,7 @@ import Disclaimer from '../disclaimer.jsx'
 import printerData from '../data/printers.json'
 import { frameBed } from '../framing.js'
 import { makeProject3mf } from '../make3mf.js'
+import { MADE, ON_DEVICE, OPENED, SAVED, STEPS, note } from '../metrics.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import { posedGeometry } from './flatten.js'
 import { renderHandoff } from './handoff.js'
@@ -285,6 +286,11 @@ export default function LocalApp() {
       setName(file.name.replace(/\.[^.]+$/, ''))
       setBase(IDENTITY); setUniform(true); setSizeMm(null)
       setLongestMm(Math.round(Math.max(size.x, size.y, size.z)) || 80)
+
+      // Past the landing screen. The kind of file is worth knowing -- if the
+      // people arriving are all bringing 3MFs, they already have a slicer and
+      // the advertising has found the wrong crowd. The name is not sent.
+      note(OPENED, ON_DEVICE, { kind: (file.name.match(/\.([^.]+)$/)?.[1] || '?').toLowerCase() })
     } catch (e) {
       console.error(e)
       setError(/^[A-Z][^:]*: /.test(e.message) || !/[a-z] [a-z]/.test(e.message)
@@ -558,6 +564,15 @@ export default function LocalApp() {
         pageUrl: URL.createObjectURL(new Blob([page], { type: 'text/html' })),
         pageName: `How to print ${name}.html`,
       })
+
+      // A file came out. Plates and parts go with it because "did they need to
+      // split it" is the one thing that separates somebody with an A1 mini from
+      // somebody who could have used any slicer.
+      note(MADE, ON_DEVICE, {
+        plates: plates.length,
+        parts: plates.reduce((n, p) => n + p.objects.length, 0),
+        flattened: parts.some(flattened),
+      })
     } catch (e) {
       console.error(e)
       setError(e.message)
@@ -584,7 +599,17 @@ export default function LocalApp() {
         <p className="lede">
           Drop in any model and get one your Bambu printer will take. Too big for
           your bed? Split it and spread it over as many plates as it needs. This
-          page does everything on your device &mdash; nothing is uploaded anywhere.
+          page does everything on your device &mdash; your model is never
+          uploaded, and never leaves it.
+        </p>
+        {/* Narrowed from "nothing is uploaded anywhere", which stopped being
+            true when web/src/metrics.js was added. What is counted is visits
+            and four step names; the model, its name and everything measured
+            from it stay here. Saying which is which is cheap, and the old
+            sentence was a claim this page can no longer make. */}
+        <p className="hint">
+          Visits are counted, anonymously, so we know whether anyone is finding
+          this. Your model is not part of that.
         </p>
         <label className="drop">
           <input type="file" onChange={(e) => onFile(e.target.files[0])} />
@@ -992,14 +1017,20 @@ export default function LocalApp() {
                 {' '}That comes off the height above.
               </p>
             )}
-            <a href={written.url} download={written.fileName}>Save the file</a>
+            {/* Tapping save is as far as a browser can follow anyone. What
+                happens after -- MakerWorld, Handy, the printer -- is invisible
+                from here, and pretending otherwise would be the sort of number
+                that gets believed. */}
+            <a href={written.url} download={written.fileName}
+               onClick={() => note(SAVED, ON_DEVICE)}>Save the file</a>
             <div className="extras">
               {written.pictureUrl && (
                 <a href={written.pictureUrl} download={written.pictureName}>
                   Save the picture
                 </a>
               )}
-              <a href={written.pageUrl} download={written.pageName}>
+              <a href={written.pageUrl} download={written.pageName}
+                 onClick={() => note(STEPS, ON_DEVICE)}>
                 Save the how-to-print page
               </a>
             </div>

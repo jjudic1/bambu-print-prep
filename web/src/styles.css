@@ -336,3 +336,102 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
             padding: .55rem .8rem; border-radius: 10px;
             border: 1px solid var(--line); color: var(--ink);
             text-decoration: none; background: transparent; }
+
+/* --- the usage dashboard ------------------------------------------------
+   Not part of the product: one page, for one person, behind a key. It reuses
+   the app's surfaces and the one accent rather than introducing a palette,
+   because every figure here is a single series -- a magnitude, never an
+   identity -- so there is nothing to tell apart and no legend to draw. The
+   accent passes the lightness, chroma and contrast checks against --panel.
+
+   Scrolls like a document rather than filling the viewport: unlike the app,
+   there is no plate to keep in frame, and the content is a list that grows. */
+.dash {
+  max-width: 60rem; margin: 0 auto; padding: 1.2rem 1rem 4rem;
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.dash h1 { margin: 0; font-size: 1.5rem; letter-spacing: -.02em; }
+.dash .tagline { margin: .1rem 0 0; }
+.dash-head {
+  display: flex; flex-wrap: wrap; gap: .8rem;
+  align-items: flex-end; justify-content: space-between;
+}
+.dash-head .ticks { justify-content: flex-end; }
+
+.dash.gate { max-width: 26rem; padding-top: 4rem; text-align: center; }
+.dash.gate form { display: flex; flex-direction: column; gap: .6rem; }
+.dash.gate input {
+  background: #0d0f12; border: 1px solid var(--line); border-radius: 10px;
+  padding: .6rem .7rem; width: 100%;
+}
+
+.card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 14px; padding: .9rem 1rem 1rem;
+}
+.card h2 {
+  margin: 0 0 .7rem; font-size: .78rem; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--dim); font-weight: 700;
+  display: flex; justify-content: space-between; gap: .6rem;
+}
+.card h2 em {
+  font-style: normal; text-transform: none; letter-spacing: 0; color: var(--ink);
+}
+.card .reason { margin-top: .7rem; }
+
+/* Three values with no shape to show. A one-bar chart of a single number is
+   decoration, so they are set as type instead. */
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; }
+@media (max-width: 34rem) { .tiles { grid-template-columns: 1fr; } }
+.tile {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 14px; padding: .8rem 1rem;
+}
+.tile em {
+  font-style: normal; font-size: .74rem; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--dim); font-weight: 700;
+}
+.tile strong {
+  display: block; font-size: 2rem; line-height: 1.1; margin: .2rem 0 .1rem;
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+.tile span { font-size: .82rem; color: var(--dim); }
+
+/* A table that is also a bar chart. The label is ordinary ink and the bar
+   carries the magnitude, so nothing here is read from colour alone. */
+.bars { width: 100%; border-collapse: collapse; }
+.bars th {
+  text-align: left; font-weight: 400; font-size: .88rem; padding: .22rem .6rem .22rem 0;
+  white-space: nowrap; max-width: 11rem; overflow: hidden; text-overflow: ellipsis;
+}
+.bars td.track { width: 99%; padding: .22rem 0; }
+.bars .fill {
+  display: block; height: .62rem; min-width: 3px;
+  background: var(--accent);
+  /* Rounded at the data end, square against the baseline it grows from. */
+  border-radius: 0 4px 4px 0;
+}
+.bars td.value {
+  text-align: right; padding: .22rem 0 .22rem .7rem; white-space: nowrap;
+  font-variant-numeric: tabular-nums; font-size: .88rem;
+}
+.bars td.value em { font-style: normal; color: var(--dim); font-size: .8rem; }
+.funnel th { max-width: 12rem; }
+
+/* One bar a day. A day is a bucket rather than a sample of something
+   continuous, and the shape worth seeing is the spike on the day something was
+   posted -- which a line would smooth away. */
+.days {
+  display: flex; align-items: flex-end; gap: 2px; height: 7rem;
+  padding: 0; margin: 0;
+}
+.day {
+  flex: 1 1 0; min-width: 2px; height: var(--h); padding: 0;
+  background: var(--accent); border: 0; border-radius: 4px 4px 0 0;
+  opacity: .78; cursor: pointer;
+}
+.day.on, .day:hover, .day:focus-visible { opacity: 1; outline: none; }
+.span {
+  display: flex; justify-content: space-between;
+  font-size: .78rem; color: var(--dim); margin-top: .4rem;
+}

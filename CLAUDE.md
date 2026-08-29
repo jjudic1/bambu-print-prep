@@ -83,6 +83,29 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   while the same page on an iPad looked right.
 - **The writer exists twice**: `prep/write3mf.py` and `web/src/make3mf.js`.
   `tests/test_web3mf.py` diffs them on every run — keep them in step.
+- **The bottom cut does *not* exist twice.** `prep/base.py` searches for the
+  smallest cut that gives a footprint and caps it at 8% of the height, because
+  the server is guessing. `web/src/local/flatten.js` is not a port of it — the
+  user picks the height, so there is no search and no ceiling beyond one that
+  keeps the slider off a cut that leaves nothing standing. Do not "align" them.
+  The JS one clips triangles and stitches its own cap; a cap that misses a loop,
+  or fills a hole that should stay open, leaves both the bounding box and the
+  volume looking right. `web/flatten-check.mjs` (run by
+  `tests/test_local_flatten.py`) is the only thing that catches it — it checks
+  every edge is still shared by exactly two triangles, as well as the volume and
+  the area of the new face against arithmetic done by hand.
+- **`/local` is no longer silent.** `web/src/metrics.js` sends a page view and
+  four step names to Vercel Web Analytics from both entries. The model, its name
+  and everything measured from it stay on the device — and the landing copy was
+  narrowed from "nothing is uploaded anywhere" to say exactly that, because the
+  old sentence stopped being true. If you add a counter, check the copy still is.
+- **The catch-all rewrite must let `/_vercel/` through.** The counting script is
+  served from `/_vercel/insights/script.js`; a plain `"/(.*)"` fallback answers
+  it with a page of HTML and nothing is ever counted. Same trap as the API
+  rewrite having to stay ahead of the SPA fallback. See `docs/deploy.md`.
+- **`/dashboard` is shut unless `INSIGHTS_KEY` is set** on the API, and it needs
+  Web Analytics switched on in the Vercel dashboard by hand — a 404 from every
+  query means that checkbox, not a broken endpoint.
 - **`/local` orients per part but sizes as one model.** `base` is the whole
   model's pose *and* the frame Across/Deep/Tall are measured in; each part
   carries its own `spin`/`yaw` on top. Measure size in any other frame and

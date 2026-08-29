@@ -295,3 +295,52 @@ The browser checks asserted bounding boxes and sizes -- all of which were
 correct -- while the picture was black the entire time. Sampling geometry is not
 the same as seeing the render, and this project's rule about measuring rather
 than assuming has a corollary: measure the thing the user actually looks at.
+
+## The usage numbers, and what has to be switched on
+
+`/dashboard` answers one question -- is the advertising working -- from Vercel
+Web Analytics. Nothing new is stored: Vercel counts, `api/insights.py` reads
+back, and the page draws. There is no database and no events endpoint of our
+own, which is the point. Standing one up would have put a server back under
+`/local`, which is the one page whose whole argument is that it does not have
+one.
+
+**None of it does anything until four things are set, and one of them is a
+checkbox nobody can set from here.**
+
+1. **Switch Web Analytics on for the project.** Vercel dashboard -> the project
+   -> Analytics -> Enable. Until this is done every query comes back `404 Web
+   Analytics not found`, and the dashboard says so in those words rather than
+   showing an empty chart.
+2. **Make a token** at https://vercel.com/account/tokens, scoped to the team
+   that owns the project.
+3. **Give the API the token and a key of your own choosing.** `INSIGHTS_KEY` is
+   what the dashboard asks you for; without it the endpoint refuses every
+   request, including one that sends no key at all. It is not open by default
+   and should not be made so -- it reports where the traffic comes from.
+
+```powershell
+gcloud run services update print-prep-api --region us-central1 `
+  --update-env-vars "INSIGHTS_KEY=<pick one>,VERCEL_TOKEN=<token>,VERCEL_PROJECT_ID=prj_qTWpMAa2mO6XgECJhwFDpPIK5QlR,VERCEL_TEAM_ID=team_2VsnfArdtbvj58Oyg13T4Sir"
+```
+
+4. **Deploy the web app**, so the counting script is on the pages. Pushing does
+   that.
+
+### The catch-all rewrite has to let `_vercel` through
+
+`vercel.json` used to end with `"/(.*)" -> "/index.html"`. The counting script
+is served by the platform from `/_vercel/insights/script.js`, and a catch-all
+that broad answers that request with a page of HTML -- the same shape of bug as
+the API rewrite having to stay ahead of the SPA fallback, and just as silent:
+the script tag loads, parses as HTML, and simply never counts anything. The
+source is now `"/((?!_vercel/).*)"`.
+
+### What the numbers cannot tell you
+
+The funnel stops at "saved the file". MakerWorld, Bambu Handy and the printer
+are all past the edge of the browser, and no amount of instrumenting this app
+reaches them. Milestone 6 -- watching one person do the whole thing -- is still
+the only way to learn where people actually stall, and a dashboard is not a
+substitute for it. What this *can* do is say which posted link brought people
+who got as far as a file, which is the half of the question that is measurable.

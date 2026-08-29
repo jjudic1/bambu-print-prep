@@ -50,9 +50,13 @@ prep/          the Python pipeline
   bambu        the Bambu Studio rewrite -- NO LONGER USED by default
 
 api/           FastAPI over prep/: main, limits, geometry
-web/           two Vite entries sharing one writer
-  index.html   the hosted app -- talks to /api
-  local.html   the on-device page -- talks to nothing
+  insights     the usage numbers, read back out of Vercel. Not pipeline code;
+               it is here only because a browser cannot hold a Vercel token
+web/           three Vite entries, two of them the product
+  index.html      the hosted app -- talks to /api
+  local.html      the on-device page -- talks to /api for nothing, and to
+                  Vercel Web Analytics for a page view and four step names
+  dashboard.html  /dashboard -- who is turning up, behind a key
 ```
 
 | Path | What |
@@ -61,6 +65,8 @@ web/           two Vite entries sharing one writer
 | `web/src/make3mf.js` | The container writer, in JavaScript. Port of `prep/write3mf.py`. |
 | `web/src/local/` | The no-server page: reader, splitter, arranger, plate viewer |
 | `web/src/framing.js` | Where the camera goes, solved from the shape of the viewer |
+| `web/src/local/flatten.js` | The bottom cut: clips the triangles, stitches the cap |
+| `web/src/metrics.js` | The four funnel events, and the one place they are named |
 | `bench/orient_bench.py` | Orientation solver measured against a real corpus |
 | `spikes/` | Throwaway probes, kept because they document how things were proven |
 | `docs/deploy.md` | Hosting, costs, and what the live deploy measured |

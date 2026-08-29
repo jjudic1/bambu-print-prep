@@ -4,6 +4,7 @@ import PlaneHero from './PlaneHero.jsx'
 import Viewer from './Viewer.jsx'
 import { BRAND, TAGLINE } from './brand.js'
 import { fileUrl, listPrinters, meshUrl, prepare, uploadAndWait } from './api.js'
+import { HOSTED, MADE, OPENED, SAVED, STEPS, note } from './metrics.js'
 import { IDENTITY, bake, compose, sameOrientation, turn } from './orientation.js'
 import {
   DONATION_LABEL,
@@ -134,6 +135,15 @@ export default function App() {
       setUniform(true)
       setSizeMm(null)
       setLongestMm(Math.round(Math.max(...uploaded.native_size_mm)))
+
+      // The same funnel step /local counts, so the two products can be compared
+      // on one chart. How long the upload and the solver took goes with it:
+      // this is the step people wait at, and if they are dropping out it is
+      // worth knowing whether they waited five seconds or forty.
+      note(OPENED, HOSTED, {
+        kind: (file.name.match(/\.([^.]+)$/)?.[1] || '?').toLowerCase(),
+        seconds: Math.round((Date.now() - since) / 1000),
+      })
     } catch (e) {
       setError(e.message)
     } finally {
@@ -147,7 +157,7 @@ export default function App() {
     try {
       // base and spin go separately, not pre-composed: the server sizes
       // against the unspun pose so that turning the model never resizes it.
-      setResult(await prepare(job.job_id, {
+      const prepared = await prepare(job.job_id, {
         printer: printerId,
         orientation: base,
         yaw_deg: yawDeg,
@@ -155,7 +165,9 @@ export default function App() {
           ? { longest_mm: longestMm }
           : { size_mm: sizeMm }),
         colour: `#${colour.toString(16).padStart(6, '0')}`,
-      }))
+      })
+      setResult(prepared)
+      note(MADE, HOSTED, { flattened: Boolean(prepared.flattened) })
     } catch (e) {
       setError(e.message)
     } finally {
@@ -475,7 +487,11 @@ export default function App() {
               {result.flattened ? ` ${result.flattened}` : ''}
             </p>
             {result.files.map((f) => (
-              <a key={f.name} href={fileUrl(job.job_id, f.name)} download>
+              <a key={f.name} href={fileUrl(job.job_id, f.name)} download
+                 onClick={() => {
+                   if (f.kind === 'model') note(SAVED, HOSTED)
+                   else if (f.kind !== 'picture') note(STEPS, HOSTED)
+                 }}>
                 {f.kind === 'model'
                   ? 'Save the file'
                   : f.kind === 'picture'
