@@ -173,6 +173,29 @@ console.log('\n--- what it hands back ------------------------------------------
     got.body.referrers.map((r) => r.label), ['big.com', 'mid.com', 'small.com'])
 }
 {
+  // The one table where sorting by size is wrong: a day series is read left to
+  // right, and ordering it by traffic silently reorders the x axis. It drew the
+  // busiest day first and looked like a chart while being nonsense.
+  const got = await call({ key: 'let-me-in', env: CREDENTIALS, answers: {
+    ...ALL, daily: rows('day',
+      ['2026-08-26', 1], ['2026-08-28', 99], ['2026-08-27', 40]) } })
+  check('the day series stays in date order, not size order',
+    got.body.daily.map((r) => r.label),
+    ['2026-08-26', '2026-08-27', '2026-08-28'])
+}
+{
+  // A plan limit is not a fault and cannot be fixed with credentials. Saying
+  // "check the token" there would send somebody hunting for an hour.
+  const got = await call({
+    key: 'let-me-in', env: CREDENTIALS, answers: { ...ALL, events: 402 } })
+  const why = got.body.unavailable.events
+  check('a plan limit says so, and never blames the token',
+    [why.includes('not included in the plan'), why.includes('INSIGHTS_TOKEN')],
+    [true, false])
+  check('and says the counting carries on regardless',
+    why.includes('Counting continues'), true)
+}
+{
   // Direct traffic answers "is the advertising working" too, and a blank label
   // in that table reads as a bug rather than as an answer.
   const got = await call({ key: 'let-me-in', env: CREDENTIALS, answers: {

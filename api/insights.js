@@ -60,7 +60,10 @@ const TIMEOUT = 20000
  */
 const QUERIES = [
   { name: 'totals', dataset: 'visits', by: [] },
-  { name: 'daily', dataset: 'visits', by: ['day'], limit: 100 },
+  // chronological: a day series is read left to right. Sorting it by size --
+  // which is right for every other table here -- silently reorders the x axis
+  // and puts the busiest day first, which looks like a chart and is not one.
+  { name: 'daily', dataset: 'visits', by: ['day'], limit: 100, chronological: true },
   { name: 'pages', dataset: 'visits', by: ['requestPath'] },
   { name: 'referrers', dataset: 'visits', by: ['referrerHostname'] },
   { name: 'utmSource', dataset: 'visits', by: ['utmSource'] },
@@ -105,6 +108,14 @@ function reason(status, body, sentTeam) {
     return 'Web Analytics is not switched on for this project. '
       + `Vercel dashboard -> the project -> Analytics -> Enable.${said}`
   }
+  if (status === 402) {
+    // Not a fault and not fixable by fiddling with credentials. Vercel's own
+    // wording names the plan, so it is passed through nearly whole -- the only
+    // thing worth adding is that nothing is broken and nothing is being lost.
+    return `This is not included in the plan. ${body || ''} `.trim()
+      + ' Counting continues either way, so the data is being kept and will'
+      + ' appear here if the plan changes.'
+  }
   if (status === 401) {
     return 'Vercel did not accept INSIGHTS_TOKEN at all -- it is wrong, it has '
       + `expired, or a stray space or newline came with it when it was set.${said}`
@@ -137,7 +148,7 @@ function reason(status, body, sentTeam) {
  * rather than the whole path. So the two counts are lifted out by name and
  * whatever single key is left over is the label.
  */
-function rows(payload) {
+function rows(payload, chronological) {
   const out = []
   for (const row of (payload && payload.data) || []) {
     if (!row || typeof row !== 'object') continue
@@ -153,8 +164,12 @@ function rows(payload) {
   }
   // Sorted here rather than in the page: the dashboard draws them in the order
   // it gets them, and sorting there would be a second place to get it wrong.
-  out.sort((a, b) => b.visitors - a.visitors || b.count - a.count
-    || a.label.localeCompare(b.label))
+  // A time series is the exception -- its order is its meaning.
+  if (chronological) out.sort((a, b) => a.label.localeCompare(b.label))
+  else {
+    out.sort((a, b) => b.visitors - a.visitors || b.count - a.count
+      || a.label.localeCompare(b.label))
+  }
   return out
 }
 
@@ -287,7 +302,7 @@ module.exports = async function insights(request, response) {
       continue
     }
     if (query.by.length) {
-      result[query.name] = rows(payload)
+      result[query.name] = rows(payload, query.chronological)
     } else {
       // The count shape is a single object, not rows.
       const data = (payload && payload.data) || {}
