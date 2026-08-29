@@ -376,8 +376,7 @@ module.exports = async function insights(request, response) {
   //
   // Asking for whole days is what makes the two agree, and it is also what the
   // question means: "the last 30 days" is 30 dates, not 30 times 24 hours
-  // ending at teatime. The chart gets exactly `days` buckets now too, instead
-  // of a 31st empty one at the front.
+  // ending at teatime.
   const midnight = new Date()
   midnight.setUTCHours(0, 0, 0, 0)
   const end = midnight.getTime() + 86400000
@@ -413,6 +412,17 @@ module.exports = async function insights(request, response) {
     }
     if (query.by.length) {
       result[query.name] = rows(payload, query.chronological)
+      // Vercel buckets the day series inclusively at both ends, so a window of
+      // [midnight, midnight) comes back with a bucket for the closing boundary
+      // as well -- tomorrow, always empty, and drawn as the rightmost bar with
+      // the axis labelled a day into the future. Worse, the chart's readout
+      // defaults to the last bucket, so the page opened saying today had no
+      // visitors. Dropped here rather than in the page, for the same reason
+      // the sorting is: one place to get it wrong is enough.
+      if (query.chronological) {
+        result[query.name] = result[query.name]
+          .filter((row) => Date.parse(row.label) < Date.parse(until))
+      }
     } else {
       // The count shape is a single object, not rows.
       const [got, why2] = totals(payload)
