@@ -158,12 +158,12 @@ function rows(payload) {
   return out
 }
 
-/** One upstream call. Resolves to [payload, null] or [null, why]. */
-async function ask(query, since, until, settings) {
+/** One attempt, with or without naming a team. */
+async function attempt(query, since, until, settings, withTeam) {
   const params = new URLSearchParams({
     projectId: settings.projectId, since, until,
   })
-  if (settings.teamId) params.set('teamId', settings.teamId)
+  if (withTeam && settings.teamId) params.set('teamId', settings.teamId)
   if (query.by.length) {
     params.set('limit', String(query.limit || 20))
     // Appended one at a time, never comma-joined: `by` is an array upstream,
@@ -173,25 +173,52 @@ async function ask(query, since, until, settings) {
   }
 
   const shape = query.by.length ? 'aggregate' : 'count'
-  const stop = AbortSignal.timeout(TIMEOUT)
+  const answer = await fetch(`${API}/${query.dataset}/${shape}?${params}`, {
+    headers: { Authorization: `Bearer ${settings.token}` },
+    signal: AbortSignal.timeout(TIMEOUT),
+  })
+  if (answer.ok) return { ok: true, payload: await answer.json() }
+
+  let detail = ''
   try {
-    const answer = await fetch(`${API}/${query.dataset}/${shape}?${params}`, {
-      headers: { Authorization: `Bearer ${settings.token}` },
-      signal: stop,
-    })
-    if (!answer.ok) {
-      let detail = ''
-      try {
-        const body = await answer.json()
-        detail = (body && body.error && body.error.message) || ''
-      } catch {
-        // The one swallowed error here, and it is around parsing an error body
-        // that has already failed. Anything thrown would replace a real
-        // upstream status with a parsing complaint about it.
-      }
-      return [null, reason(answer.status, detail, Boolean(settings.teamId))]
+    const body = await answer.json()
+    detail = (body && body.error && body.error.message) || ''
+  } catch {
+    // The one swallowed error here, and it is around parsing an error body that
+    // has already failed. Anything thrown would replace a real upstream status
+    // with a parsing complaint about it.
+  }
+  return { ok: false, status: answer.status, detail }
+}
+
+/**
+ * One upstream call. Resolves to [payload, null] or [null, why].
+ *
+ * **Tried both ways when a team is refused.** Whether this account's projects
+ * want a teamId is not something we can know from here: a Vercel personal
+ * account still has a team_... org id, and passing it can be either required or
+ * refused depending on how the account was made. Guessing wrong produces a 403
+ * that reads exactly like a badly scoped token, which is a diagnosis that has
+ * already cost a round of pointless token-making.
+ *
+ * So a 403 with a team named is retried once without it, and the error that
+ * comes back names both attempts. The retry only happens on the one status that
+ * means "you may not", never on a 401 (the token is simply wrong) or a 404
+ * (analytics is off) -- retrying those would just double the failures.
+ */
+async function ask(query, since, until, settings) {
+  try {
+    const named = Boolean(settings.teamId)
+    let got = await attempt(query, since, until, settings, named)
+    if (got.ok) return [got.payload, null]
+
+    if (got.status === 403 && named) {
+      const alone = await attempt(query, since, until, settings, false)
+      if (alone.ok) return [alone.payload, null]
+      return [null, reason(403, got.detail, true)
+        + ` Asking without the team was refused too (${alone.status}).`]
     }
-    return [await answer.json(), null]
+    return [null, reason(got.status, got.detail, named)]
   } catch (error) {
     return [null, `Could not reach Vercel: ${error.message}`]
   }
