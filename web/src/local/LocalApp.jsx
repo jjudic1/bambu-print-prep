@@ -12,6 +12,7 @@ import { MADE, ON_DEVICE, OPENED, READ, SAVED, STEPS, countStep } from '../metri
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import { posedGeometry } from './flatten.js'
 import { renderHandoff } from './handoff.js'
+import { outward, outwardHtml, standalone } from './outside.js'
 import { plateImages, readModel, spoken, toArrays } from './mesh.js'
 import { arrange, footprint, splitParts } from './parts.js'
 import {
@@ -67,6 +68,17 @@ const TIPS = [
  * where the file has to go to reach a Bambu printer, so a model that starts
  * there is a model whose account is already set up by the time it matters.
  */
+/**
+ * What goes on an outward link besides its address.
+ *
+ * A new tab everywhere except the Home Screen app, where `outward` has already
+ * swapped the scheme for one iOS hands to Safari: asking for a new window as
+ * well would leave an empty one behind in our own app.
+ */
+const outwardTab = standalone()
+  ? {}
+  : { target: '_blank', rel: 'noopener noreferrer' }
+
 const SOURCES = [
   { name: 'MakerWorld', url: 'https://makerworld.com' },
   { name: 'Printables', url: 'https://printables.com' },
@@ -701,7 +713,7 @@ export default function LocalApp() {
           {SOURCES.map((site, i) => (
             <span key={site.name}>
               {i > 0 && (i === SOURCES.length - 1 ? ' or ' : ', ')}
-              <a href={site.url} target="_blank" rel="noopener noreferrer">
+              <a href={outward(site.url)} {...outwardTab}>
                 {site.name}
               </a>
             </span>
@@ -713,7 +725,7 @@ export default function LocalApp() {
         {donationsEnabled() && (
           <p className="support">
             Free, and no account needed.{' '}
-            <a href={DONATION_URL} target="_blank" rel="noopener noreferrer">
+            <a href={outward(DONATION_URL)} {...outwardTab}>
               {DONATION_LABEL}
             </a>{' '}
             if you want to support the project.
@@ -1171,7 +1183,7 @@ export default function LocalApp() {
               <div className="support">
                 <p>
                   This is free and stays free.{' '}
-                  <a href={DONATION_URL} target="_blank" rel="noopener noreferrer">
+                  <a href={outward(DONATION_URL)} {...outwardTab}>
                     {DONATION_LABEL}
                   </a>{' '}
                   if it was useful.
@@ -1215,7 +1227,7 @@ export default function LocalApp() {
           <div className="sheet-body">
             <iframe
               title="How to print it"
-              srcDoc={written.pageHtml}
+              srcDoc={outwardHtml(written.pageHtml)}
               sandbox="allow-popups allow-popups-to-escape-sandbox"
             />
           </div>
