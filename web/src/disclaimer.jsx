@@ -10,6 +10,13 @@
  * Three things, and only three: nothing here has been printed, the machine and
  * whatever it does are the user's, and MakerWorld will not let a model nobody
  * has printed be made public.
+ *
+ * `short` is now only the retired hosted front end's. /local dropped it from
+ * the landing screen on 2026-08-29 -- not to say less, but because the full
+ * form is already on the panel directly above the button that makes the file,
+ * which is the moment the warning is about. On the landing screen it answered
+ * a question nobody has yet, in the place where the live one is "where do I
+ * get a model at all".
  */
 
 export default function Disclaimer({ short = false }) {

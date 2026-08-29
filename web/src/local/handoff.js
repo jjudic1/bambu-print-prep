@@ -89,7 +89,8 @@ function steps(fileName) {
       + 'e-mail, tap Share and choose <b>Save to Files</b>.'],
 
     ['Open MakerWorld in Safari',
-      'Go to <a href="' + MAKERWORLD_URL + '">makerworld.com</a> and sign '
+      'Go to <a href="' + MAKERWORLD_URL + '" target="_blank" '
+      + 'rel="noopener">makerworld.com</a> and sign '
       + 'in. You only have to sign in once -- it remembers you after that.'],
 
     ['Upload it',

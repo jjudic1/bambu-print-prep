@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { BRAND } from '../brand.js'
-import { MADE, OPENED, SAVED, STEPS } from '../metrics.js'
+import { MADE, OPENED, READ, SAVED, STEPS } from '../metrics.js'
 
 /**
  * Is the advertising working.
@@ -38,7 +38,8 @@ const STEPS_SHOWN = [
   { key: OPENED, label: 'Opened a model' },
   { key: MADE, label: 'Got a file' },
   { key: SAVED, label: 'Saved it' },
-  { key: STEPS, label: 'Took the how-to page' },
+  { key: STEPS, label: 'Saved the how-to page' },
+  { key: READ, label: 'Read it here instead' },
 ]
 
 const KEY_STORE = 'insightsKey'
