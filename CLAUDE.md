@@ -140,6 +140,14 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   and only when `navigator.standalone` is true, because the scheme is dead
   everywhere else -- a tap that does nothing, with no error. The *saved*
   how-to-print page keeps plain `https`; it is read outside the app.
+- **The same scheme is dead inside the sandboxed frame**, and that cost a
+  round trip to find. A sandbox with no `allow-top-navigation` will not hand a
+  scheme it does not know to the system, so rewriting the how-to-print page's
+  MakerWorld link killed it outright -- a tap doing nothing, which reads as a
+  broken app rather than a blocked navigation. The page in the frame keeps
+  ordinary `https`; the way out to Safari is `Open MakerWorld` on the sheet's
+  own bar, outside the sandbox. Lifting the sandbox is not the trade: it would
+  let generated markup navigate the whole app.
 - **The writer exists twice**: `prep/write3mf.py` and `web/src/make3mf.js`.
   `tests/test_web3mf.py` diffs them on every run — keep them in step.
 - **The bottom cut does *not* exist twice.** `prep/base.py` searches for the

@@ -11,8 +11,8 @@ import { makeProject3mf } from '../make3mf.js'
 import { MADE, ON_DEVICE, OPENED, READ, SAVED, STEPS, countStep } from '../metrics.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import { posedGeometry } from './flatten.js'
-import { renderHandoff } from './handoff.js'
-import { outward, outwardHtml, standalone } from './outside.js'
+import { MAKERWORLD_URL, renderHandoff } from './handoff.js'
+import { outward, standalone } from './outside.js'
 import { plateImages, readModel, spoken, toArrays } from './mesh.js'
 import { arrange, footprint, splitParts } from './parts.js'
 import {
@@ -1215,19 +1215,32 @@ export default function LocalApp() {
           inlined, and putting it in a frame is what keeps this the *same*
           page as the one that gets saved rather than a second rendering of it
           that can drift. Sandboxed, because the document is generated but the
-          model's name is in it; allow-popups so the MakerWorld link still
-          goes somewhere, and it opens in a new tab rather than navigating the
-          app out from under a half-finished file. */}
+          model's name is in it; allow-popups so the MakerWorld link in it
+          still opens somewhere rather than navigating the steps away.
+
+          The page inside keeps ordinary https, and the way out to Safari sits
+          on the bar instead. Measured on an iPad 2026-08-29: the x-safari-
+          scheme is dead inside this frame -- a sandbox without
+          allow-top-navigation will not hand a scheme it does not know to the
+          system, so the tap does nothing at all. Lifting the sandbox to get
+          it would mean letting generated markup navigate the whole app, to
+          buy something the bar can do from outside the frame, where the
+          scheme is known to work. */}
       {steps && written && (
         <div className="sheet" role="dialog" aria-label="How to print it">
           <div className="sheet-bar">
             <span>How to print it</span>
-            <button type="button" onClick={() => setSteps(false)}>Done</button>
+            <span className="sheet-acts">
+              <a href={outward(MAKERWORLD_URL)} {...outwardTab}>
+                Open MakerWorld
+              </a>
+              <button type="button" onClick={() => setSteps(false)}>Done</button>
+            </span>
           </div>
           <div className="sheet-body">
             <iframe
               title="How to print it"
-              srcDoc={outwardHtml(written.pageHtml)}
+              srcDoc={written.pageHtml}
               sandbox="allow-popups allow-popups-to-escape-sandbox"
             />
           </div>
