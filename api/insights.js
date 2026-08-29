@@ -99,7 +99,7 @@ function sameKey(given, expected) {
  * "check the token and its scope" lines, when the upstream body said something
  * more specific each time.
  */
-function reason(status, body) {
+function reason(status, body, sentTeam) {
   const said = body ? ` Vercel said: ${body}` : ''
   if (status === 404) {
     return 'Web Analytics is not switched on for this project. '
@@ -108,6 +108,18 @@ function reason(status, body) {
   if (status === 401) {
     return 'Vercel did not accept INSIGHTS_TOKEN at all -- it is wrong, it has '
       + `expired, or a stray space or newline came with it when it was set.${said}`
+  }
+  if (status === 403 && !sentTeam) {
+    // The first thing to suspect, and it was the actual cause the day this was
+    // switched on. INSIGHTS_TEAM_ID is optional -- a project owned by a
+    // personal account needs no team -- so an unset one cannot be an error on
+    // its own. But paired with a refusal it is far more likely than a bad
+    // token, and blaming the token instead sent somebody off to create a
+    // second one that was never the problem.
+    return 'INSIGHTS_TEAM_ID is not set, so this asked Vercel without naming a '
+      + 'team -- and a project owned by one cannot be read that way, however '
+      + 'well scoped the token is. Set INSIGHTS_TEAM_ID (the team_... in '
+      + `.vercel/project.json, as orgId) and redeploy.${said}`
   }
   if (status === 403) {
     return 'INSIGHTS_TOKEN is a real token but is not allowed to read this '
@@ -177,7 +189,7 @@ async function ask(query, since, until, settings) {
         // that has already failed. Anything thrown would replace a real
         // upstream status with a parsing complaint about it.
       }
-      return [null, reason(answer.status, detail)]
+      return [null, reason(answer.status, detail, Boolean(settings.teamId))]
     }
     return [await answer.json(), null]
   } catch (error) {

@@ -176,6 +176,16 @@ console.log('\n--- partly working is a real answer -----------------------------
      bad.body.unavailable.events.includes('Scope')], [true, false])
   check('a token that is refused for this project says to re-scope it',
     forbidden.body.unavailable.events.includes('Scope'), true)
+
+  // The actual cause the day this was switched on, and the message blamed the
+  // token instead -- which sent somebody off to create a second token that was
+  // never the problem. A refusal with no team named says so first.
+  const noTeam = await call({
+    key: 'let-me-in', env: { ...CREDENTIALS, INSIGHTS_TEAM_ID: null },
+    answers: { ...ALL, events: 403 } })
+  check('refused with no team set, it suspects the team before the token',
+    [noTeam.body.unavailable.events.includes('INSIGHTS_TEAM_ID'),
+     noTeam.body.unavailable.events.includes('Scope')], [true, false])
   check('neither is reported as analytics being switched off',
     [bad, forbidden].some((r) => r.body.unavailable.events.includes('Analytics')),
     false)
