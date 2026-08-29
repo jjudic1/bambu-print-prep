@@ -254,10 +254,17 @@ module.exports = async function insights(request, response) {
         missing.join(' and ')} on the project and redeploy.`,
     })
   }
+  // Every one of these is trimmed, for the same reason the key is: a value set
+  // from a terminal very easily carries a newline it does not look like it has.
+  // PowerShell appends one to anything piped, and its prompts can refuse a
+  // paste outright, so piping is often the only way a long secret gets in at
+  // all. A token with a trailing newline is refused by Vercel as 403 Not
+  // authorized -- indistinguishable from a revoked one, and the cause of a long
+  // hunt through tokens that were all perfectly good.
   const settings = {
-    token: process.env.INSIGHTS_TOKEN,
-    projectId: process.env.INSIGHTS_PROJECT_ID,
-    teamId: process.env.INSIGHTS_TEAM_ID || '',
+    token: process.env.INSIGHTS_TOKEN.trim(),
+    projectId: process.env.INSIGHTS_PROJECT_ID.trim(),
+    teamId: (process.env.INSIGHTS_TEAM_ID || '').trim(),
   }
 
   // Off a query string, so user input even though only one person has the key.
