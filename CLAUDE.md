@@ -131,6 +131,15 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   taller than the part you can see -- which is how an iPhone ended up with the
   controls over four fifths of the screen and the plate a strip at the top,
   while the same page on an iPad looked right.
+- **Added to the Home Screen, a link out of the app does not reach Safari.**
+  It opens a stripped browser sheet inside the app instead, with no address
+  bar and none of the user's session -- wrong for every outward link here,
+  since all of them are places somebody signs in to. `x-safari-https:` is the
+  way out: iOS hands the unknown scheme to the system and Safari opens a real
+  tab. Measured on an iPad 2026-08-29. `web/src/local/outside.js` applies it,
+  and only when `navigator.standalone` is true, because the scheme is dead
+  everywhere else -- a tap that does nothing, with no error. The *saved*
+  how-to-print page keeps plain `https`; it is read outside the app.
 - **The writer exists twice**: `prep/write3mf.py` and `web/src/make3mf.js`.
   `tests/test_web3mf.py` diffs them on every run — keep them in step.
 - **The bottom cut does *not* exist twice.** `prep/base.py` searches for the

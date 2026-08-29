@@ -22,10 +22,12 @@
  *     URL. The saved how-to-print page keeps plain https, because that file is
  *     read outside this app and the scheme would mean nothing there.
  *
- * NOT VERIFIED ON A DEVICE. Everything else about the iPad in this project was
- * measured on one; this could not be, because the behaviour only exists inside
- * a Home Screen app. If a link ever does nothing when tapped, this is the first
- * thing to take out -- `href` alone is the whole change.
+ * Measured on a real iPad, 2026-08-29: MakerWorld tapped from the Home Screen
+ * app opened full Safari. Worth writing down because the scheme is not an
+ * Apple-supported API, it is a behaviour -- and because no desktop browser can
+ * show this either way, so the next person to doubt it has nowhere to look but
+ * a device. If a link ever does nothing when tapped, this is the first thing
+ * to take out: `href` alone is the whole change.
  */
 
 /** True only inside an iOS Home Screen web app. */
