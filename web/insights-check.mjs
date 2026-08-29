@@ -135,6 +135,24 @@ console.log('\n--- shut unless switched on -------------------------------------
     key: 'let-me-in', env: { ...CREDENTIALS, INSIGHTS_TOKEN: null } })
   check('and it says which credential is missing',
     [noToken.code, noToken.body.detail.includes('INSIGHTS_TOKEN')], [503, true])
+
+  // The CLI's prompts can refuse a paste outright on Windows, so piping is
+  // often the only way a long secret gets in at all -- and PowerShell puts a
+  // newline on the end of anything piped. Vercel refuses such a token as 403,
+  // which reads exactly like a revoked one and sends people hunting through
+  // tokens that were all perfectly good.
+  const nl = String.fromCharCode(10)
+  const piped = await call({
+    key: 'let-me-in', answers: ALL,
+    env: { ...CREDENTIALS,
+      INSIGHTS_TOKEN: `tok${nl}`,
+      INSIGHTS_PROJECT_ID: `prj_test ${nl}`,
+      INSIGHTS_TEAM_ID: `team_test${nl}` },
+  })
+  check('credentials piped in with a trailing newline still work',
+    [piped.code, 'totals' in piped.body.unavailable], [200, false])
+  check('and no newline ever reaches the URL',
+    piped.urls.some((u) => u.includes('%0A') || u.includes('%20')), false)
 }
 
 console.log('\n--- what it hands back ------------------------------------------')
