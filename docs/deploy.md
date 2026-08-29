@@ -323,10 +323,20 @@ checkbox nobody can set from here.**
 
 ```powershell
 vercel env add INSIGHTS_KEY production        # then paste a secret you pick
-vercel env add VERCEL_TOKEN production        # then paste the token from step 2
-vercel env add VERCEL_PROJECT_ID production   # prj_qTWpMAa2mO6XgECJhwFDpPIK5QlR
-vercel env add VERCEL_TEAM_ID production      # team_2VsnfArdtbvj58Oyg13T4Sir
+vercel env add INSIGHTS_TOKEN production      # then paste the token from step 2
+vercel env add INSIGHTS_PROJECT_ID production # prj_qTWpMAa2mO6XgECJhwFDpPIK5QlR
+vercel env add INSIGHTS_TEAM_ID production    # team_2VsnfArdtbvj58Oyg13T4Sir
 ```
+
+**Not `VERCEL_*`.** That prefix is Vercel's own namespace for the system
+variables it injects into every deployment; putting our secrets in it invites a
+collision with something they add later and reads as though the platform set
+them. All four are under one prefix of ours instead.
+
+Say yes to "store as sensitive" for the key and the token. It means neither can
+be read back afterwards -- so put `INSIGHTS_KEY` somewhere you can find it
+first, because it is what `/dashboard` asks you for every time a browser forgets
+it.
 
 4. **Redeploy**, because environment variables are read at request time but only
    attach to a new deployment. Pushing anything does it, or `vercel --prod`.

@@ -74,9 +74,9 @@ async function call({ key, days, env = {}, answers = {} }) {
 
 const CREDENTIALS = {
   INSIGHTS_KEY: 'let-me-in',
-  VERCEL_TOKEN: 'tok',
-  VERCEL_PROJECT_ID: 'prj_test',
-  VERCEL_TEAM_ID: 'team_test',
+  INSIGHTS_TOKEN: 'tok',
+  INSIGHTS_PROJECT_ID: 'prj_test',
+  INSIGHTS_TEAM_ID: 'team_test',
 }
 const rows = (key, ...pairs) => ({
   data: pairs.map(([label, n]) => ({ [key]: label, count: n, visitors: n })),
@@ -115,9 +115,9 @@ console.log('\n--- shut unless switched on -------------------------------------
     (await call({ key: 'let-me-in-and-then-some', env: CREDENTIALS })).code, 401)
 
   const noToken = await call({
-    key: 'let-me-in', env: { ...CREDENTIALS, VERCEL_TOKEN: null } })
+    key: 'let-me-in', env: { ...CREDENTIALS, INSIGHTS_TOKEN: null } })
   check('and it says which credential is missing',
-    [noToken.code, noToken.body.detail.includes('VERCEL_TOKEN')], [503, true])
+    [noToken.code, noToken.body.detail.includes('INSIGHTS_TOKEN')], [503, true])
 }
 
 console.log('\n--- what it hands back ------------------------------------------')
@@ -165,7 +165,7 @@ console.log('\n--- partly working is a real answer -----------------------------
   const got = await call({
     key: 'let-me-in', env: CREDENTIALS, answers: { ...ALL, events: 403 } })
   check('a refused token is not reported as analytics being off',
-    got.body.unavailable.events.includes('VERCEL_TOKEN'), true)
+    got.body.unavailable.events.includes('INSIGHTS_TOKEN'), true)
 }
 {
   const got = await call({ key: 'let-me-in', env: CREDENTIALS,
