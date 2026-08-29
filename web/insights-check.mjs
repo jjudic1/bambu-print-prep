@@ -287,6 +287,23 @@ console.log('\n--- what it hands back ------------------------------------------
     got.urls.every((u) => new URL(u).searchParams.get('until') === until), true)
 }
 
+{
+  // Vercel buckets the day series inclusively at both ends, so a window that
+  // closes on a midnight comes back with a bucket for that midnight too --
+  // tomorrow, always empty. It drew as the rightmost bar, put a future date on
+  // the axis, and because the chart reads out its last bucket by default the
+  // page opened by announcing that today had no visitors.
+  const got = await call({ key: 'let-me-in', days: 30, env: CREDENTIALS, answers: {
+    ...ALL, daily: rows('day',
+      ['2026-08-01T00:00:00.000Z', 5],
+      [new Date(Date.parse(new Date().toISOString().slice(0, 10)) + 86400000)
+        .toISOString(), 0]) } })
+  check('a bucket for the day the window closes on is not drawn as a real day',
+    [got.body.daily.length, got.body.daily.every(
+      (r) => Date.parse(r.label) < Date.parse(got.body.until))],
+    [1, true])
+}
+
 console.log('\n--- partly working is a real answer -----------------------------')
 {
   const got = await call({
