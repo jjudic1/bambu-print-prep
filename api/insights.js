@@ -36,10 +36,16 @@
  *
  * Configuration, all from the environment (Vercel project settings):
  *
- *   INSIGHTS_KEY       the shared secret the dashboard sends. No key, no service.
- *   VERCEL_TOKEN       https://vercel.com/account/tokens
- *   VERCEL_PROJECT_ID  prj_... -- in .vercel/project.json
- *   VERCEL_TEAM_ID     team_... -- likewise, as orgId
+ *   INSIGHTS_KEY         the shared secret the dashboard sends. No key, no service.
+ *   INSIGHTS_TOKEN       https://vercel.com/account/tokens
+ *   INSIGHTS_PROJECT_ID  prj_... -- in .vercel/project.json
+ *   INSIGHTS_TEAM_ID     team_... -- likewise, as orgId
+ *
+ * All four under one prefix of our own, and deliberately not VERCEL_*: that
+ * namespace belongs to Vercel's own system variables, which it injects into
+ * every deployment. Borrowing a vendor's prefix for your own secrets invites a
+ * collision with something they add later, and reads as though the platform set
+ * these when it did not.
  */
 
 const API = 'https://api.vercel.com/v1/query/web-analytics'
@@ -85,7 +91,7 @@ function reason(status, body) {
       + 'Vercel dashboard -> the project -> Analytics -> Enable.'
   }
   if (status === 401 || status === 403) {
-    return 'Vercel refused the token. Check VERCEL_TOKEN and its scope.'
+    return 'Vercel refused the token. Check INSIGHTS_TOKEN and its scope.'
   }
   return `Vercel said ${status}. ${body || ''}`.trim()
 }
@@ -171,7 +177,7 @@ module.exports = async function insights(request, response) {
     return response.status(401).json({ detail: 'That key is not right.' })
   }
 
-  const missing = ['VERCEL_TOKEN', 'VERCEL_PROJECT_ID']
+  const missing = ['INSIGHTS_TOKEN', 'INSIGHTS_PROJECT_ID']
     .filter((name) => !process.env[name])
   if (missing.length) {
     return response.status(503).json({
@@ -180,9 +186,9 @@ module.exports = async function insights(request, response) {
     })
   }
   const settings = {
-    token: process.env.VERCEL_TOKEN,
-    projectId: process.env.VERCEL_PROJECT_ID,
-    teamId: process.env.VERCEL_TEAM_ID || '',
+    token: process.env.INSIGHTS_TOKEN,
+    projectId: process.env.INSIGHTS_PROJECT_ID,
+    teamId: process.env.INSIGHTS_TEAM_ID || '',
   }
 
   // Off a query string, so user input even though only one person has the key.
