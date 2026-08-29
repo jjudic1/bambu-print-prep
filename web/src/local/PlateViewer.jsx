@@ -3,6 +3,8 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 import { frameBed } from '../framing.js'
+import { posedGeometry } from './flatten.js'
+import { footprint } from './parts.js'
 
 /**
  * One plate, with the parts that sit on it, draggable.
@@ -226,16 +228,24 @@ export default function PlateViewer({
     let anyTooBig = false
 
     for (const part of parts) {
-      const geometry = part.geometry.clone()
-      geometry.applyMatrix4(matrixFor(part))
+      // Posed and cut through the same call the writer uses, so the plate on
+      // screen is the plate in the file.
+      const geometry = posedGeometry(part, matrixFor(part))
       geometry.computeBoundingBox()
       const box = geometry.boundingBox
       const centre = box.getCenter(new THREE.Vector3())
-      const size = box.getSize(new THREE.Vector3())
 
       // Centre the geometry on its own origin so position means "where the part
       // is", and drop it onto the plate.
       geometry.translate(-centre.x, -centre.y, -box.min.z)
+
+      // Measured whole, not cut. A cut can only make a part smaller, and this
+      // has to answer the same question arrange() answered when it chose where
+      // the part goes -- otherwise a part it sent to a plate of its own would
+      // sit here in the ordinary colour, saying it fits.
+      const size = part.cutMm > 0
+        ? footprint(part.geometry, matrixFor(part)).box.getSize(new THREE.Vector3())
+        : box.getSize(new THREE.Vector3())
 
       const fits = size.x <= bx && size.y <= by && size.z <= height
       if (!fits) anyTooBig = true
