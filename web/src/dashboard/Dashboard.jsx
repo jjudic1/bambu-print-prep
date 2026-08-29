@@ -193,6 +193,17 @@ export default function Dashboard() {
   const arrived = data?.totals?.visitors || 0
   const made = funnel.find((s) => s.key === MADE)?.visitors || 0
 
+  // A number that is missing and a number that is zero look identical on a
+  // chart, and they mean opposite things: "nobody got that far" versus "this
+  // plan will not tell you". Custom events and UTM breakdowns are paid features
+  // on Vercel, so where they are refused the panel says so instead of drawing a
+  // row of confident zeros.
+  const eventsOff = Boolean(data?.unavailable?.events)
+  const taggingOff = Boolean(data?.unavailable?.utmSource)
+  const PAID = 'Vercel keeps this behind a paid plan. The counting still '
+    + 'happens, so nothing is being lost -- it would appear here if the plan '
+    + 'changed.'
+
   return (
     <main className="dash">
       <header className="dash-head">
@@ -240,8 +251,8 @@ export default function Dashboard() {
             </div>
             <div className="tile">
               <em>Left with a file</em>
-              <strong>{pct(made, arrived)}%</strong>
-              <span>{made} of {arrived}</span>
+              <strong>{eventsOff ? '—' : `${pct(made, arrived)}%`}</strong>
+              <span>{eventsOff ? 'needs a paid plan' : `${made} of ${arrived}`}</span>
             </div>
           </section>
 
@@ -253,6 +264,17 @@ export default function Dashboard() {
               the referrer table. */}
           <section className="card">
             <h2>How far people get</h2>
+            {eventsOff ? (
+              <>
+                <p className="reason">
+                  The four steps are counted as custom events, and {PAID}
+                </p>
+                <p className="reason">
+                  Until then, <b>{arrived} visitor{arrived === 1 ? '' : 's'}</b>
+                  {' '}and the tables below are what this can honestly show.
+                </p>
+              </>
+            ) : (
             <table className="bars funnel">
               <tbody>
                 {funnel.map((step) => (
@@ -270,11 +292,14 @@ export default function Dashboard() {
                 ))}
               </tbody>
             </table>
-            <p className="reason">
-              Counted in people, not visits, and only as far as the browser can
-              see. What happens after somebody taps save &mdash; MakerWorld,
-              Handy, the printer &mdash; is not in here and cannot be.
-            </p>
+            )}
+            {!eventsOff && (
+              <p className="reason">
+                Counted in people, not visits, and only as far as the browser can
+                see. What happens after somebody taps save &mdash; MakerWorld,
+                Handy, the printer &mdash; is not in here and cannot be.
+              </p>
+            )}
           </section>
 
           {/* Two ways of asking the same question, and both are worth having.
@@ -290,7 +315,9 @@ export default function Dashboard() {
           <Bars
             title="Where you posted it"
             rows={data.utmSource || []}
-            empty="No tagged links yet. Put ?utm_source=reddit&utm_campaign=launch on the end of a link before you post it, and it lands here."
+            empty={taggingOff
+              ? `Reading the tags off your links is a paid feature. ${PAID} Tagging links is still worth doing -- the tags are being recorded, and "Where they came from" above already tells you a good deal.`
+              : 'No tagged links yet. Put ?utm_source=reddit&utm_campaign=launch on the end of a link before you post it, and it lands here.'}
           />
           {(data.utmCampaign || []).length > 0 && (
             <Bars title="Which campaign" rows={data.utmCampaign} empty="" />
