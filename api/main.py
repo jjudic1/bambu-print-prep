@@ -419,6 +419,12 @@ def prepare(job_id: str, req: PrepareRequest):
 
     try:
         printer = load_printer(req.printer)
+        # Resolved here rather than at the write call so that "this machine has
+        # no ABS" -- which default_filament now says out loud instead of quietly
+        # handing back a PETG profile -- is the 400 it is, and not a 500 naming
+        # an internal path.
+        process = default_process(printer.name)
+        filament = default_filament(printer.name, material=req.material)
     except ProfileError as exc:
         raise HTTPException(400, str(exc))
 
@@ -502,8 +508,8 @@ def prepare(job_id: str, req: PrepareRequest):
         out_dir / f"{stem}.3mf", scaled, printer,
         title=f"{job.name}.stl",
         orientation=None,                      # already baked in above
-        process=default_process(printer.name),
-        filament=default_filament(printer.name, material=req.material),
+        process=process,
+        filament=filament,
         supports=req.supports,
         colour=req.colour,
     )
@@ -518,6 +524,7 @@ def prepare(job_id: str, req: PrepareRequest):
         model_name=job.name,
         file_name=written.path.name,
         printer=written.printer,
+        nozzle_mm=printer.nozzle_mm,
         size_text=f"{x} x {y} x {z} mm - {sizing.comparison}",
         material=req.material,
         preview=preview_path if written.preview_png else None,

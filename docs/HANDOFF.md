@@ -73,6 +73,7 @@ web/           two Vite entries, one of them the product
 | `Prepare for printing.bat` | Drag a model onto it. The original desktop front end. |
 | `web/src/make3mf.js` | The container writer, in JavaScript. Port of `prep/write3mf.py`. |
 | `web/src/local/` | The no-server page: reader, splitter, arranger, plate viewer |
+| `web/src/local/printers.js` | Which machine, and which nozzle is in it. 0.4 mm every session |
 | `web/src/framing.js` | Where the camera goes, solved from the shape of the viewer |
 | `web/src/local/flatten.js` | The bottom cut: clips the triangles, stitches the cap |
 | `web/src/metrics.js` | The four funnel events, and the one place they are named |
@@ -120,8 +121,10 @@ So the writer was ported to JavaScript, and it works:
 - `prep/write3mf.py` imports **only stdlib and numpy**. No trimesh, no scipy.
 - Of fifteen container members, six are static strings, four are small templates,
   five are pictures, and one is a settings blob that resolves the same way every
-  time — baked to **38 KB gzipped** for 14 printers × 4 materials by
-  `spikes/export_web_profiles.py`.
+  time — baked by `spikes/export_web_profiles.py`. It was **38 KB gzipped** for
+  14 printers × 4 materials; offering all four nozzle sizes (2026-08-29) made it
+  56 printers and **109 KB**, at which point it stopped riding in the bundle and
+  became a second file fetched when a file is asked for.
 - The port produces a **byte-identical** container (`tests/test_web3mf.py` diffs
   both writers on every run), and **MakerWorld accepted it**.
 
@@ -354,8 +357,9 @@ what capping it costs in accuracy.
 
 - Automate the MakerWorld upload. It means holding Bambu credentials (§2A).
 - Spend uploads on untested guesses. Bambu Studio answers most questions free.
-- Ship `web/src/data/printers.json` without answering the licensing question — it
-  is 1.4 MB of vendored Bambu Studio profile data.
+- Ship `web/src/data/printer-settings.json` without answering the licensing
+  question — it is 4.8 MB of vendored Bambu Studio profile data (1.4 MB before
+  the nozzle sizes).
 
 ---
 

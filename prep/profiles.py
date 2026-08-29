@@ -255,8 +255,30 @@ def filaments_for(printer_profile: str, vendor: str = DEFAULT_VENDOR) -> list[st
 
 
 def default_process(printer_profile: str, vendor: str = DEFAULT_VENDOR) -> str:
-    """The sane default: 0.20mm Standard. Never expose this choice to the user (spec §3)."""
+    """The sane default for this machine. Never expose this choice to the user (spec §3).
+
+    Ask the machine profile first. It names its own in ``default_print_profile``,
+    which is the slicer's answer rather than ours -- it is what Bambu Studio
+    selects the moment you pick the printer.
+
+    It only started to matter once nozzles other than 0.4 mm were offered. The
+    name search below is the whole of the old answer, and *only* the 0.4 mm
+    profiles carry a "0.20mm Standard" -- a 0.2 mm nozzle cannot lay a 0.2 mm
+    layer. So every other nozzle fell through to `options[0]` and got whatever
+    sorted first: 0.06mm Fine on a 0.2 mm nozzle, which is a decision nobody
+    made and a print that takes most of a day.
+
+    Measured over all 14 models x 4 nozzles in the vendored tree: the machine's
+    own default is compatible in every one of the 56 cases, and at 0.4 mm it is
+    the same "0.20mm Standard @BBL ..." the search already returned for all 14 --
+    so nothing we have ever written changes.
+    """
     options = processes_for(printer_profile, vendor)
+
+    declared = resolve(vendor, "machine", printer_profile).get("default_print_profile")
+    if declared in options:
+        return declared
+
     for want in ("0.20mm Standard", "0.20mm"):
         for name in options:
             if name.startswith(want):
@@ -266,21 +288,58 @@ def default_process(printer_profile: str, vendor: str = DEFAULT_VENDOR) -> str:
     return options[0]
 
 
+def filament_type(name: str, vendor: str = DEFAULT_VENDOR) -> str:
+    """What a filament profile says it is, rather than what it is called.
+
+    Bambu writes it as a list -- the setting is per-extruder -- with one entry
+    that is the same material in every profile in the tree.
+    """
+    value = resolve(vendor, "filament", name).get("filament_type")
+    if isinstance(value, list):
+        return value[0] if value else ""
+    return value or ""
+
+
 def default_filament(printer_profile: str, material: str = "PLA",
                      vendor: str = DEFAULT_VENDOR) -> str:
+    """The best profile for a material on this machine, or say it has none.
+
+    Narrow by ``filament_type`` first. The name search below is a preference
+    between real options and it used to be the whole answer, which meant a
+    machine with no profile for the material asked for fell through to
+    ``options[0]`` -- and options are every filament the printer knows, of every
+    material. A file that says ABS came out configured for PETG: same 487 keys,
+    same plate, wrong temperatures, and nothing anywhere says so.
+
+    It is not hypothetical and it is not rare. In the profiles this repo ships:
+    the A1 and A1 mini are open-frame and carry no ABS at all, and no 0.2 mm
+    nozzle carries TPU. Two of the browser's 56 printer-and-material pairs were
+    already wrong before any of this, and 22 of 224 once all four nozzles were
+    offered.
+
+    So raise instead. "This machine cannot" is a true answer the caller can
+    act on -- the browser export drops the material, and the picker then offers
+    only what exists, which is what it always meant to do.
+    """
     options = filaments_for(printer_profile, vendor)
+    if not options:
+        raise ProfileError(f"No filament profile is compatible with {printer_profile!r}")
+
+    of_type = [n for n in options if filament_type(n, vendor) == material]
+    if not of_type:
+        raise ProfileError(
+            f"No {material} filament profile for {printer_profile!r}")
+
     preferred = [
         f"Bambu {material} Basic",
         f"Bambu {material}",
         f"Generic {material}",
     ]
     for want in preferred:
-        for name in options:
+        for name in of_type:
             if name.startswith(want):
                 return name
-    if not options:
-        raise ProfileError(f"No filament profile is compatible with {printer_profile!r}")
-    return options[0]
+    return of_type[0]
 
 
 # Keys that describe how a profile was looked up, not what it configures.

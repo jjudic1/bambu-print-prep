@@ -4,8 +4,12 @@ import { webcrypto } from 'node:crypto'
 if (!globalThis.crypto) globalThis.crypto = webcrypto
 
 const { makeProject3mf, writePng, plateOrigin } = await import('../web/src/make3mf.js')
+// The index and the settings blobs ship as two files; the writer wants them
+// back together. First match wins, which is the 0.4 nozzle.
 const data = JSON.parse(readFileSync('web/src/data/printers.json', 'utf8'))
-const printer = data.printers.find((p) => p.model === 'Bambu Lab A1 mini')
+const blobs = JSON.parse(readFileSync('web/src/data/printer-settings.json', 'utf8'))
+const entry = data.printers.find((p) => p.model === 'Bambu Lab A1 mini')
+const printer = { ...entry, materials: blobs[entry.id] }
 
 function box(X, Y, Z) {
   const [x, y, z] = [X / 2, Y / 2, Z / 2]

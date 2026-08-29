@@ -5,7 +5,7 @@ import PlateViewer from './PlateViewer.jsx'
 import PlaneHero from '../PlaneHero.jsx'
 import { BRAND, TAGLINE } from '../brand.js'
 import Disclaimer from '../disclaimer.jsx'
-import printerData from '../data/printers.json'
+import { printers, warmSettings, withSettings } from '../data/profiles.js'
 import { frameBed } from '../framing.js'
 import { makeProject3mf } from '../make3mf.js'
 import { MADE, ON_DEVICE, OPENED, SAVED, STEPS, countStep } from '../metrics.js'
@@ -14,6 +14,9 @@ import { posedGeometry } from './flatten.js'
 import { renderHandoff } from './handoff.js'
 import { plateImages, readModel, toArrays } from './mesh.js'
 import { arrange, footprint, splitParts } from './parts.js'
+import {
+  DEFAULT_NOZZLE_MM, models, nozzlesFor, pick, startingPrinter,
+} from './printers.js'
 import {
   DONATION_LABEL, DONATION_URL, donationsEnabled, muteReminder, reminderMuted,
 } from '../support.js'
@@ -121,10 +124,10 @@ const freshPart = (geometry, name, x, y) => ({
 })
 
 export default function LocalApp() {
-  const printers = printerData.printers
+  // The machine is remembered; the nozzle is not, and starts at 0.4 every
+  // time. See printers.js for why that asymmetry is the safe one.
   const [printerId, setPrinterId] = useState(
-    () => localStorage.getItem('printer')
-      || printers.find((p) => p.model === 'Bambu Lab P1S')?.id || printers[0].id)
+    () => startingPrinter(printers, localStorage.getItem('printer')).id)
   const [material, setMaterial] = useState('PLA')
   const [colour, setColour] = useState(
     () => Number(localStorage.getItem('colour')) || COLOURS[0].hex)
@@ -152,7 +155,10 @@ export default function LocalApp() {
   const printer = useMemo(
     () => printers.find((p) => p.id === printerId) || printers[0],
     [printers, printerId])
-  const materials = useMemo(() => Object.keys(printer.materials), [printer])
+  const materials = printer.materials
+  const machines = useMemo(() => models(printers), [])
+  const nozzles = useMemo(() => nozzlesFor(printers, printer.model),
+                          [printer.model])
 
   useEffect(() => { localStorage.setItem('printer', printerId) }, [printerId])
   useEffect(() => { localStorage.setItem('colour', String(colour)) }, [colour])
@@ -290,6 +296,10 @@ export default function LocalApp() {
     setBusy('Reading it...')
     setError(''); setNote(''); setWritten(null)
     try {
+      // Fetch the settings blobs now, while the user is still deciding how big
+      // they want it. Ignored here on purpose: if it fails, withSettings() asks
+      // again and reports it at the moment it is actually needed.
+      warmSettings().catch(() => {})
       const geometry = await readModel(file)
       geometry.computeBoundingBox()
       const size = geometry.boundingBox.getSize(new THREE.Vector3())
@@ -487,10 +497,17 @@ export default function LocalApp() {
     : !sameOrientation(base, IDENTITY) || parts.some((p) => !straight(p))
   const partColour = (part) => part.colour ?? colour
 
-  function build() {
+  async function build() {
     setBusy('Writing the file...')
     setError('')
     try {
+      // The 487 resolved settings for this printer, this nozzle and this
+      // material -- fetched rather than bundled, and warmed the moment the
+      // model was dropped in, so this is almost always already in hand. Taken
+      // first so the one await here is before the scene is read rather than in
+      // the middle of reading it.
+      const profile = await withSettings(printer)
+
       const scene = sceneRef.current
 
       // The pictures are square and the viewer is not, so they are shot with a
@@ -538,7 +555,7 @@ export default function LocalApp() {
       if (!plates.length) throw new Error('There is nothing on any plate yet.')
 
       const zip = makeProject3mf({
-        printer, material, title: `${name}.stl`, plates,
+        printer: profile, material, title: `${name}.stl`, plates,
       })
 
       // The size it actually is, not the slider that happens to be showing.
@@ -562,6 +579,7 @@ export default function LocalApp() {
         modelName: name,
         fileName: `${stem}.3mf`,
         printer: printer.model,
+        nozzleMm: printer.nozzle_mm,
         sizeText,
         material,
         preview: shot ? toBase64(shot) : null,
@@ -769,14 +787,40 @@ export default function LocalApp() {
 
         <label className="field">
           <span>Your printer</span>
-          <select value={printerId} onChange={(e) => setPrinterId(e.target.value)}>
-            {printers.map((p) => (
-              <option key={p.id} value={p.id}>
+          {/* The model and the nozzle are one choice in the data -- a 0.6 is
+              its own machine profile -- so both selects set the same id, and
+              each keeps the other's half where it is. */}
+          <select
+            value={printer.model}
+            onChange={(e) => setPrinterId(
+              pick(printers, e.target.value, printer.nozzle_mm).id)}
+          >
+            {machines.map((p) => (
+              <option key={p.model} value={p.model}>
                 {p.model} &mdash; bed {Math.round(p.bed_mm[0])} &times;{' '}
                 {Math.round(p.bed_mm[1])} mm
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="field">
+          <span>Nozzle</span>
+          <select
+            value={printer.nozzle_mm}
+            onChange={(e) => setPrinterId(
+              pick(printers, printer.model, Number(e.target.value)).id)}
+          >
+            {nozzles.map((n) => (
+              <option key={n} value={n}>
+                {n} mm{n === DEFAULT_NOZZLE_MM && ' \u2014 the one it came with'}
+              </option>
+            ))}
+          </select>
+          <div className="hint">
+            The tip fitted to your printer right now. Most are 0.4 mm and have
+            never been changed.
+          </div>
         </label>
 
         <label className="field">
