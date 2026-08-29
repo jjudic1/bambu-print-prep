@@ -35,11 +35,17 @@ Python 3.12 in a project `.venv` — call it directly, don't activate:
 `Prepare for printing.bat` is the drag-and-drop front end for the user.
 `PREP_SLOW_TESTS=1` enables the Bambu Studio round-trip test.
 
-The web app and API:
+The web app — this is the product, and it needs nothing else running:
+
+```powershell
+npm run dev --prefix web            # localhost:5174
+```
+
+The API is no longer deployed and the app no longer calls it. It still runs, and
+its tests still pass, if you are working on the retired hosted front end:
 
 ```powershell
 .venv\Scripts\python.exe -m uvicorn api.main:app --port 8141 --reload
-npm run dev --prefix web            # localhost:5174, and /local.html
 ```
 
 Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
@@ -107,11 +113,11 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   `tests/test_local_flatten.py`) is the only thing that catches it — it checks
   every edge is still shared by exactly two triangles, as well as the volume and
   the area of the new face against arithmetic done by hand.
-- **`/local` is no longer silent.** `web/src/metrics.js` sends a page view and
-  four step names to Vercel Web Analytics from both entries. The model, its name
-  and everything measured from it stay on the device — and the landing copy was
-  narrowed from "nothing is uploaded anywhere" to say exactly that, because the
-  old sentence stopped being true. If you add a counter, check the copy still is.
+- **The app is no longer silent.** `web/src/metrics.js` sends a page view and
+  four step names to Vercel Web Analytics. The model, its name and everything
+  measured from it stay on the device — and the landing copy was narrowed from
+  "nothing is uploaded anywhere" to say exactly that, because the old sentence
+  stopped being true. If you add a counter, check the copy still is.
 - **The catch-all rewrite must let `/_vercel/` and `/api/` through.** The
   counting script is served from `/_vercel/insights/script.js` and the one
   remaining function is at `/api/insights`; a plain `"/(.*)"` fallback answers

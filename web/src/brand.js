@@ -8,9 +8,9 @@
  *
  * Kept here, in one constant, because it is being tried rather than settled.
  * Both landing screens and the panel header read it. The two places it is NOT
- * read from are the page titles in web/index.html and web/local.html -- static
- * HTML, so change those by hand -- and nothing in prep/ or docs/, which have no
- * brand in them.
+ * read from are the page titles in web/index.html and web/dashboard.html --
+ * static HTML, so change those by hand -- and nothing in prep/ or docs/, which
+ * have no brand in them.
  */
 export const BRAND = 'Handoff3D'
 

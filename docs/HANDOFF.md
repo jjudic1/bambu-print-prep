@@ -1,7 +1,7 @@
 # Handoff — read this first
 
-**Date:** 2026-08-25 · **Repo:** https://github.com/jjudic1/bambu-print-prep ·
-**Tests:** 289 passing · **Live:** https://bambu-print-prep.vercel.app
+**Date:** 2026-08-28 · **Repo:** https://github.com/jjudic1/bambu-print-prep ·
+**Tests:** 300 passing · **Live:** https://bambu-print-prep.vercel.app
 
 The spec is [print-prep-service-spec.md](print-prep-service-spec.md). This
 document is the delta: what has been proven, what it cost, and what to do next.
@@ -15,18 +15,27 @@ The product is called **EZslicer3D** — "3D print… no computer necessary".
 
 ## The headline
 
-**There are two working products, and the smaller one is the more interesting.**
+**There were two working products. As of 2026-08-28 there is one, and it is the
+smaller one.**
 
-1. **The hosted app** (`/`) — the full pipeline: repair, analysis, the
-   orientation solver, sizing, the container. PWA on Vercel, Python API on Cloud
-   Run. Works.
-2. **The on-device page** (`/local`) — no server at all. Parses, arranges,
-   renders and writes the container in the browser. **MakerWorld accepts its
-   output**, verified by a real upload.
+The on-device page is now the whole product, served at `/` and at `/local`
+(same page, a rewrite). No server at all: it parses, splits, arranges, cuts,
+renders and writes the container in the browser. **MakerWorld accepts its
+output**, verified by a real upload.
 
-That second result is the one that matters, because every cost and scaling
-problem this project has belongs to the server. Read "The strategic position"
-before planning anything.
+**The hosted app and its Cloud Run service are gone** — deliberately, not
+because anything about them failed. They worked. Every cost and scaling problem
+this project had belonged to that server, and the on-device page turned out to
+do the job people actually wanted. Read "The strategic position" for the
+argument; it is the same one, now acted on.
+
+**What did not go away is the judgement half.** `prep/` is untouched — the
+repair ladder, the analysis, and the orientation solver that `docs` calls the
+moat — and it still runs from the command line and still has every test. The
+hosted front end is retired in place (`web/src/App.jsx` and its entry, which no
+HTML file points at), and `api/` still runs locally under test. `web/src/main.jsx`
+has the three steps to put it all back. Retired, not deleted: the argument was
+strategic, and strategic arguments get revisited.
 
 **Milestone 6 — someone non-technical prints something without you in the room —
 is still the only milestone that proves anything, and still has not been
@@ -52,11 +61,11 @@ prep/          the Python pipeline
 api/           FastAPI over prep/: main, limits, geometry
   insights     the usage numbers, read back out of Vercel. Not pipeline code;
                it is here only because a browser cannot hold a Vercel token
-web/           three Vite entries, two of them the product
-  index.html      the hosted app -- talks to /api
-  local.html      the on-device page -- talks to /api for nothing, and to
-                  Vercel Web Analytics for a page view and four step names
+web/           two Vite entries, one of them the product
+  index.html      the app. Does the whole job in the browser; talks to nothing
+                  but Vercel Web Analytics, for a page view and four step names
   dashboard.html  /dashboard -- who is turning up, behind a key
+  src/App.jsx     RETIRED: the hosted front end. No entry points at it
 ```
 
 | Path | What |
@@ -76,7 +85,7 @@ Run it:
 ```powershell
 .venv\Scripts\python.exe -m pytest tests\ -q
 .venv\Scripts\python.exe -m uvicorn api.main:app --port 8141 --reload
-npm run dev --prefix web            # localhost:5174 and /local.html
+npm run dev --prefix web            # localhost:5174
 ```
 
 ---
@@ -133,17 +142,29 @@ is the part nobody else has.
 
 | | URL | Notes |
 |---|---|---|
-| PWA | `bambu-print-prep.vercel.app` | Vercel, free, auto-deploys on push |
-| On-device | `/local` | Same deploy, second Vite entry, no API |
-| API | `print-prep-api-…us-central1.run.app` | Cloud Run, project `bambu-print-prep` |
+| The app | `bambu-print-prep.vercel.app` and `/local` | One page, both addresses. Vercel, free, auto-deploys on push |
+| Usage | `/dashboard` | Who is turning up. Behind a key; dark until it is set |
+| Function | `/api/insights` | The only server-side code left. ~60 lines, no dependencies |
 
-`vercel.json` rewrites `/api/*` to Cloud Run, so the browser sees one origin and
-CORS never applies in production. **The API rewrite must stay ahead of the SPA
-catch-all** — with the fallback first, every API call returns 200 and a page of
-HTML, and the client fails parsing it as JSON.
+**Nothing runs on Google any more.** The Cloud Run service was deleted on
+2026-08-28 and its URL 404s. About 1 GB of container images is still sitting in
+Artifact Registry (`cloud-run-source-deploy`) — a few pence a month, and not
+needed to redeploy, since `--source .` rebuilds from this repo.
 
-gcloud is installed. It needs `CLOUDSDK_PYTHON` pointed at its bundled
+**The catch-all rewrite must let `/_vercel/` and `/api/` through**, which is the
+same trap the old `/api/*` -> Cloud Run rewrite had in reverse: with the SPA
+fallback catching them, the counting script and the insights function both come
+back as a page of HTML with a 200, and nothing errors -- the script simply never
+counts. The source is `"/((?!_vercel/|api/).*)"`.
+
+**`.vercelignore` is load-bearing.** Vercel makes a serverless function out of
+every file in a top-level `api/` directory, and that directory is also the
+FastAPI app. Without it, the build tries to deploy `main.py` on an image with no
+trimesh.
+
+gcloud is installed, and still needs `CLOUDSDK_PYTHON` pointed at its bundled
 interpreter or every command dies with "Python was not found" — see `deploy.md`.
+It is only needed now if the API is ever deployed again.
 
 ---
 
