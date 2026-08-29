@@ -280,11 +280,18 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .go:disabled { opacity: .45; cursor: default; }
 .done { display: flex; flex-direction: column; gap: .5rem; }
 .done p { margin: 0; font-size: .88rem; }
-.done a {
+/* Direct child only. This is the Save-the-file button's look, and as `.done a`
+   it also caught the donation link inside the panel's `.support` block -- a
+   run of prose with one padded, bordered box sitting in the middle of the
+   sentence, wrapping the phrase in half. Landscape on an iPad is where it
+   showed worst, because that is where the panel is narrowest. */
+.done > a, .read {
   background: #0d0f12; border: 1px solid var(--line); border-radius: 10px;
   padding: .65rem .8rem; color: var(--accent); text-decoration: none;
-  font-weight: 700; text-align: center;
+  font-weight: 700; text-align: center; font-size: .92rem; font-family: inherit;
+  cursor: pointer;
 }
+.read { color: var(--ink); }
 .hint { color: var(--dim); }
 
 /* Whose job is whose: dim, but on screen beside the button that makes the file
@@ -434,4 +441,42 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .span {
   display: flex; justify-content: space-between;
   font-size: .78rem; color: var(--dim); margin-top: .4rem;
+}
+
+/* --- the how-to-print page, read in the app ------------------------------
+   An iPad cannot open the saved copy: Files has no viewer for .html, so it
+   shows an icon and an "Open in..." menu. The steps are the part somebody has
+   to follow, so they cannot live only in a file the device refuses to open.
+
+   dvh, not vh: iOS measures vh against the screen with the address bar
+   retracted, which would push the Done button off the bottom of the very
+   sheet whose whole job is to be readable. */
+.sheet {
+  position: fixed; inset: 0; z-index: 40; background: var(--bg);
+  display: flex; flex-direction: column; height: 100dvh;
+}
+.sheet-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: .6rem .9rem; border-bottom: 1px solid var(--line);
+  font-weight: 700; color: var(--ink); flex: 0 0 auto;
+}
+.sheet-bar button {
+  background: transparent; border: 1px solid var(--line); border-radius: 8px;
+  padding: .4rem .9rem; color: var(--accent); font-weight: 700;
+  font-family: inherit; font-size: .92rem; cursor: pointer;
+}
+/* The frame gets a scrolling wrapper rather than being left to scroll itself.
+   iOS has a long history of not letting an iframe scroll its own content, and
+   the sandbox means the app cannot measure the document to size the frame to
+   it. A wrapper that scrolls costs nothing where the frame scrolls fine, and
+   is the difference between usable and not where it does not.
+
+   The page paints its own dark ground, so the frame is given the app's -- a
+   white default flashes for as long as the document takes to lay out. */
+.sheet-body {
+  flex: 1 1 auto; overflow: auto; -webkit-overflow-scrolling: touch;
+}
+.sheet iframe {
+  display: block; width: 100%; height: 100%; min-height: 100%;
+  border: 0; background: var(--bg);
 }

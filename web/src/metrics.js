@@ -32,17 +32,24 @@ import { inject, track } from '@vercel/analytics'
  *   MADE         a file came out the other end
  *   SAVED        they tapped save, which is as far as a browser can see
  *
- * `STEPS` is the how-to-print page, saved separately. Somebody who takes that
- * is going to a printer; somebody who takes only the model may just be looking.
+ * The how-to-print page is the fifth step, and it is counted twice over
+ * because there are two ways to take it. `STEPS` is the download, `READ` is
+ * reading it on the spot -- added 2026-08-29, when an iPad turned out not to
+ * be able to open the saved file at all. Either one means the same thing about
+ * the person: they are going to a printer, where somebody who takes only the
+ * model may just be looking. Two names rather than one because reading and
+ * saving are different amounts of commitment, and folding them together would
+ * hide the answer to whether the file is still worth writing.
  */
 
 export const OPENED = 'model opened'
 export const MADE = 'file made'
 export const SAVED = 'file saved'
 export const STEPS = 'steps saved'
+export const READ = 'steps read'
 
 /** Every event name, in funnel order. The dashboard reads this. */
-export const FUNNEL = [OPENED, MADE, SAVED, STEPS]
+export const FUNNEL = [OPENED, MADE, SAVED, STEPS, READ]
 
 /** Which of the two products the event came from. */
 export const ON_DEVICE = 'on device'

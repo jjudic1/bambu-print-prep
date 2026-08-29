@@ -8,7 +8,7 @@ import Disclaimer from '../disclaimer.jsx'
 import { printers, warmSettings, withSettings } from '../data/profiles.js'
 import { frameBed } from '../framing.js'
 import { makeProject3mf } from '../make3mf.js'
-import { MADE, ON_DEVICE, OPENED, SAVED, STEPS, countStep } from '../metrics.js'
+import { MADE, ON_DEVICE, OPENED, READ, SAVED, STEPS, countStep } from '../metrics.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import { posedGeometry } from './flatten.js'
 import { renderHandoff } from './handoff.js'
@@ -150,6 +150,8 @@ export default function LocalApp() {
   const [note, setNote] = useState('')
   const [written, setWritten] = useState(null)
   const [hideReminder, setHideReminder] = useState(reminderMuted)
+  // Whether the how-to-print page is being read over the top of the app.
+  const [steps, setSteps] = useState(false)
   const sceneRef = useRef(null)
 
   const printer = useMemo(
@@ -597,6 +599,13 @@ export default function LocalApp() {
         pictureName: `${stem}.png`,
         pageUrl: URL.createObjectURL(new Blob([page], { type: 'text/html' })),
         pageName: `How to print ${name}.html`,
+        // The same HTML the download is, kept as a string so it can be shown
+        // in the app. An iPad cannot open the saved file: Files has no viewer
+        // for .html, so tapping it gets an icon and an "Open in..." menu that
+        // leads nowhere useful. Saving it is still worth doing -- it is what
+        // survives to the printer days later -- but it can no longer be the
+        // only way to read it.
+        pageHtml: page,
       })
 
       // A file came out. Plates and parts go with it because "did they need to
@@ -660,7 +669,19 @@ export default function LocalApp() {
           <span>{busy || 'Choose a model'}</span>
         </label>
         <p className="hint">{spoken('or')}.</p>
-        <Disclaimer short />
+        {/* What used to be here was the short disclaimer. It has not been
+            dropped -- the full one is still on the panel, right above the
+            button that makes the file, which is the moment it is actually
+            about. On the landing screen it was answering a question nobody
+            has yet, in the one place where the question is "where do I even
+            get one of these". So that is what the space says now. Named
+            entries, because the iOS menu is the thing people get lost in:
+            Choose File is the third row, under two that offer photos. */}
+        <p className="hint">
+          No model yet? Download one from a site like MakerWorld, Printables or
+          Thingiverse &mdash; in Safari it lands in Files, under Downloads.
+          Then tap Choose a model, pick <b>Choose File</b>, and look in there.
+        </p>
         {error && <p className="error">{error}</p>}
         {donationsEnabled() && (
           <p className="support">
@@ -668,7 +689,7 @@ export default function LocalApp() {
             <a href={DONATION_URL} target="_blank" rel="noopener noreferrer">
               {DONATION_LABEL}
             </a>{' '}
-            if it saves you some faff.
+            if you want to support the project.
           </p>
         )}
       </main>
@@ -1093,6 +1114,15 @@ export default function LocalApp() {
                 that gets believed. */}
             <a href={written.url} download={written.fileName}
                onClick={() => countStep(SAVED, ON_DEVICE)}>Save the file</a>
+            {/* Reading comes first now. The steps are the part somebody
+                actually has to follow, and on an iPad the saved copy of them
+                could not be opened -- Files previews an .html as an icon and
+                an "Open in..." menu. Same HTML either way, so there is no
+                second copy of the instructions to keep in step. */}
+            <button type="button" className="read"
+                    onClick={() => { setSteps(true); countStep(READ, ON_DEVICE) }}>
+              How to print it
+            </button>
             <div className="extras">
               {written.pictureUrl && (
                 <a href={written.pictureUrl} download={written.pictureName}>
@@ -1101,13 +1131,14 @@ export default function LocalApp() {
               )}
               <a href={written.pageUrl} download={written.pageName}
                  onClick={() => countStep(STEPS, ON_DEVICE)}>
-                Save the how-to-print page
+                Save the steps too
               </a>
             </div>
             <p className="hint">
-              Save all three into Files. The how-to-print page walks you through
-              MakerWorld and Bambu Handy, step by step &mdash; keep it, it is the
-              same steps every time.
+              Save the file into Files &mdash; that is the one the printer needs.
+              The steps walk you through MakerWorld and Bambu Handy and are the
+              same every time, so read them here now, or save them to have at
+              the printer later.
             </p>
             {donationsEnabled() && !hideReminder && (
               <div className="support">
@@ -1136,6 +1167,33 @@ export default function LocalApp() {
           </button>
         )}
       </section>
+
+      {/* The how-to-print page, read here rather than saved and opened --
+          which on an iPad is not a thing that can be done at all.
+
+          An iframe with srcdoc, not a parsed-out fragment: the page is one
+          self-contained document with its own styles and the plate picture
+          inlined, and putting it in a frame is what keeps this the *same*
+          page as the one that gets saved rather than a second rendering of it
+          that can drift. Sandboxed, because the document is generated but the
+          model's name is in it; allow-popups so the MakerWorld link still
+          goes somewhere, and it opens in a new tab rather than navigating the
+          app out from under a half-finished file. */}
+      {steps && written && (
+        <div className="sheet" role="dialog" aria-label="How to print it">
+          <div className="sheet-bar">
+            <span>How to print it</span>
+            <button type="button" onClick={() => setSteps(false)}>Done</button>
+          </div>
+          <div className="sheet-body">
+            <iframe
+              title="How to print it"
+              srcDoc={written.pageHtml}
+              sandbox="allow-popups allow-popups-to-escape-sandbox"
+            />
+          </div>
+        </div>
+      )}
     </main>
   )
 }

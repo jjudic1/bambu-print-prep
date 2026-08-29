@@ -56,11 +56,11 @@ function sources(dir) {
 
 console.log('\n--- what metrics.js offers --------------------------------------')
 {
-  check('the funnel is the four steps, in the order people take them',
+  check('the funnel is the five steps, in the order people take them',
     metrics.FUNNEL,
-    [metrics.OPENED, metrics.MADE, metrics.SAVED, metrics.STEPS])
+    [metrics.OPENED, metrics.MADE, metrics.SAVED, metrics.STEPS, metrics.READ])
   check('every step has a name and they are all different',
-    new Set(metrics.FUNNEL).size, 4)
+    new Set(metrics.FUNNEL).size, 5)
   check('counting a step is a function, and starting is another',
     [typeof metrics.countStep, typeof metrics.startCounting],
     ['function', 'function'])
