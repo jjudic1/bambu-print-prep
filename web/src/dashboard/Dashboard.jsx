@@ -169,8 +169,9 @@ export default function Dashboard() {
       <main className="dash gate">
         <h1>{BRAND}</h1>
         <p className="lede">
-          The usage numbers. This needs the key you set as INSIGHTS_KEY on the
-          API &mdash; it is kept on this device and sent with each request.
+          The usage numbers. This needs the key you set as INSIGHTS_KEY in the
+          Vercel project&rsquo;s environment variables &mdash; it is kept on this
+          device and sent with each request.
         </p>
         <form onSubmit={(e) => {
           e.preventDefault()
