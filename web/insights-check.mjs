@@ -28,6 +28,7 @@ const realFetch = globalThis.fetch
 function serve(answers) {
   globalThis.fetch = async (url) => {
     const at = new URL(url)
+    const withTeam = at.searchParams.has('teamId')
     const dataset = at.pathname.includes('/events/') ? 'events' : 'visits'
     const shape = at.pathname.endsWith('/count') ? 'count' : 'aggregate'
     const by = at.searchParams.getAll('by')
@@ -37,7 +38,12 @@ function serve(answers) {
            eventName: dataset === 'events' ? 'events' : '?' }[by[0]] || '?')
 
     globalThis.__urls.push(at.toString())
-    const answer = answers[name]
+    let answer = answers[name]
+    // An answer may differ by whether the team was named, which is how the
+    // 403-then-retry path is checked.
+    if (answer && answer.withTeam !== undefined) {
+      answer = withTeam ? answer.withTeam : answer.withoutTeam
+    }
     if (typeof answer === 'number') {
       return { ok: false, status: answer, json: async () => ({ error: { message: 'nope' } }) }
     }
@@ -186,6 +192,31 @@ console.log('\n--- partly working is a real answer -----------------------------
   check('refused with no team set, it suspects the team before the token',
     [noTeam.body.unavailable.events.includes('INSIGHTS_TEAM_ID'),
      noTeam.body.unavailable.events.includes('Scope')], [true, false])
+
+  // Whether this account's projects want a teamId cannot be known from here: a
+  // personal account still has a team_... org id, and passing it is required
+  // for some accounts and refused by others. Guessing wrong looks exactly like
+  // a badly scoped token, which has already cost a round of token-making.
+  const retried = await call({
+    key: 'let-me-in', env: CREDENTIALS,
+    answers: { ...ALL, events: { withTeam: 403, withoutTeam: ALL.events } } })
+  check('a team Vercel will not accept is dropped and the query retried',
+    [retried.body.events.length, 'events' in retried.body.unavailable], [2, false])
+  check('the retry only names the team once, on the URL that had it',
+    retried.urls.filter((u) => u.includes('eventName') && u.includes('teamId')).length, 1)
+
+  const bothWays = await call({
+    key: 'let-me-in', env: CREDENTIALS,
+    answers: { ...ALL, events: { withTeam: 403, withoutTeam: 403 } } })
+  check('refused both ways, it says so rather than blaming only the team',
+    bothWays.body.unavailable.events.includes('without the team was refused too'),
+    true)
+
+  const notRetried = await call({
+    key: 'let-me-in', env: CREDENTIALS,
+    answers: { ...ALL, events: { withTeam: 401, withoutTeam: ALL.events } } })
+  check('a 401 is not retried -- a wrong token is wrong either way',
+    notRetried.urls.filter((u) => u.includes('eventName')).length, 1)
   check('neither is reported as analytics being switched off',
     [bad, forbidden].some((r) => r.body.unavailable.events.includes('Analytics')),
     false)
