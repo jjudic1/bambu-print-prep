@@ -109,22 +109,22 @@ function reason(status, body, sentTeam) {
     return 'Vercel did not accept INSIGHTS_TOKEN at all -- it is wrong, it has '
       + `expired, or a stray space or newline came with it when it was set.${said}`
   }
-  if (status === 403 && !sentTeam) {
-    // The first thing to suspect, and it was the actual cause the day this was
-    // switched on. INSIGHTS_TEAM_ID is optional -- a project owned by a
-    // personal account needs no team -- so an unset one cannot be an error on
-    // its own. But paired with a refusal it is far more likely than a bad
-    // token, and blaming the token instead sent somebody off to create a
-    // second one that was never the problem.
-    return 'INSIGHTS_TEAM_ID is not set, so this asked Vercel without naming a '
-      + 'team -- and a project owned by one cannot be read that way, however '
-      + 'well scoped the token is. Set INSIGHTS_TEAM_ID (the team_... in '
-      + `.vercel/project.json, as orgId) and redeploy.${said}`
-  }
   if (status === 403) {
-    return 'INSIGHTS_TOKEN is a real token but is not allowed to read this '
-      + 'project. Create it again with its Scope set to the team that owns the '
-      + `project, not a personal account.${said}`
+    // Deliberately not confident about which of the two it is. An earlier
+    // version asserted the team was missing whenever none was sent, and said so
+    // in the imperative -- on an account measured to work *without* a team,
+    // which sent somebody to set the one thing known to break it. A wrong
+    // certainty in an error message costs more than an honest list.
+    return 'Vercel refused INSIGHTS_TOKEN for this project. The likeliest cause '
+      + 'is that the stored token is revoked, expired, or not the one you '
+      + 'tested -- check it by asking Vercel directly with the same token '
+      + 'before storing it again. '
+      + (sentTeam
+        ? 'INSIGHTS_TEAM_ID is set; on a personal account sending a team is '
+          + 'itself refused, so try removing it.'
+        : 'INSIGHTS_TEAM_ID is not set, which is right for a personal account '
+          + 'but wrong if a real team owns the project.')
+      + said
   }
   return `Vercel said ${status}. ${body || ''}`.trim()
 }

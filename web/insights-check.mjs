@@ -191,8 +191,10 @@ console.log('\n--- partly working is a real answer -----------------------------
   check('a token Vercel will not accept says so, and is not blamed on scope',
     [bad.body.unavailable.events.includes('did not accept'),
      bad.body.unavailable.events.includes('Scope')], [true, false])
-  check('a token that is refused for this project says to re-scope it',
-    forbidden.body.unavailable.events.includes('Scope'), true)
+  check('a refusal names the token first and does not order a team to be set',
+    [forbidden.body.unavailable.events.includes('refused INSIGHTS_TOKEN'),
+     /Set INSIGHTS_TEAM_ID/.test(forbidden.body.unavailable.events)],
+    [true, false])
 
   // The actual cause the day this was switched on, and the message blamed the
   // token instead -- which sent somebody off to create a second token that was
@@ -200,9 +202,9 @@ console.log('\n--- partly working is a real answer -----------------------------
   const noTeam = await call({
     key: 'let-me-in', env: { ...CREDENTIALS, INSIGHTS_TEAM_ID: null },
     answers: { ...ALL, events: 403 } })
-  check('refused with no team set, it suspects the team before the token',
-    [noTeam.body.unavailable.events.includes('INSIGHTS_TEAM_ID'),
-     noTeam.body.unavailable.events.includes('Scope')], [true, false])
+  check('with no team set it says so, without claiming that is the cause',
+    [noTeam.body.unavailable.events.includes('right for a personal account'),
+     /Set INSIGHTS_TEAM_ID/.test(noTeam.body.unavailable.events)], [true, false])
 
   // Whether this account's projects want a teamId cannot be known from here: a
   // personal account still has a team_... org id, and passing it is required
