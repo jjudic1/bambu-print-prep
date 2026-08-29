@@ -268,6 +268,25 @@ console.log('\n--- what it hands back ------------------------------------------
     shut.code, 401)
 }
 
+{
+  // The window, which is the whole reason the totals read zero for a day.
+  // Vercel snaps `until` to a day boundary and the two endpoints snap it
+  // opposite ways -- the aggregate up, the count down -- so an `until` of "now"
+  // asked the count query for a window that ended where today began, and
+  // excluded every visit that had arrived in it. Asking in whole days is what
+  // makes the two agree, so that is what is checked: both ends on a midnight,
+  // the far end after the current moment, and exactly `days` days between them.
+  const got = await call({ key: 'let-me-in', days: 30, env: CREDENTIALS, answers: ALL })
+  const { since, until } = got.body
+  const span = (Date.parse(until) - Date.parse(since)) / 86400000
+  check('the window is whole UTC days, and covers today rather than stopping at it',
+    [since.endsWith('T00:00:00.000Z'), until.endsWith('T00:00:00.000Z'),
+     Date.parse(until) > Date.now(), span],
+    [true, true, true, 30])
+  check('and every query is asked for that same window',
+    got.urls.every((u) => new URL(u).searchParams.get('until') === until), true)
+}
+
 console.log('\n--- partly working is a real answer -----------------------------')
 {
   const got = await call({
