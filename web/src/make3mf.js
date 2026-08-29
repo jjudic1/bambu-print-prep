@@ -10,9 +10,9 @@
  * static strings, four are small templates, five are pictures, and one is a
  * settings blob that resolves to the same answer every time for a given
  * printer and material -- so it is baked at build time by
- * spikes/export_web_profiles.py (38 KB gzipped for fourteen printers and four
- * materials). Nothing here needs trimesh, scipy or numpy; write3mf.py never
- * did either.
+ * spikes/export_web_profiles.py (109 KB gzipped for fourteen machines in four
+ * nozzle sizes and four materials, fetched on demand rather than bundled).
+ * Nothing here needs trimesh, scipy or numpy; write3mf.py never did either.
  *
  * What does NOT come along: repair, analysis and the orientation solver. Those
  * need real mesh libraries and are the judgement half of the product. This is

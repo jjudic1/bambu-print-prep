@@ -22,6 +22,10 @@ from prep.profiles import (
 P1S = "Bambu Lab P1S 0.4 nozzle"
 A1_MINI = "Bambu Lab A1 mini 0.4 nozzle"
 
+# What Bambu sells, and what the browser now offers. Every machine in the
+# vendored tree has a profile for all four.
+NOZZLES_MM = [0.2, 0.4, 0.6, 0.8]
+
 
 def test_known_models_are_listed():
     models = list_models()
@@ -95,8 +99,71 @@ def test_process_selection_uses_compatibility_not_name():
     assert "P1S" not in chosen
 
 
+def test_every_machine_has_a_profile_for_every_nozzle():
+    """The nozzle picker offers all four for every machine, and each is its own
+    machine profile. A slicer update that drops one takes the option with it."""
+    by_model = {}
+    for name in list_printers():
+        try:
+            printer = load_printer(name)
+        except ProfileError:
+            continue                      # a G-code template, not a machine
+        by_model.setdefault(printer.model, set()).add(printer.nozzle_mm)
+
+    for model in ("Bambu Lab P1S", "Bambu Lab A1 mini", "Bambu Lab H2D"):
+        assert set(NOZZLES_MM) <= by_model[model], model
+
+
+@pytest.mark.parametrize("nozzle_mm", NOZZLES_MM)
+def test_the_process_is_the_one_the_machine_asks_for(nozzle_mm):
+    """Only the 0.4 profiles carry a "0.20mm Standard" -- a 0.2 mm nozzle
+    cannot lay a 0.2 mm layer -- so the name search alone used to fall through
+    to whatever sorted first. The machine names its own default; take that."""
+    name = f"Bambu Lab P1S {nozzle_mm} nozzle"
+    chosen = default_process(name)
+
+    assert chosen == resolve("BBL", "machine", name)["default_print_profile"]
+    # A quarter to three quarters of the tip is the printable range; Bambu's
+    # own defaults all sit at half.
+    layer = float(resolve("BBL", "process", chosen)["layer_height"])
+    assert nozzle_mm * 0.25 <= layer <= nozzle_mm * 0.75
+
+
+def test_the_0_4_process_is_the_one_that_has_always_shipped():
+    """Every file this project has ever written was for a 0.4 mm nozzle. Asking
+    the machine instead of searching by name must not have moved any of them."""
+    for name in list_printers():
+        try:
+            printer = load_printer(name)
+        except ProfileError:
+            continue
+        if printer.nozzle_mm != 0.4:
+            continue
+        assert default_process(name).startswith("0.20mm Standard"), name
+
+
 def test_default_filament_prefers_bambu_pla():
     assert default_filament(P1S).startswith("Bambu PLA Basic")
+
+
+def test_a_material_the_machine_has_no_profile_for_is_refused():
+    """It used to fall through to options[0] -- every filament the printer
+    knows, of every material -- so asking an A1 mini for ABS returned a PETG
+    profile and the file said ABS on it. The A1 family is open-frame and has no
+    ABS at all; no 0.2 mm nozzle has TPU. Saying so is the only honest answer,
+    and it is what lets the picker offer only what exists."""
+    with pytest.raises(ProfileError, match="No ABS filament profile"):
+        default_filament(A1_MINI, material="ABS")
+    with pytest.raises(ProfileError, match="No TPU filament profile"):
+        default_filament("Bambu Lab P1S 0.2 nozzle", material="TPU")
+
+
+def test_the_filament_chosen_is_actually_that_material():
+    """Matched on what the profile says it is, not on what it is called."""
+    for name in (P1S, "Bambu Lab P1S 0.6 nozzle", A1_MINI):
+        for material in ("PLA", "PETG"):
+            chosen = default_filament(name, material=material)
+            assert profiles.filament_type(chosen) == material, (name, material)
 
 
 def test_material_choice_is_honoured():

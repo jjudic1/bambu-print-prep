@@ -75,6 +75,28 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
 - Printer geometry is resolved from **vendored Bambu Studio profiles** in
   `prep/data/profiles` (not OrcaSlicer's — the two produce different files, and
   the accepted one used Bambu Studio's). Never hard-code a bed size.
+- **A nozzle is a printer, not a setting.** "Bambu Lab P1S 0.6 nozzle" is its own
+  machine profile with its own process, layer height and every line width; there
+  is no 0.6 to apply to a P1S. So the two selects on the page are one value, and
+  `web/src/local/printers.js` is what keeps them honest. The nozzle is *not*
+  remembered — the machine is, and the nozzle starts at 0.4 every session,
+  because it gets swapped for one print and swapped back, and an 0.8 mm file for
+  a printer wearing a 0.4 is a machine pushing four times the plastic through a
+  quarter of the hole.
+- **Only the 0.4 profiles carry a "0.20mm Standard"** — a 0.2 mm nozzle cannot
+  lay a 0.2 mm layer. `default_process` asks the machine profile for its own
+  `default_print_profile` first; the name search under it silently returned
+  whatever sorted first for every other nozzle.
+- **`default_filament` matches on `filament_type`, not on the name.** It used to
+  fall through to `options[0]` — every filament the printer knows, of every
+  material — so a machine with no ABS handed back a PETG profile for a file that
+  said ABS on it. The A1 family is open-frame and has no ABS at all; no 0.2 mm
+  nozzle has TPU. It raises now, and the material picker offers what exists.
+- **The baked profiles are two files and go stale together**: `printers.json` is
+  the 13 KB index the pickers read, `printer-settings.json` the 4.8 MB of blobs,
+  fetched on demand — static, it put 4 MB of JavaScript in front of first paint
+  on an iPad. Both come out of one run of `spikes/export_web_profiles.py`, and
+  `tests/test_web3mf.py` fails if half of an export is committed.
 - **The handoff page exists twice too**: `prep/handoff.py` and
   `web/src/local/handoff.js`, diffed by `tests/test_web_handoff.py`. The copy is
   not invented — it is the delivery loop someone actually walked — so treat a

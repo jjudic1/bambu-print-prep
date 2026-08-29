@@ -206,6 +206,7 @@ def main(argv=None) -> int:
             model_name=Path(args.model).stem,
             file_name=written.path.name,
             printer=written.printer,
+            nozzle_mm=printer.nozzle_mm,
             size_text=f"{x} x {y} x {z} mm - {sizing.comparison}",
             material=args.material,
             preview=preview,

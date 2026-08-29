@@ -173,3 +173,18 @@ def test_write_puts_the_page_where_it_says_it_did(tmp_path):
     result = handoff.write(dest, **BASE)
     assert result.path == dest
     assert dest.read_text(encoding="utf-8").startswith("<!doctype html>")
+
+
+def test_write_passes_the_nozzle_on(tmp_path):
+    """It accepted the argument and dropped it on the floor, so the page came
+    out of the command line without the row and out of the browser with it.
+    Nothing failed; the file was simply missing the one fact it was added for."""
+    dest = tmp_path / "how to print this.html"
+    handoff.write(dest, nozzle_mm=0.6, **BASE)
+    assert "<span>Nozzle</span>0.6 mm" in dest.read_text(encoding="utf-8")
+
+
+def test_the_nozzle_row_is_absent_when_nobody_says_which(page):
+    """Every page written before the nozzle was a choice, and every caller that
+    still does not pass one, must look exactly as it always did."""
+    assert "Nozzle" not in page

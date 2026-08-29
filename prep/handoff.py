@@ -206,17 +206,32 @@ def _facts_block(rows) -> str:
     return '<div class="facts">' + cells + "</div>" if cells else ""
 
 
+def nozzle_text(nozzle_mm) -> str:
+    """How the nozzle reads on the page, or nothing at all."""
+    if not nozzle_mm:
+        return ""
+    return f"{nozzle_mm:g} mm"
+
+
 def render(*, model_name: str, file_name: str, printer: str,
-           size_text: str = "", preview=None, material: str = "") -> str:
+           size_text: str = "", preview=None, material: str = "",
+           nozzle_mm=None) -> str:
     """Build the page. Pure string work, so it stays cheap to test."""
     steps = "".join(
         "<li><h2>" + html.escape(head) + "</h2><p>" + _dashes(body) + "</p></li>"
         for head, body in _steps(file_name))
 
+    # The nozzle used to be the same for everybody and the page said nothing
+    # about it. Now it is a choice, and it is the one thing on this page the
+    # reader has to check against the machine in front of them -- the file is
+    # sliced for the tip it was told about, and a printer wearing a different
+    # one does not object. Optional, and absent from the block when it is not
+    # given, so the page a 0.4 mm run produces is the page it always produced.
     facts = _facts_block([
         ("File", file_name),
         ("Size", size_text.replace(" - ", " — ")),
         ("Printer", plain_printer(printer)),
+        ("Nozzle", nozzle_text(nozzle_mm)),
         ("Material", material),
     ])
 
@@ -241,12 +256,14 @@ def render(*, model_name: str, file_name: str, printer: str,
 
 
 def write(dest, *, model_name: str, file_name: str, printer: str,
-          size_text: str = "", preview=None, material: str = "") -> Instructions:
+          size_text: str = "", preview=None, material: str = "",
+          nozzle_mm=None) -> Instructions:
     """Write the page next to the model and say where it went."""
     dest = Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(
         render(model_name=model_name, file_name=file_name, printer=printer,
-               size_text=size_text, preview=preview, material=material),
+               size_text=size_text, preview=preview, material=material,
+               nozzle_mm=nozzle_mm),
         encoding="utf-8")
     return Instructions(path=dest, model_name=model_name)

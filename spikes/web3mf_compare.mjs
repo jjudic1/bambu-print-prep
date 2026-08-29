@@ -19,10 +19,16 @@ const { makeProject3mf, writePng } = await import('../web/src/make3mf.js')
 
 const [meshPath, out] = process.argv.slice(2)
 const mesh = JSON.parse(readFileSync(meshPath, 'utf8'))
+// The profiles ship as two files -- a small index the pickers read, and the
+// settings blobs the browser only fetches when a file is asked for. The writer
+// wants them back together, which is what LocalApp's withSettings() does.
 const data = JSON.parse(readFileSync('web/src/data/printers.json', 'utf8'))
+const blobs = JSON.parse(readFileSync('web/src/data/printer-settings.json', 'utf8'))
 
-const printer = data.printers.find((p) => p.id === mesh.printer)
-if (!printer) throw new Error(`printer not in printers.json: ${mesh.printer}`)
+const entry = data.printers.find((p) => p.id === mesh.printer)
+if (!entry) throw new Error(`printer not in printers.json: ${mesh.printer}`)
+if (!blobs[entry.id]) throw new Error(`no settings for ${entry.id}`)
+const printer = { ...entry, materials: blobs[entry.id] }
 
 const flat = (px, rgb) => {
   const a = new Uint8Array(px * px * 4)

@@ -170,6 +170,11 @@ function today(now = new Date()) {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
+/** How the nozzle reads on the page, or nothing at all. */
+export function nozzleText(nozzleMm) {
+  return nozzleMm ? `${Number(nozzleMm)} mm` : ''
+}
+
 /**
  * Build the page. Pure string work, so it stays cheap to test.
  *
@@ -178,16 +183,23 @@ function today(now = new Date()) {
  */
 export function renderHandoff({
   modelName, fileName, printer, sizeText = '', preview = null, material = '',
-  date = null,
+  nozzleMm = null, date = null,
 }) {
   const body = steps(fileName)
     .map(([head, text]) => '<li><h2>' + escape(head) + '</h2><p>' + dashes(text) + '</p></li>')
     .join('')
 
+  // The nozzle used to be the same for everybody and the page said nothing
+  // about it. Now it is a choice, and it is the one thing here the reader has
+  // to check against the machine in front of them -- the file is sliced for the
+  // tip it was told about, and a printer wearing a different one does not
+  // object. Optional, and absent from the block when it is not given, so the
+  // page a 0.4 mm run produces is the page it always produced.
   const facts = factsBlock([
     ['File', fileName],
     ['Size', sizeText.split(' - ').join(' — ')],
     ['Printer', plainPrinter(printer)],
+    ['Nozzle', nozzleText(nozzleMm)],
     ['Material', material],
   ])
 

@@ -499,6 +499,14 @@ The settings were the only part that looked expensive and are not: fourteen
 printers with four materials each bake to **38 KB gzipped**
 (`spikes/export_web_profiles.py` -> `web/src/data/printers.json`).
 
+Offering all four nozzle sizes (2026-08-29) multiplied that by four -- a nozzle
+is its own machine profile, its own process and its own line widths, so there is
+nothing to share -- and the export now writes two files: a 13 KB index the
+pickers read, and 4.8 MB of settings blobs (109 KB gzipped) fetched only when a
+file is asked for. Measured: bundled statically it took the main chunk from
+1.9 MB to 5.9 MB of JavaScript to parse before first paint; split, that chunk is
+606 KB, which is *smaller* than before any of this.
+
 ### What the spike proved
 
 `web/src/make3mf.js` is a port of the writer. Fed geometry identical to the
@@ -547,9 +555,10 @@ whole reason §A2b exists.
 
 ### Loose end
 
-`web/src/data/printers.json` is 1.4 MB of vendored Bambu Studio profile data in
-the repo. Fine while private. Shipping it to strangers is a licensing question
-worth answering before, not after.
+`web/src/data/printer-settings.json` is 4.8 MB of vendored Bambu Studio profile
+data in the repo (1.4 MB until all four nozzles were offered). Fine while
+private. Shipping it to strangers is a licensing question worth answering
+before, not after.
 
 ---
 
