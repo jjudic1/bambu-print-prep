@@ -54,6 +54,25 @@ const TIPS = [
   { label: 'Roll right', axis: [0, 1, 0], deg: -90 },
 ]
 
+/**
+ * Where a model comes from, for somebody who has not got one yet.
+ *
+ * Home pages, not search or category paths: a deep link is a thing that rots
+ * without anyone noticing, and every one of these sites has moved its own
+ * furniture before. The same reasoning as MAKERWORLD_URL in handoff.js, and
+ * for the same reason -- a 404 here is worse than a sentence naming the site
+ * and letting somebody type it.
+ *
+ * MakerWorld first because it is the one the rest of the app ends at: it is
+ * where the file has to go to reach a Bambu printer, so a model that starts
+ * there is a model whose account is already set up by the time it matters.
+ */
+const SOURCES = [
+  { name: 'MakerWorld', url: 'https://makerworld.com' },
+  { name: 'Printables', url: 'https://printables.com' },
+  { name: 'Thingiverse', url: 'https://thingiverse.com' },
+]
+
 const COLOURS = [
   { name: 'Green', hex: 0x22a45d }, { name: 'Grey', hex: 0xb6bcc4 },
   { name: 'Orange', hex: 0xe07b39 }, { name: 'Red', hex: 0xc4443a },
@@ -678,9 +697,17 @@ export default function LocalApp() {
             entries, because the iOS menu is the thing people get lost in:
             Choose File is the third row, under two that offer photos. */}
         <p className="hint">
-          No model yet? Download one from a site like MakerWorld, Printables or
-          Thingiverse &mdash; in Safari it lands in Files, under Downloads.
-          Then tap Choose a model, pick <b>Choose File</b>, and look in there.
+          No model yet? Download one from{' '}
+          {SOURCES.map((site, i) => (
+            <span key={site.name}>
+              {i > 0 && (i === SOURCES.length - 1 ? ' or ' : ', ')}
+              <a href={site.url} target="_blank" rel="noopener noreferrer">
+                {site.name}
+              </a>
+            </span>
+          ))}
+          {' '}&mdash; in Safari it lands in Files, under Downloads. Then tap
+          Choose a model, pick <b>Choose File</b>, and look in there.
         </p>
         {error && <p className="error">{error}</p>}
         {donationsEnabled() && (

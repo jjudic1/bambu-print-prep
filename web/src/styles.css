@@ -293,6 +293,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 }
 .read { color: var(--ink); }
 .hint { color: var(--dim); }
+/* Named sites in a dim line of prose. Underlined as well as coloured: the
+   text around them is already dim, so colour alone is a thin thing to hang
+   "this is tappable" on -- and thinner still for anyone who does not separate
+   these two greens. */
+.hint a { color: var(--accent); text-decoration: underline; }
 
 /* Whose job is whose: dim, but on screen beside the button that makes the file
    rather than behind a link nobody opens. */
