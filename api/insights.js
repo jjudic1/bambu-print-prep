@@ -141,25 +141,68 @@ function reason(status, body, sentTeam) {
 }
 
 /**
+ * The names a metric can arrive under.
+ *
+ * Vercel's documented aggregate row is {dimension, count, visitors}, and the
+ * documented count response is {pageviews, visitors}. Measured against this
+ * project on 2026-08-29, the visits dataset returns neither name for the
+ * larger of the two numbers: every row read as zero pageviews while the
+ * visitor counts were right, and the totals panel read 0 next to a chart
+ * drawn from the same request showing 42. Reading one name and trusting the
+ * documentation is what made a wrong number look like a real one, so both
+ * metrics are now looked up by a list of names rather than by one.
+ *
+ * `visitors` is a distinct-people count and `count` a hit count; they are kept
+ * apart deliberately, because a synonym list that folded them together would
+ * silently answer the wrong question when only one of them is present.
+ */
+const HITS = ['count', 'pageviews', 'total', 'views', 'events']
+const PEOPLE = ['visitors', 'uniques', 'devices']
+const METRICS = new Set([...HITS, ...PEOPLE])
+
+/** The first of `names` the object carries as a number, or 0. */
+function pick(row, names) {
+  for (const name of names) {
+    const value = row[name]
+    if (typeof value === 'number' || typeof value === 'string') {
+      const number = Number(value)
+      if (Number.isFinite(number)) return number
+    }
+  }
+  return 0
+}
+
+/** Does it carry any metric we know how to read? */
+function legible(row) {
+  return Object.keys(row).some((key) => METRICS.has(key))
+}
+
+/**
  * Normalise an aggregate response into {label, count, visitors}.
  *
  * The dimension's key in each row is not a fixed name -- it follows what was
  * grouped by, and for a nested group like eventData/plan it is the prefix
  * rather than the whole path. So the two counts are lifted out by name and
  * whatever single key is left over is the label.
+ *
+ * The leftover is now taken as the first key that is not *any* known metric
+ * name, not just the first that is neither `count` nor `visitors`. With the
+ * old test the label happened to stay right only because the dimension is
+ * listed before the metrics in Vercel's JSON; one reordering upstream and
+ * every row would have been labelled with a number.
  */
 function rows(payload, chronological) {
   const out = []
   for (const row of (payload && payload.data) || []) {
     if (!row || typeof row !== 'object') continue
     const label = Object.keys(row)
-      .filter((key) => key !== 'count' && key !== 'visitors')
+      .filter((key) => !METRICS.has(key))
       .map((key) => row[key])[0]
     out.push({
       label: label === undefined || label === null || label === ''
         ? '(none)' : String(label),
-      count: Number(row.count) || 0,
-      visitors: Number(row.visitors) || 0,
+      count: pick(row, HITS),
+      visitors: pick(row, PEOPLE),
     })
   }
   // Sorted here rather than in the page: the dashboard draws them in the order
@@ -171,6 +214,30 @@ function rows(payload, chronological) {
       || a.label.localeCompare(b.label))
   }
   return out
+}
+
+/**
+ * Normalise a count response into {visitors, pageviews}.
+ *
+ * Two shapes are accepted because two were seen: the documented object, and a
+ * one-element array of it -- the aggregate endpoint's shape, which the count
+ * endpoint shares a response schema with. Reading `.visitors` off an array
+ * gives undefined, and undefined became 0, and 0 is a number a person will
+ * read as an answer.
+ *
+ * If it carries no name we recognise, that is reported as a failure rather
+ * than counted as none. A dashboard cannot tell 0 from "not understood", and
+ * this whole page exists to answer whether the advertising is working.
+ */
+function totals(payload) {
+  let data = (payload && payload.data) || {}
+  if (Array.isArray(data)) data = data[0] || {}
+  if (!data || typeof data !== 'object' || !legible(data)) {
+    return [null, 'Vercel answered with fields this page does not know how to '
+      + `read: ${Object.keys(data || {}).join(', ') || '(nothing at all)'}. `
+      + 'The other panels come from a different endpoint and are unaffected.']
+  }
+  return [{ visitors: pick(data, PEOPLE), pageviews: pick(data, HITS) }, null]
 }
 
 /** One attempt, with or without naming a team. */
@@ -305,10 +372,12 @@ module.exports = async function insights(request, response) {
       result[query.name] = rows(payload, query.chronological)
     } else {
       // The count shape is a single object, not rows.
-      const data = (payload && payload.data) || {}
-      result[query.name] = {
-        visitors: Number(data.visitors) || 0,
-        pageviews: Number(data.pageviews) || 0,
+      const [got, why2] = totals(payload)
+      if (why2) {
+        result.unavailable[query.name] = why2
+        result[query.name] = { visitors: 0, pageviews: 0 }
+      } else {
+        result[query.name] = got
       }
     }
   }
@@ -319,4 +388,4 @@ module.exports = async function insights(request, response) {
 }
 
 // Reached by the check harness, not by Vercel.
-module.exports._internals = { rows, sameKey, reason, QUERIES }
+module.exports._internals = { rows, totals, pick, sameKey, reason, QUERIES }
