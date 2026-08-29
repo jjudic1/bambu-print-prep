@@ -14,7 +14,11 @@
       "destination": "/local.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/dashboard",
+      "destination": "/dashboard.html"
+    },
+    {
+      "source": "/((?!_vercel/).*)",
       "destination": "/index.html"
     }
   ]
