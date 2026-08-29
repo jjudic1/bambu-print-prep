@@ -1,15 +1,15 @@
 // Where the donation link points, and whether it exists at all.
 //
-// Empty is the shipping default and it is load-bearing: with no URL set,
+// Empty means off, everywhere, and that stays the guard: with no URL set,
 // nothing donation-related renders anywhere. That is deliberate rather than
 // lazy. A tag pointing at a URL that 404s is worse than no tag -- it asks for
 // money and then looks broken doing it, on the one page where a stranger is
 // deciding whether this is a real thing.
 //
-// To turn it on, put the link here. Ko-fi, Buy Me a Coffee, PayPal.me, GitHub
-// Sponsors, Stripe -- whatever the account actually is. One constant, both
-// places, no other edit needed.
-export const DONATION_URL = ''
+// Set 2026-08-29 to the Ko-fi page. One constant, both places -- the landing
+// screen and the reminder at download time -- and no other edit needed. Empty
+// it again to take both down.
+export const DONATION_URL = 'https://ko-fi.com/meow_skulls'
 
 // What the button says. Kept next to the URL because the two go together: a
 // PayPal link labelled "buy me a coffee" is a small lie about where it goes.
