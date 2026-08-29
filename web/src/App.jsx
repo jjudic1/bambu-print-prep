@@ -4,7 +4,7 @@ import PlaneHero from './PlaneHero.jsx'
 import Viewer from './Viewer.jsx'
 import { BRAND, TAGLINE } from './brand.js'
 import { fileUrl, listPrinters, meshUrl, prepare, uploadAndWait } from './api.js'
-import { HOSTED, MADE, OPENED, SAVED, STEPS, note } from './metrics.js'
+import { HOSTED, MADE, OPENED, SAVED, STEPS, countStep } from './metrics.js'
 import { IDENTITY, bake, compose, sameOrientation, turn } from './orientation.js'
 import {
   DONATION_LABEL,
@@ -140,7 +140,7 @@ export default function App() {
       // on one chart. How long the upload and the solver took goes with it:
       // this is the step people wait at, and if they are dropping out it is
       // worth knowing whether they waited five seconds or forty.
-      note(OPENED, HOSTED, {
+      countStep(OPENED, HOSTED, {
         kind: (file.name.match(/\.([^.]+)$/)?.[1] || '?').toLowerCase(),
         seconds: Math.round((Date.now() - since) / 1000),
       })
@@ -167,7 +167,7 @@ export default function App() {
         colour: `#${colour.toString(16).padStart(6, '0')}`,
       })
       setResult(prepared)
-      note(MADE, HOSTED, { flattened: Boolean(prepared.flattened) })
+      countStep(MADE, HOSTED, { flattened: Boolean(prepared.flattened) })
     } catch (e) {
       setError(e.message)
     } finally {
@@ -489,8 +489,8 @@ export default function App() {
             {result.files.map((f) => (
               <a key={f.name} href={fileUrl(job.job_id, f.name)} download
                  onClick={() => {
-                   if (f.kind === 'model') note(SAVED, HOSTED)
-                   else if (f.kind !== 'picture') note(STEPS, HOSTED)
+                   if (f.kind === 'model') countStep(SAVED, HOSTED)
+                   else if (f.kind !== 'picture') countStep(STEPS, HOSTED)
                  }}>
                 {f.kind === 'model'
                   ? 'Save the file'

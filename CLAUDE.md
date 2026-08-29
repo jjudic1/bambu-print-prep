@@ -118,6 +118,14 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   measured from it stay on the device — and the landing copy was narrowed from
   "nothing is uploaded anywhere" to say exactly that, because the old sentence
   stopped being true. If you add a counter, check the copy still is.
+- **Counting a step is `countStep`, and the ugly name is deliberate.** It was
+  `note`, which is also what LocalApp calls its status line, so
+  `const [note, setNote] = useState('')` shadowed the import and every call
+  invoked a string. Nothing failed at build time; the app threw
+  "R is not a function" *after* writing the user's file, and not one event was
+  ever counted — which on a dashboard is indistinguishable from nobody turning
+  up. `web/metrics-check.mjs` (run by `tests/test_metrics.py`) fails if any file
+  redeclares a name it imports from `metrics.js`.
 - **The catch-all rewrite must let `/_vercel/` and `/api/` through.** The
   counting script is served from `/_vercel/insights/script.js` and the one
   remaining function is at `/api/insights`; a plain `"/(.*)"` fallback answers

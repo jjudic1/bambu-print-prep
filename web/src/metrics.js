@@ -62,14 +62,23 @@ export function startCounting() {
 }
 
 /**
- * Note that something happened.
+ * Count that a step happened.
  *
  * Wrapped rather than calling `track` directly for two reasons: the properties
  * are pinned down in one place, and counting must never be able to break the
  * app. A blocked script, an ad blocker, or an offline iPad all make this throw,
  * and none of them are a reason to fail to write somebody's file.
+ *
+ * **The clumsy name is the point.** This was `note`, which is also what
+ * LocalApp calls the plain-language status line under the controls -- so
+ * `const [note, setNote] = useState('')` shadowed the import and every call
+ * tried to invoke a string. Nothing failed at build time, the counting silently
+ * did not happen, and the user got "R is not a function" under the colour
+ * swatches after their file had already been written. A name that cannot read
+ * as a local variable cannot be shadowed by one; `web/metrics-check.mjs`
+ * checks that no importer redeclares it anyway.
  */
-export function note(event, where, extra = {}) {
+export function countStep(event, where, extra = {}) {
   try {
     track(event, { where, ...extra })
   } catch {
