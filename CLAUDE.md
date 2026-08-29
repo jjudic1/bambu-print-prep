@@ -137,6 +137,13 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   the FastAPI app lives in that same directory. `.vercelignore` excludes the
   Python — delete those lines and the build tries to make a serverless function
   out of `main.py`, on an image with no trimesh.
+- **A `teamId` breaks the Web Analytics API on a personal Vercel account.**
+  Measured 2026-08-28: the same token, same project, returns 200 with no
+  `teamId` and **403 "Not authorized"** with the correct one out of
+  `.vercel/project.json`. The read API is *not* gated to a paid plan -- hobby
+  reads fine. `api/insights.js` retries without the team on any 403, because a
+  403 there reads exactly like a badly scoped token and sent one person off
+  creating tokens that were never the problem.
 - **`/dashboard` is shut unless `INSIGHTS_KEY` is set** in the Vercel project's
   environment variables, and it needs Web Analytics switched on in the Vercel
   dashboard by hand — a 404 from every query means that checkbox, not a broken

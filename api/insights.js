@@ -194,12 +194,16 @@ async function attempt(query, since, until, settings, withTeam) {
 /**
  * One upstream call. Resolves to [payload, null] or [null, why].
  *
- * **Tried both ways when a team is refused.** Whether this account's projects
- * want a teamId is not something we can know from here: a Vercel personal
- * account still has a team_... org id, and passing it can be either required or
- * refused depending on how the account was made. Guessing wrong produces a 403
- * that reads exactly like a badly scoped token, which is a diagnosis that has
- * already cost a round of pointless token-making.
+ * **Tried both ways when a team is refused.** Measured on this account
+ * (2026-08-28, hobby plan): the same token against the same project returns 200
+ * with no teamId and **403 "Not authorized" with the correct one** -- the
+ * team_... that Vercel itself puts in .vercel/project.json as orgId. A personal
+ * account's auto-generated org is not a team the analytics API will answer for.
+ *
+ * There is no way to tell from here which shape an account has, and guessing
+ * wrong produces a 403 that reads exactly like a badly scoped token. That
+ * diagnosis cost a round of pointless token-making before it was measured, so
+ * the code settles it now instead of the person.
  *
  * So a 403 with a team named is retried once without it, and the error that
  * comes back names both attempts. The retry only happens on the one status that
