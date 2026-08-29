@@ -61,13 +61,11 @@ const MW = 'https://makerworld.com'
 console.log('\n--- outside a Home Screen app, nothing changes -------------------')
 {
   for (const value of [undefined, false]) {
-    const { outward, outwardHtml, standalone } = await load(value)
+    const { outward, standalone } = await load(value)
     check(`navigator.standalone ${String(value)} is not the Home Screen case`,
       standalone(), false)
     check(`  an outward link is left alone (${String(value)})`,
       [outward(KOFI), outward(MW)], [KOFI, MW])
-    check(`  and so is the page in the frame (${String(value)})`,
-      outwardHtml(`<a href="${MW}">go</a>`), `<a href="${MW}">go</a>`)
   }
 }
 
@@ -78,17 +76,6 @@ console.log('\n--- inside one, https becomes Safari\'s own scheme --------------
   check('  the scheme is swapped, and nothing else about the address is',
     [outward(KOFI), outward(MW)],
     ['x-safari-https://ko-fi.com/meow_skulls', 'x-safari-https://makerworld.com'])
-  check('  every href in the frame\'s page is swapped',
-    outwardHtml(`<a href="${MW}">a</a> and <a href="${MW}/x">b</a>`),
-    '<a href="x-safari-https://makerworld.com">a</a> and '
-    + '<a href="x-safari-https://makerworld.com/x">b</a>')
-  // The page is written asking for a new tab, which is right everywhere
-  // else it is read. Here the scheme is itself the handoff to Safari, and
-  // the request for a window on top of it is what leaves an empty one
-  // behind inside our own app.
-  check('  and the frame stops asking for a new tab as well',
-    outwardHtml(`<a href="${MW}" target="_blank" rel="noopener">go</a>`),
-    '<a href="x-safari-https://makerworld.com" rel="noopener">go</a>'),
   // The save links are blob: URLs and the plate picture is a data: URI. There
   // is no x-safari- form for either, and handing one to iOS would break the
   // one button that matters.
@@ -96,9 +83,13 @@ console.log('\n--- inside one, https becomes Safari\'s own scheme --------------
     [outward('blob:http://localhost/abc'), outward('data:image/png;base64,AA'),
       outward(undefined), outward(null)],
     ['blob:http://localhost/abc', 'data:image/png;base64,AA', undefined, null])
-  check('  an img src is not an href, and is left alone',
-    outwardHtml('<img src="https://example.com/a.png">'),
-    '<img src="https://example.com/a.png">')
+  // There was a whole-document version of this, for the how-to-print page in
+  // the frame. Measured on an iPad 2026-08-29, the scheme is dead in there: a
+  // sandboxed frame has no allow-top-navigation, so iOS is never handed the
+  // scheme and the tap does nothing at all. Checked as absent, so it does not
+  // come back by sounding like a good idea a second time.
+  check('  and no whole-document rewrite is offered, because it did not work',
+    typeof outwardHtml, 'undefined')
 }
 
 console.log('\n--- no outward link in the app skips it ---------------------------')
@@ -117,6 +108,11 @@ console.log('\n--- no outward link in the app skips it -------------------------
   }
   check('every href in LocalApp.jsx is a save link or goes through outward()',
     raw, [])
+
+  // The page in the frame keeps ordinary https and is handed over as written.
+  // The way out to Safari is the bar's own link, outside the sandbox.
+  check('the frame is handed the page as written, not a rewritten one',
+    /srcDoc=\{written\.pageHtml\}/.test(text), true)
 
   for (const m of text.matchAll(/href="([^"]*)"/g)) raw.push(m[1])
   check('and none of them is a literal address in the markup', raw, [])

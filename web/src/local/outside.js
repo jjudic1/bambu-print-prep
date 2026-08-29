@@ -48,19 +48,14 @@ export const outward = (url) =>
     ? SAFARI + url.slice(HTTPS.length)
     : url
 
-/**
- * The same rewrite, across a whole document, for the how-to-print page shown
- * in a frame. The frame is sandboxed without scripts on purpose, so nothing
- * inside it can do this for itself -- and the string is the copy being read,
- * never the copy being saved.
- */
-export const outwardHtml = (html) => {
-  if (!standalone()) return html
-  return html
-    .split(`href="${HTTPS}`).join(`href="${SAFARI}`)
-    // The page asks for a new tab, which is right everywhere it is read
-    // except here: the scheme above is already a handoff to Safari, and
-    // asking for a window as well is how an empty one gets left behind in
-    // our own app. Dropped from the copy being shown, never from the file.
-    .split(' target="_blank"').join('')
-}
+// There was an `outwardHtml` here that did the same swap across the
+// how-to-print page shown in the frame. It is gone, and the reason is worth
+// keeping: measured on an iPad 2026-08-29, the scheme is *dead* inside that
+// frame. A sandboxed frame will not hand a scheme it does not know to the
+// system -- there is no allow-top-navigation, so the navigation is simply
+// blocked and the tap does nothing.
+//
+// The link in the page therefore stays ordinary https, which at worst opens
+// the sheet, and LocalApp puts an "Open MakerWorld" on the frame's own bar --
+// outside the sandbox, where this does work. The alternative was lifting the
+// sandbox on generated markup to buy what a button outside it already gives.

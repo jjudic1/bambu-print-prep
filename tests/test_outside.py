@@ -57,7 +57,7 @@ def checks():
 
 
 def test_the_harness_ran_every_check(checks):
-    assert len(checks) >= 10
+    assert len(checks) >= 9
 
 
 def test_every_check_passed(checks):
@@ -76,15 +76,17 @@ def test_the_rewrite_stays_in_the_home_screen_case(checks):
     the landing screen is dead, with no error to say so.
     """
     outside = [c for c in checks if "is not the Home Screen case" in c["label"]
-               or "left alone" in c["label"] or "so is the page" in c["label"]]
-    assert len(outside) >= 6, "the harness stopped checking the ordinary case"
+               or "left alone" in c["label"]]
+    assert len(outside) >= 4, "the harness stopped checking the ordinary case"
     assert all(c["ok"] for c in outside), "\n".join(
         c["label"] for c in outside if not c["ok"])
 
 
 def test_no_outward_link_skips_it(checks):
     """The half that would quietly put one link back in the sheet."""
-    guards = [c for c in checks if "href" in c["label"]]
-    assert len(guards) >= 2, "the harness stopped reading LocalApp.jsx"
+    guards = [c for c in checks if "href" in c["label"]
+              or "literal address" in c["label"]
+              or "handed the page as written" in c["label"]]
+    assert len(guards) >= 3, "the harness stopped reading LocalApp.jsx"
     assert all(c["ok"] for c in guards), "\n".join(
         f"{c['label']}: {json.dumps(c['got'])}" for c in guards if not c["ok"])
