@@ -6,19 +6,15 @@
   "framework": null,
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://print-prep-api-23515929262.us-central1.run.app/api/:path*"
-    },
-    {
       "source": "/local",
-      "destination": "/local.html"
+      "destination": "/index.html"
     },
     {
       "source": "/dashboard",
       "destination": "/dashboard.html"
     },
     {
-      "source": "/((?!_vercel/).*)",
+      "source": "/((?!_vercel/|api/).*)",
       "destination": "/index.html"
     }
   ]

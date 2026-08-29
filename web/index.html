@@ -6,7 +6,14 @@
     <meta name="theme-color" content="#101215" />
 
     <!--
-      Home-screen icon. 180px is what iOS asks for, opaque and square -- it
+      The on-device page, and now the only one. The hosted app that used to be
+      here needed a server to do the mesh work; that server is gone, and what is
+      left does the whole job in the browser. /local still resolves, because it
+      is the address people were given -- it is a rewrite to this same page
+      rather than a redirect, so a visit is counted once and the referrer
+      survives the hop.
+
+      Home-screen icon: 180px is what iOS asks for, opaque and square -- it
       applies its own rounding, and a transparent icon comes out black behind
       the corners.
 
@@ -22,12 +29,12 @@
     <meta name="apple-mobile-web-app-title" content="Handoff3D" />
 
     <title>Handoff3D</title>
-    <meta name="description" content="3D print - no computer necessary. Bring a model, get a print-ready file for your Bambu printer, from an iPad." />
+    <meta name="description" content="3D print - no computer necessary. Turn a model into a print-ready file for your Bambu printer, on your iPad. Nothing is uploaded." />
     <meta property="og:title" content="Handoff3D" />
     <meta property="og:description" content="3D print - no computer necessary." />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/local/main.jsx"></script>
   </body>
 </html>

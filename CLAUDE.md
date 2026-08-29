@@ -5,9 +5,22 @@ project stands and what changed against the spec. Then
 [docs/transport-findings.md](docs/transport-findings.md) for the evidence.
 
 Mesh in, print-ready Bambu project 3mf out, for someone whose only computer is an
-iPad. Called **EZslicer3D**. Spec: `docs/print-prep-service-spec.md`. Repo:
-`jjudic1/bambu-print-prep`. Live at `bambu-print-prep.vercel.app`, with a
-no-server page at `/local` that does the whole job in the browser.
+iPad. Called **Handoff3D** (`web/src/brand.js` — it was EZslicer3D, which
+promised the one thing this is not). Spec: `docs/print-prep-service-spec.md`.
+Repo: `jjudic1/bambu-print-prep`. Live at `bambu-print-prep.vercel.app`.
+
+**There is one product now, and it has no server.** The whole job — parse,
+split, arrange, cut, render, write — happens in the browser. `/` and `/local`
+are the same page; the second is a rewrite, kept because it is the address
+people were given.
+
+**The hosted app came down on 2026-08-28**, and with it the Cloud Run service.
+Its front end (`web/src/App.jsx`, `Viewer.jsx`, `api.js`, `main.jsx`) is
+retired in place — no HTML entry points at it, so none of it builds — and
+`api/` (FastAPI) still runs locally and is still under test. **None of the
+judgement half is lost**: `prep/` is untouched, still the best thing here, and
+still runs from the command line. What went away is the hosting, not the code.
+`web/src/main.jsx` has the three steps to bring it back.
 
 ## Running things
 
@@ -99,13 +112,21 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   and everything measured from it stay on the device — and the landing copy was
   narrowed from "nothing is uploaded anywhere" to say exactly that, because the
   old sentence stopped being true. If you add a counter, check the copy still is.
-- **The catch-all rewrite must let `/_vercel/` through.** The counting script is
-  served from `/_vercel/insights/script.js`; a plain `"/(.*)"` fallback answers
-  it with a page of HTML and nothing is ever counted. Same trap as the API
-  rewrite having to stay ahead of the SPA fallback. See `docs/deploy.md`.
-- **`/dashboard` is shut unless `INSIGHTS_KEY` is set** on the API, and it needs
-  Web Analytics switched on in the Vercel dashboard by hand — a 404 from every
-  query means that checkbox, not a broken endpoint.
+- **The catch-all rewrite must let `/_vercel/` and `/api/` through.** The
+  counting script is served from `/_vercel/insights/script.js` and the one
+  remaining function is at `/api/insights`; a plain `"/(.*)"` fallback answers
+  either with a page of HTML — the script tag then parses as HTML and silently
+  never counts anything. The source is `"/((?!_vercel/|api/).*)"`. Same trap
+  the old API rewrite had. See `docs/deploy.md`.
+- **`api/insights.js` is a Vercel function; `api/*.py` must never become one.**
+  Vercel turns every file in a top-level `api/` directory into a function, and
+  the FastAPI app lives in that same directory. `.vercelignore` excludes the
+  Python — delete those lines and the build tries to make a serverless function
+  out of `main.py`, on an image with no trimesh.
+- **`/dashboard` is shut unless `INSIGHTS_KEY` is set** in the Vercel project's
+  environment variables, and it needs Web Analytics switched on in the Vercel
+  dashboard by hand — a 404 from every query means that checkbox, not a broken
+  endpoint.
 - **`/local` orients per part but sizes as one model.** `base` is the whole
   model's pose *and* the frame Across/Deep/Tall are measured in; each part
   carries its own `spin`/`yaw` on top. Measure size in any other frame and
