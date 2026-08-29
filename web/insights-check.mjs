@@ -120,6 +120,17 @@ console.log('\n--- shut unless switched on -------------------------------------
   check('a longer wrong guess is refused too, not read past the end',
     (await call({ key: 'let-me-in-and-then-some', env: CREDENTIALS })).code, 401)
 
+  // A secret set from a terminal carries whitespace it does not look like it
+  // has, and then no typed key can ever match it. Both ends are trimmed, which
+  // takes away no entropy anybody chose.
+  check('a key stored with a stray newline still lets the right key in',
+    (await call({ key: 'let-me-in',
+      env: { ...CREDENTIALS, INSIGHTS_KEY: `let-me-in${String.fromCharCode(10)}` } })).code, 200)
+  check('and a key typed with a stray space does too',
+    (await call({ key: ' let-me-in ', env: CREDENTIALS })).code, 200)
+  check('trimming does not let a genuinely wrong key through',
+    (await call({ key: 'let me in', env: CREDENTIALS })).code, 401)
+
   const noToken = await call({
     key: 'let-me-in', env: { ...CREDENTIALS, INSIGHTS_TOKEN: null } })
   check('and it says which credential is missing',

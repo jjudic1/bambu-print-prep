@@ -229,15 +229,20 @@ async function ask(query, since, until, settings) {
 }
 
 module.exports = async function insights(request, response) {
-  const expected = process.env.INSIGHTS_KEY || ''
+  // Trimmed at both ends, because a secret set from a terminal very easily
+  // carries a newline it does not look like it has -- PowerShell appends one to
+  // anything piped -- and the result is a key that can never be typed
+  // correctly. Trimming cannot weaken it: whitespace at either end of a shared
+  // secret is not entropy anybody chose.
+  const expected = (process.env.INSIGHTS_KEY || '').trim()
   if (!expected) {
     return response.status(503).json({
       detail: 'The usage numbers are switched off. Set INSIGHTS_KEY on the '
         + 'project to turn them on.',
     })
   }
-  const given = request.headers['x-insights-key'] || ''
-  if (!given || !sameKey(String(given), expected)) {
+  const given = String(request.headers['x-insights-key'] || '').trim()
+  if (!given || !sameKey(given, expected)) {
     return response.status(401).json({ detail: 'That key is not right.' })
   }
 
