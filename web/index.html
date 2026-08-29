@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#101215" />
+
+    <!--
+      Home-screen icon. 180px is what iOS asks for, opaque and square -- it
+      applies its own rounding, and a transparent icon comes out black behind
+      the corners.
+
+      Note what is deliberately NOT here: apple-mobile-web-app-capable, and the
+      manifest says display "browser" to match. Standalone mode would drop the
+      address bar, and it has a long history of breaking downloads started from
+      a blob: URL -- which is the entire delivery loop. "Save the file into
+      Files" is the product, so the icon is worth having and full screen is not.
+    -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-title" content="Handoff3D" />
+
     <title>Handoff3D</title>
     <meta name="description" content="3D print - no computer necessary. Bring a model, get a print-ready file for your Bambu printer, from an iPad." />
     <meta property="og:title" content="Handoff3D" />
