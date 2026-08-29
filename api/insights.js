@@ -255,11 +255,14 @@ async function attempt(query, since, until, settings, withTeam) {
   }
 
   const shape = query.by.length ? 'aggregate' : 'count'
-  const answer = await fetch(`${API}/${query.dataset}/${shape}?${params}`, {
+  // Kept so `?raw=1` can show what was actually asked. The token is in a
+  // header, never in the URL, so this string is safe to hand back.
+  const url = `${API}/${query.dataset}/${shape}?${params}`
+  const answer = await fetch(url, {
     headers: { Authorization: `Bearer ${settings.token}` },
     signal: AbortSignal.timeout(TIMEOUT),
   })
-  if (answer.ok) return { ok: true, payload: await answer.json() }
+  if (answer.ok) return { ok: true, url, payload: await answer.json() }
 
   let detail = ''
   try {
@@ -270,7 +273,7 @@ async function attempt(query, since, until, settings, withTeam) {
     // has already failed. Anything thrown would replace a real upstream status
     // with a parsing complaint about it.
   }
-  return { ok: false, status: answer.status, detail }
+  return { ok: false, url, status: answer.status, detail }
 }
 
 /**
@@ -296,15 +299,15 @@ async function ask(query, since, until, settings) {
   try {
     const named = Boolean(settings.teamId)
     let got = await attempt(query, since, until, settings, named)
-    if (got.ok) return [got.payload, null]
+    if (got.ok) return [got.payload, null, got.url]
 
     if (got.status === 403 && named) {
       const alone = await attempt(query, since, until, settings, false)
-      if (alone.ok) return [alone.payload, null]
+      if (alone.ok) return [alone.payload, null, alone.url]
       return [null, reason(403, got.detail, true)
-        + ` Asking without the team was refused too (${alone.status}).`]
+        + ` Asking without the team was refused too (${alone.status}).`, got.url]
     }
-    return [null, reason(got.status, got.detail, named)]
+    return [null, reason(got.status, got.detail, named), got.url]
   } catch (error) {
     return [null, `Could not reach Vercel: ${error.message}`]
   }
@@ -360,6 +363,23 @@ module.exports = async function insights(request, response) {
 
   const answers = await Promise.all(
     QUERIES.map(async (query) => [query, ...await ask(query, since, until, settings)]))
+
+  // `?raw=1` hands back what Vercel actually said, untouched, next to the URL
+  // it was asked. It exists because the alternative is a deploy per guess: this
+  // endpoint reshapes seven upstream answers and cannot show its working, so
+  // when a number comes out wrong there is no way to tell a bad request from a
+  // misread response without one. It costs nothing to carry, needs the same key
+  // as everything else here, and no secret goes into it -- the token travels in
+  // a header, so the URL is just parameters we chose.
+  if (String((request.query && request.query.raw) || '') === '1') {
+    response.setHeader('Cache-Control', 'no-store')
+    return response.status(200).json({
+      days, since, until,
+      asked: answers.map(([query, payload, why, url]) => ({
+        name: query.name, url, why: why || null, payload: payload || null,
+      })),
+    })
+  }
 
   const result = { days, since, until, unavailable: {} }
   for (const [query, payload, why] of answers) {
