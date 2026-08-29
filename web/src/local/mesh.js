@@ -55,15 +55,15 @@ function flatten(object) {
  * matching positions are merged first.
  */
 /**
- * What readModel can parse, and the only thing the file picker will offer.
+ * What readModel can parse.
  *
- * It is a list rather than four literals because iOS reads it: an <input> with
- * no `accept` makes Safari offer Photo Library and Take Photo or Video beside
- * Choose File, and a camera cannot produce a model. Naming the extensions is
- * what reduces that menu to the Files browser.
+ * One list because two things say it out loud -- the label under the picker and
+ * the error for a file we cannot read -- and the dispatch chain below is the
+ * third. A format added to the chain and not here is read fine and never
+ * mentioned; one added here and not the chain is offered and then refused.
  *
- * The chain below is the other half of this and has to stay in step -- a format
- * added there and not here parses fine and cannot be chosen.
+ * It is deliberately NOT the `accept` attribute of the file input. See the
+ * picker in LocalApp.jsx: on iOS that attribute cannot express this.
  */
 export const READABLE = ['.stl', '.3mf', '.obj', '.ply']
 
@@ -95,6 +95,13 @@ export async function readModel(file) {
     geometry = flatten(new OBJLoader().parse(new TextDecoder().decode(buffer)))
   } else if (name.endsWith('.ply')) {
     geometry = new PLYLoader().parse(buffer)
+  } else if (/^(image|video)\//.test(file.type || '')) {
+    // The likeliest wrong turn rather than an odd one: iOS offers the camera
+    // roll above Files and we cannot take that choice away (see LocalApp.jsx),
+    // so the next best thing is to say which of the three was the right one.
+    throw new Error(
+      'That is a photo, and a photo has no shape in it. Tap Choose File rather '
+      + 'than Photo Library, and pick the model itself.')
   } else {
     throw new Error(`We can read ${spoken()} files. That one isn't one of those.`)
   }
