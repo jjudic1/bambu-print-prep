@@ -9,6 +9,7 @@ import printerData from '../data/printers.json'
 import { frameBed } from '../framing.js'
 import { makeProject3mf } from '../make3mf.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
+import { posedGeometry } from './flatten.js'
 import { renderHandoff } from './handoff.js'
 import { plateImages, readModel, toArrays } from './mesh.js'
 import { arrange, footprint, splitParts } from './parts.js'
@@ -34,6 +35,12 @@ import {
  * Size stays a property of the model rather than of each part, because "make it
  * 80 mm" said of an assembly that has been cut up means 80 mm of assembly. A
  * part tipped onto its side must not become a different size for it.
+ *
+ * `cutMm` joins spin and yaw as the third per-part property, and belongs with
+ * them for the same reason: how much comes off the bottom only means anything
+ * once you know which way the part is facing. It is measured in finished
+ * millimetres off the plate, so it is applied after the pose and after the
+ * size, by `flatten.js`, in the frame the part actually prints in.
  */
 
 const TIPS = [
@@ -53,7 +60,16 @@ const mm = (v) => `${Math.round(v)} mm`
 const short = (s) => (s.length > 18 ? `${s.slice(0, 17)}…` : s)
 const straight = (part) => sameOrientation(part.spin, IDENTITY) && !part.yaw
 const resized = (part) => Math.abs((part.scale ?? 1) - 1) > 1e-6
-const untouched = (part) => straight(part) && !resized(part) && part.colour == null
+const flattened = (part) => (part.cutMm ?? 0) > 0
+const untouched = (part) => straight(part) && !resized(part) && !flattened(part)
+  && part.colour == null
+
+// Never offer to take more than this share of a part's height. Not a judgement
+// about how much anyone may remove -- prep/base.py has one of those, and it is
+// there because the server is guessing; here the user is looking at the plate.
+// This only keeps the slider from reaching a cut that leaves nothing standing,
+// which flatten.js would refuse and which would then read as a broken control.
+const MOST_OF_IT = 0.9
 
 /**
  * Base64 for a PNG that is about to be inlined into the instructions page.
@@ -85,6 +101,7 @@ let nextId = 1
 const freshPart = (geometry, name, x, y) => ({
   id: nextId++, geometry, name, plate: 0, x, y, spin: IDENTITY, yaw: 0,
   scale: 1, colour: null,       // null: follows the model's colour
+  cutMm: 0,                     // how much of the bottom to take off
 })
 
 export default function LocalApp() {
@@ -200,12 +217,42 @@ export default function LocalApp() {
     return m
   }, [modelMatrix])
 
-  /** A part's own size on the bed, in millimetres, in its own pose. */
+  /**
+   * A part's own size on the bed, in millimetres, in its own pose.
+   *
+   * The whole part, before any of its bottom comes off. Everything that has to
+   * agree with `arrange` reads this -- the cut only ever makes a part smaller,
+   * so measuring it uncut can reserve a little more room than needed but can
+   * never claim something fits that has already been sent to a plate of its
+   * own. The height a cut part actually stands is this minus its `cutMm`,
+   * which is exact: the cut is a level plane through the bottom.
+   */
   const sizeOfPart = useCallback((part) => {
     const box = footprint(part.geometry, matrixFor(part)).box
     const size = box.getSize(new THREE.Vector3())
     return [size.x, size.y, size.z]
   }, [matrixFor])
+
+  /**
+   * Pull back any cut that has become deeper than its part is tall.
+   *
+   * A cut is held in millimetres off the plate, so shrinking the model after
+   * setting one can leave a part asking to lose more than it has. Clamped
+   * rather than refused: flatten.js would hand back the whole part, and a
+   * control that silently stops doing anything reads as broken.
+   */
+  useEffect(() => {
+    setParts((list) => {
+      let pulled = false
+      const next = list.map((part) => {
+        const ceiling = sizeOfPart(part)[2] * MOST_OF_IT
+        if ((part.cutMm || 0) <= ceiling) return part
+        pulled = true
+        return { ...part, cutMm: Math.max(0, Math.floor(ceiling * 2) / 2) }
+      })
+      return pulled ? next : list
+    })
+  }, [sizeOfPart])
 
   useEffect(() => { setWritten(null) },
     [modelMatrix, parts, plateCount, printerId, material])
@@ -342,6 +389,18 @@ export default function LocalApp() {
       !selected || p.id === selected.id ? { ...p, yaw: deg } : p)))
   }
 
+  /**
+   * How much of the bottom to take off -- this part, or every part.
+   *
+   * Every part, not the model, because each one sits on the plate on its own
+   * bottom. Cutting "the model" 3 mm would mean nothing to a part standing
+   * 40 mm away from the one the plane happened to pass through.
+   */
+  function setCut(depth) {
+    setParts((list) => list.map((p) => (
+      !selected || p.id === selected.id ? { ...p, cutMm: depth } : p)))
+  }
+
   function straighten() {
     if (selected) {
       setParts((list) => list.map((p) => (
@@ -383,6 +442,24 @@ export default function LocalApp() {
   const yawValue = selected
     ? selected.yaw
     : (parts.every((p) => p.yaw === parts[0]?.yaw) ? (parts[0]?.yaw ?? 0) : 0)
+
+  const cutOf = (part) => part?.cutMm ?? 0
+  const cutValue = selected
+    ? cutOf(selected)
+    : (parts.every((p) => cutOf(p) === cutOf(parts[0])) ? cutOf(parts[0]) : 0)
+
+  // The shallowest part decides how far the slider goes, so one setting can be
+  // applied to every part without the short one losing everything it has.
+  const cutCeiling = useMemo(() => {
+    const list = selected ? [selected] : parts
+    if (!list.length) return 0
+    const shortest = Math.min(...list.map((p) => sizeOfPart(p)[2]))
+    return Math.max(0.5, Math.floor(shortest * MOST_OF_IT * 2) / 2)
+  }, [selected, parts, sizeOfPart])
+
+  // Only worth saying when one part's height is the answer. Across a mixed
+  // batch each part stands at its own height, and the panel says so instead.
+  const standing = selected || (parts.length === 1 ? parts[0] : null)
   const turned = selected
     ? !straight(selected)
     : !sameOrientation(base, IDENTITY) || parts.some((p) => !straight(p))
@@ -413,8 +490,10 @@ export default function LocalApp() {
 
         plates.push({
           objects: here.map((part) => {
-            const geometry = part.geometry.clone()
-            geometry.applyMatrix4(matrixFor(part))
+            // Posed and then cut, through the same call the viewer draws with,
+            // so the file and the picture cannot disagree about where the
+            // bottom is.
+            const geometry = posedGeometry(part, matrixFor(part))
             geometry.computeBoundingBox()
             const box = geometry.boundingBox
             const centre = box.getCenter(new THREE.Vector3())
@@ -813,6 +892,38 @@ export default function LocalApp() {
           </p>
         </div>
 
+        {/* --- the bottom --------------------------------------------------
+            Under "which way up" on purpose: the bottom is whichever face is
+            pointing down, so turning the part over moves this. */}
+        <div className="field">
+          <span>
+            Flatten the bottom
+            <em>{cutValue ? ` ${cutValue} mm off` : ' nothing off'}</em>
+          </span>
+          <input
+            type="range" min="0" max={cutCeiling} step="0.5"
+            value={Math.min(cutValue, cutCeiling)}
+            onChange={(e) => setCut(Number(e.target.value))}
+          />
+          {cutValue > 0 && standing && (
+            <div className="hint">
+              Stands {mm(sizeOfPart(standing)[2] - cutOf(standing))} tall.
+            </div>
+          )}
+          {cutValue > 0 && (
+            <button className="link" onClick={() => setCut(0)}>
+              Leave the bottom alone
+            </button>
+          )}
+          <p className="reason">
+            Levels off the bottom so it sits flat on the plate instead of
+            balancing on a curve or a point. Nothing above the line moves.{' '}
+            {parts.length > 1 && (selected
+              ? 'This trims one part.'
+              : 'Every part loses the same amount, each from its own bottom.')}
+          </p>
+        </div>
+
         <div className="field">
           <span>Turn it round<em>{yawValue}&deg;</em></span>
           <input
@@ -869,6 +980,18 @@ export default function LocalApp() {
               {written.plates} plate{written.plates > 1 ? 's' : ''},{' '}
               {(written.bytes / 1024).toFixed(0)} KB. Written on this device.
             </p>
+            {/* Said here as well as on the slider, because the size above is
+                the size the model was set to -- the bottom coming off is a
+                separate thing that happened to it, and the file should not be
+                the place anyone finds that out. */}
+            {parts.some(flattened) && (
+              <p className="hint">
+                {parts.every(flattened) && parts.length > 1
+                  ? 'Every part has had its bottom flattened.'
+                  : `${parts.filter(flattened).length === 1 ? 'One part has' : `${parts.filter(flattened).length} parts have`} had the bottom flattened.`}
+                {' '}That comes off the height above.
+              </p>
+            )}
             <a href={written.url} download={written.fileName}>Save the file</a>
             <div className="extras">
               {written.pictureUrl && (
