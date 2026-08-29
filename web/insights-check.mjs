@@ -196,6 +196,52 @@ console.log('\n--- what it hands back ------------------------------------------
     why.includes('Counting continues'), true)
 }
 {
+  // The reason this file exists at all now. Every fixture above uses the shape
+  // Vercel documents, and the live service does not use it: on 2026-08-29 the
+  // deployed dashboard showed 0 visitors and 0 page views beside a chart drawn
+  // from the same request showing 42, because the hit count arrives under a
+  // name the reader did not look for and an unread field became a confident
+  // zero. A harness that only ever serves the documented shape cannot catch
+  // that, so it now serves the others too.
+  const named = async (metric) => call({ key: 'let-me-in', env: CREDENTIALS,
+    answers: { ...ALL,
+      pages: { data: [{ requestPath: '/', [metric]: 45, visitors: 40 }] } } })
+  for (const metric of ['count', 'pageviews', 'total', 'views']) {
+    const got = await named(metric)
+    check(`a hit count called "${metric}" is read, not counted as none`,
+      got.body.pages[0], { label: '/', count: 45, visitors: 40 })
+  }
+}
+{
+  // The label used to be "the first key that is not count or visitors", which
+  // is right only while Vercel puts the dimension first. Under any other name
+  // for the metric, or any other key order, the label became a number.
+  const got = await call({ key: 'let-me-in', env: CREDENTIALS, answers: {
+    ...ALL, pages: { data: [{ pageviews: 45, visitors: 40, requestPath: '/' }] } } })
+  check('the label is the dimension even when the metrics come first',
+    got.body.pages[0].label, '/')
+}
+{
+  // The count endpoint shares a response schema with the aggregate one, and an
+  // array where an object was expected reads as zero rather than as an error.
+  const got = await call({ key: 'let-me-in', env: CREDENTIALS, answers: {
+    ...ALL, totals: { data: [{ visitors: 40, pageviews: 91 }] } } })
+  check('a total wrapped in an array is still a total',
+    [got.body.totals, 'totals' in got.body.unavailable],
+    [{ visitors: 40, pageviews: 91 }, false])
+}
+{
+  // The one thing worse than a missing number is a made-up one. If nothing in
+  // the answer is recognised, say so and name what did arrive -- that sentence
+  // is what a person needs to fix it, and it is cheaper than another deploy.
+  const got = await call({ key: 'let-me-in', env: CREDENTIALS, answers: {
+    ...ALL, totals: { data: { hits: 91, people: 40 } } } })
+  const why = got.body.unavailable.totals
+  check('an unreadable total is reported, never shown as zero',
+    [got.code, Boolean(why), why.includes('hits'), why.includes('people')],
+    [200, true, true, true])
+}
+{
   // Direct traffic answers "is the advertising working" too, and a blank label
   // in that table reads as a bug rather than as an answer.
   const got = await call({ key: 'let-me-in', env: CREDENTIALS, answers: {

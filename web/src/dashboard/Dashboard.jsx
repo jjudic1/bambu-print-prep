@@ -43,8 +43,18 @@ const STEPS_SHOWN = [
 
 const KEY_STORE = 'insightsKey'
 const pct = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0)
+/**
+ * Name a day bucket, in the timezone it was counted in.
+ *
+ * Vercel buckets by UTC day and hands back the midnight that starts it. Read
+ * in local time anywhere west of Greenwich, that midnight lands on the
+ * previous afternoon -- so every bar on the chart was labelled with the day
+ * before its own, and the busiest day of the launch was attributed to the day
+ * nothing happened. `timeZone: 'UTC'` keeps the label on the bucket. The
+ * locale is still the reader's; only the day boundary is fixed.
+ */
 const day = (iso) => new Date(iso).toLocaleDateString(undefined,
-  { day: 'numeric', month: 'short' })
+  { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 /**
  * A row of a table that is also a bar chart.
@@ -199,6 +209,10 @@ export default function Dashboard() {
   // on Vercel, so where they are refused the panel says so instead of drawing a
   // row of confident zeros.
   const eventsOff = Boolean(data?.unavailable?.events)
+  // Same rule as the paid-plan panels: a total we could not read is shown as
+  // missing, never as zero. This one is louder, because unlike a plan limit it
+  // is a fault -- the other panels drew real numbers from the same request.
+  const totalsOff = data?.unavailable?.totals || ''
   const taggingOff = Boolean(data?.unavailable?.utmSource)
   const PAID = 'Vercel keeps this behind a paid plan. The counting still '
     + 'happens, so nothing is being lost -- it would appear here if the plan '
@@ -241,13 +255,16 @@ export default function Dashboard() {
           <section className="tiles">
             <div className="tile">
               <em>Visitors</em>
-              <strong>{arrived}</strong>
-              <span>in the last {data.days} days</span>
+              <strong>{totalsOff ? '—' : arrived}</strong>
+              <span>{totalsOff ? 'could not be read' : `in the last ${data.days} days`}</span>
             </div>
             <div className="tile">
               <em>Page views</em>
-              <strong>{data.totals?.pageviews || 0}</strong>
-              <span>{arrived ? `${(((data.totals?.pageviews || 0) / arrived)).toFixed(1)} each` : ''}</span>
+              <strong>{totalsOff ? '—' : (data.totals?.pageviews || 0)}</strong>
+              <span>
+                {totalsOff ? 'could not be read'
+                  : (arrived ? `${(((data.totals?.pageviews || 0) / arrived)).toFixed(1)} each` : '')}
+              </span>
             </div>
             <div className="tile">
               <em>Left with a file</em>
@@ -255,6 +272,8 @@ export default function Dashboard() {
               <span>{eventsOff ? 'needs a paid plan' : `${made} of ${arrived}`}</span>
             </div>
           </section>
+
+          {totalsOff && <p className="reason">{totalsOff}</p>}
 
           <Daily rows={data.daily || []} />
 
