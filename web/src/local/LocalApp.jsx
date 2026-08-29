@@ -8,7 +8,7 @@ import Disclaimer from '../disclaimer.jsx'
 import printerData from '../data/printers.json'
 import { frameBed } from '../framing.js'
 import { makeProject3mf } from '../make3mf.js'
-import { MADE, ON_DEVICE, OPENED, SAVED, STEPS, note } from '../metrics.js'
+import { MADE, ON_DEVICE, OPENED, SAVED, STEPS, countStep } from '../metrics.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import { posedGeometry } from './flatten.js'
 import { renderHandoff } from './handoff.js'
@@ -58,6 +58,21 @@ const COLOURS = [
 ]
 
 const mm = (v) => `${Math.round(v)} mm`
+
+// How much of the bottom comes off, in fifths of a millimetre. Snapped rather
+// than trusted: a range input stepping by 0.2 hands back 0.30000000000000004
+// often enough, and that value would print with a tail of digits, miss the
+// cut cache on every redraw, and never compare equal to the step beside it.
+const CUT_STEP = 0.2
+const snap = (v) => Number(v.toFixed(1))
+const snapDown = (v) => Math.floor(v / CUT_STEP) * CUT_STEP
+
+// A whole-millimetre readout would round away most of what that slider can do
+// -- on a 4 mm model every setting reads as "4 mm tall". Only the small end
+// needs the decimal: above a couple of centimetres a tenth of a millimetre is
+// noise, and the extra digit is just clutter.
+const mmFine = (v) => `${v < 20 ? snap(v) : Math.round(v)} mm`
+
 const short = (s) => (s.length > 18 ? `${s.slice(0, 17)}…` : s)
 const straight = (part) => sameOrientation(part.spin, IDENTITY) && !part.yaw
 const resized = (part) => Math.abs((part.scale ?? 1) - 1) > 1e-6
@@ -249,7 +264,7 @@ export default function LocalApp() {
         const ceiling = sizeOfPart(part)[2] * MOST_OF_IT
         if ((part.cutMm || 0) <= ceiling) return part
         pulled = true
-        return { ...part, cutMm: Math.max(0, Math.floor(ceiling * 2) / 2) }
+        return { ...part, cutMm: Math.max(0, snap(snapDown(ceiling))) }
       })
       return pulled ? next : list
     })
@@ -290,7 +305,7 @@ export default function LocalApp() {
       // Past the landing screen. The kind of file is worth knowing -- if the
       // people arriving are all bringing 3MFs, they already have a slicer and
       // the advertising has found the wrong crowd. The name is not sent.
-      note(OPENED, ON_DEVICE, { kind: (file.name.match(/\.([^.]+)$/)?.[1] || '?').toLowerCase() })
+      countStep(OPENED, ON_DEVICE, { kind: (file.name.match(/\.([^.]+)$/)?.[1] || '?').toLowerCase() })
     } catch (e) {
       console.error(e)
       setError(/^[A-Z][^:]*: /.test(e.message) || !/[a-z] [a-z]/.test(e.message)
@@ -403,8 +418,9 @@ export default function LocalApp() {
    * 40 mm away from the one the plane happened to pass through.
    */
   function setCut(depth) {
+    const asked = snap(depth)
     setParts((list) => list.map((p) => (
-      !selected || p.id === selected.id ? { ...p, cutMm: depth } : p)))
+      !selected || p.id === selected.id ? { ...p, cutMm: asked } : p)))
   }
 
   function straighten() {
@@ -460,7 +476,7 @@ export default function LocalApp() {
     const list = selected ? [selected] : parts
     if (!list.length) return 0
     const shortest = Math.min(...list.map((p) => sizeOfPart(p)[2]))
-    return Math.max(0.5, Math.floor(shortest * MOST_OF_IT * 2) / 2)
+    return Math.max(CUT_STEP, snap(snapDown(shortest * MOST_OF_IT)))
   }, [selected, parts, sizeOfPart])
 
   // Only worth saying when one part's height is the answer. Across a mixed
@@ -568,7 +584,7 @@ export default function LocalApp() {
       // A file came out. Plates and parts go with it because "did they need to
       // split it" is the one thing that separates somebody with an A1 mini from
       // somebody who could have used any slicer.
-      note(MADE, ON_DEVICE, {
+      countStep(MADE, ON_DEVICE, {
         plates: plates.length,
         parts: plates.reduce((n, p) => n + p.objects.length, 0),
         flattened: parts.some(flattened),
@@ -923,16 +939,16 @@ export default function LocalApp() {
         <div className="field">
           <span>
             Flatten the bottom
-            <em>{cutValue ? ` ${cutValue} mm off` : ' nothing off'}</em>
+            <em>{cutValue ? ` ${snap(cutValue)} mm off` : ' nothing off'}</em>
           </span>
           <input
-            type="range" min="0" max={cutCeiling} step="0.5"
+            type="range" min="0" max={cutCeiling} step={CUT_STEP}
             value={Math.min(cutValue, cutCeiling)}
             onChange={(e) => setCut(Number(e.target.value))}
           />
           {cutValue > 0 && standing && (
             <div className="hint">
-              Stands {mm(sizeOfPart(standing)[2] - cutOf(standing))} tall.
+              Stands {mmFine(sizeOfPart(standing)[2] - cutOf(standing))} tall.
             </div>
           )}
           {cutValue > 0 && (
@@ -1022,7 +1038,7 @@ export default function LocalApp() {
                 from here, and pretending otherwise would be the sort of number
                 that gets believed. */}
             <a href={written.url} download={written.fileName}
-               onClick={() => note(SAVED, ON_DEVICE)}>Save the file</a>
+               onClick={() => countStep(SAVED, ON_DEVICE)}>Save the file</a>
             <div className="extras">
               {written.pictureUrl && (
                 <a href={written.pictureUrl} download={written.pictureName}>
@@ -1030,7 +1046,7 @@ export default function LocalApp() {
                 </a>
               )}
               <a href={written.pageUrl} download={written.pageName}
-                 onClick={() => note(STEPS, ON_DEVICE)}>
+                 onClick={() => countStep(STEPS, ON_DEVICE)}>
                 Save the how-to-print page
               </a>
             </div>
