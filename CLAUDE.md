@@ -175,6 +175,22 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   reads fine. `api/insights.js` retries without the team on any 403, because a
   403 there reads exactly like a badly scoped token and sent one person off
   creating tokens that were never the problem.
+- **Vercel snaps the analytics window to whole days, and the two endpoints
+  snap it opposite ways.** Measured 2026-08-29 by reading back the `query`
+  each one echoes: `visits/aggregate` rounds `until` **up** to the next
+  midnight, `visits/count` truncates it **down** to the last one. So an
+  `until` of "now" asked the count query for a window ending where today
+  began, and `/dashboard` showed 0 visitors and 0 page views beside a chart,
+  built from the same request, showing 43. Nothing about it looked like a date
+  bug -- right token, right scope, documented response shape, documented field
+  names, and a real number Vercel meant. Ask for whole UTC days at both ends.
+- **The hit count on the visits dataset is `pageviews`, not `count`.** The
+  docs say `count`, and `Number(undefined) || 0` turned every table's hit
+  count into a confident zero for a week. `api/insights.js` now reads either.
+- **`GET /api/insights?raw=1`** (same `INSIGHTS_KEY`) returns what Vercel
+  actually said next to the URL it was asked. Reach for it before theorising:
+  both bugs above were invisible from the reshaped output and each cost a
+  deploy to guess at. No secret is in it -- the token travels in a header.
 - **`/dashboard` is shut unless `INSIGHTS_KEY` is set** in the Vercel project's
   environment variables, and it needs Web Analytics switched on in the Vercel
   dashboard by hand — a 404 from every query means that checkbox, not a broken

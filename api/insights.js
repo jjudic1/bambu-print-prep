@@ -357,9 +357,32 @@ module.exports = async function insights(request, response) {
     (request.query && request.query.days) || '30', 10)
   const days = Math.max(1, Math.min(Number.isFinite(asked) ? asked : 30, 365))
 
-  const now = Date.now()
-  const since = new Date(now - days * 86400000).toISOString()
-  const until = new Date(now).toISOString()
+  // Both ends are whole UTC days, and `until` is the midnight that *ends*
+  // today rather than the instant it is now.
+  //
+  // Vercel snaps the window to day boundaries and the two endpoints snap it
+  // opposite ways. Measured 2026-08-29 by asking both with the same `until` of
+  // now and reading back the `query` each echoes: the aggregate endpoint
+  // rounded it up to the next midnight, and the count endpoint truncated it
+  // down to the one just past. So the count query's window ended where today
+  // began and excluded every visit in it -- the dashboard read 0 visitors and
+  // 0 page views beside a chart, built from the same request, showing 43.
+  //
+  // Nothing about that looks like a date bug from outside. The token was
+  // right, the scope was right, the response was the documented shape with the
+  // documented field names, and the number in it was a real number Vercel
+  // meant. It only ever went wrong on the day traffic arrived, which is every
+  // day anyone looks at this page.
+  //
+  // Asking for whole days is what makes the two agree, and it is also what the
+  // question means: "the last 30 days" is 30 dates, not 30 times 24 hours
+  // ending at teatime. The chart gets exactly `days` buckets now too, instead
+  // of a 31st empty one at the front.
+  const midnight = new Date()
+  midnight.setUTCHours(0, 0, 0, 0)
+  const end = midnight.getTime() + 86400000
+  const since = new Date(end - days * 86400000).toISOString()
+  const until = new Date(end).toISOString()
 
   const answers = await Promise.all(
     QUERIES.map(async (query) => [query, ...await ask(query, since, until, settings)]))
