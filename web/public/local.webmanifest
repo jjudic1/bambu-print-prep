@@ -1,0 +1,15 @@
+{
+  "name": "Handoff3D - on your device",
+  "short_name": "Handoff3D",
+  "description": "Turn a model into a print-ready file for your Bambu printer, entirely on your iPad. Nothing is uploaded anywhere.",
+  "id": "/local",
+  "start_url": "/local",
+  "scope": "/local",
+  "display": "browser",
+  "theme_color": "#101215",
+  "background_color": "#101215",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
