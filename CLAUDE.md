@@ -117,6 +117,15 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   `tests/test_view_framing.py`) projects the bed's corners for every bed against
   a spread of viewport shapes, and checks the bed fills the frame as well as
   fits in it -- "fits" is satisfied by standing far enough away.
+- **The file input must have no `accept` attribute.** iOS offers Photo Library
+  and Take Photo or Video above Choose File, and the obvious fix -- naming the
+  extensions -- is worse than the problem: WebKit does not implement extension
+  specifiers, so the list resolves to no types and the Files browser greys out
+  *every file*, the .3mf included. Measured on a real iPad; the app could not be
+  used at all. MIME types do not hide the photo entries either, and `capture`
+  opens the camera outright. The menu stays. `mesh.js` answers a photo by naming
+  the entry that would have worked, and `tests/test_local_input.py` is there
+  because none of this is visible from a desktop browser.
 - **Size the page in `dvh`, never `vh` or `height: 100%`.** iOS measures both
   against the screen with the address bar retracted, so a page sized in them is
   taller than the part you can see -- which is how an iPhone ended up with the

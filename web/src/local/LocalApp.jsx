@@ -12,7 +12,7 @@ import { MADE, ON_DEVICE, OPENED, SAVED, STEPS, countStep } from '../metrics.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import { posedGeometry } from './flatten.js'
 import { renderHandoff } from './handoff.js'
-import { READABLE, plateImages, readModel, spoken, toArrays } from './mesh.js'
+import { plateImages, readModel, spoken, toArrays } from './mesh.js'
 import { arrange, footprint, splitParts } from './parts.js'
 import {
   DEFAULT_NOZZLE_MM, models, nozzlesFor, pick, startingPrinter,
@@ -646,16 +646,17 @@ export default function LocalApp() {
           this. Your model is not part of that.
         </p>
         <label className="drop">
-          {/* `accept` is not a filter here so much as a way of not being asked
-              the wrong question. Without it, iOS puts Photo Library and Take
-              Photo or Video above Choose File, and neither of those can produce
-              a model -- the only route in is Files. Naming the extensions
-              reduces the menu to that one. */}
-          <input
-            type="file"
-            accept={READABLE.join(',')}
-            onChange={(e) => onFile(e.target.files[0])}
-          />
+          {/* NO `accept` HERE, and it is not an oversight. iOS offers Photo
+              Library and Take Photo or Video above Choose File, neither of
+              which can produce a model, and `accept` cannot take them away:
+              WebKit does not implement extension specifiers at all, so
+              accept=".stl,.3mf,..." resolves to nothing and the Files browser
+              greys out every file on the iPad -- including the .3mf sitting
+              right there. Measured on a real iPad, 2026-08-29, and it made the
+              app impossible to use. MIME types do not hide the photo entries
+              either, and `capture` opens the camera outright. So the menu
+              stays, and mesh.js names the wrong turn when someone takes it. */}
+          <input type="file" onChange={(e) => onFile(e.target.files[0])} />
           <span>{busy || 'Choose a model'}</span>
         </label>
         <p className="hint">{spoken('or')}.</p>
