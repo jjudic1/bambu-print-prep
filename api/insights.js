@@ -84,14 +84,35 @@ function sameKey(given, expected) {
   return differing === 0
 }
 
-/** Say what went wrong in a way that names the fix. */
+/**
+ * Say what went wrong in a way that names the fix.
+ *
+ * 401 and 403 are told apart on purpose, because they are different jobs. A
+ * 401 means the token was not accepted at all -- wrong, expired, or with a
+ * stray newline from being pasted. A 403 means the token is real but is not
+ * allowed to read this project, which almost always means it was created
+ * against the wrong scope: a token scoped to a personal account cannot read a
+ * team's project, and the scope is a dropdown that is easy to leave alone.
+ *
+ * Vercel's own message is appended rather than dropped. Swallowing it cost a
+ * round of guessing on the day this was first switched on: seven identical
+ * "check the token and its scope" lines, when the upstream body said something
+ * more specific each time.
+ */
 function reason(status, body) {
+  const said = body ? ` Vercel said: ${body}` : ''
   if (status === 404) {
     return 'Web Analytics is not switched on for this project. '
-      + 'Vercel dashboard -> the project -> Analytics -> Enable.'
+      + `Vercel dashboard -> the project -> Analytics -> Enable.${said}`
   }
-  if (status === 401 || status === 403) {
-    return 'Vercel refused the token. Check INSIGHTS_TOKEN and its scope.'
+  if (status === 401) {
+    return 'Vercel did not accept INSIGHTS_TOKEN at all -- it is wrong, it has '
+      + `expired, or a stray space or newline came with it when it was set.${said}`
+  }
+  if (status === 403) {
+    return 'INSIGHTS_TOKEN is a real token but is not allowed to read this '
+      + 'project. Create it again with its Scope set to the team that owns the '
+      + `project, not a personal account.${said}`
   }
   return `Vercel said ${status}. ${body || ''}`.trim()
 }

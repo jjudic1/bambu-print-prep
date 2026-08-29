@@ -162,10 +162,25 @@ console.log('\n--- partly working is a real answer -----------------------------
     got.body.unavailable.events.includes('Analytics'), true)
 }
 {
-  const got = await call({
+  // 401 and 403 are different jobs -- a token to replace versus a token to
+  // re-scope -- so they must not read the same. And whatever Vercel itself
+  // said has to survive: swallowing it cost a round of guessing the day this
+  // was first switched on.
+  const bad = await call({
+    key: 'let-me-in', env: CREDENTIALS, answers: { ...ALL, events: 401 } })
+  const forbidden = await call({
     key: 'let-me-in', env: CREDENTIALS, answers: { ...ALL, events: 403 } })
-  check('a refused token is not reported as analytics being off',
-    got.body.unavailable.events.includes('INSIGHTS_TOKEN'), true)
+
+  check('a token Vercel will not accept says so, and is not blamed on scope',
+    [bad.body.unavailable.events.includes('did not accept'),
+     bad.body.unavailable.events.includes('Scope')], [true, false])
+  check('a token that is refused for this project says to re-scope it',
+    forbidden.body.unavailable.events.includes('Scope'), true)
+  check('neither is reported as analytics being switched off',
+    [bad, forbidden].some((r) => r.body.unavailable.events.includes('Analytics')),
+    false)
+  check("and Vercel's own words are passed on rather than swallowed",
+    [bad, forbidden].every((r) => r.body.unavailable.events.includes('nope')), true)
 }
 {
   const got = await call({ key: 'let-me-in', env: CREDENTIALS,
