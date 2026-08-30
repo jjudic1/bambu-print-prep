@@ -29,6 +29,19 @@
     <meta name="apple-mobile-web-app-title" content="Handoff3D" />
 
     <!--
+      Google Search Console's ownership token. Public by design -- it proves
+      whoever controls this file controls the site, and it is worth nothing to
+      anybody else. It must stay in the first <head> and it must stay forever:
+      Google re-checks it, and a property whose token has gone silently loses
+      its indexing history.
+
+      The tag rather than the googleXXXX.html file, because `cleanUrls` in
+      vercel.json 308s every .html path to its extensionless form and the file
+      check wants a direct 200 at the exact path it was given.
+    -->
+    <meta name="google-site-verification" content="Zf1wRUHamEmeGsyA3KODcr00zDnXFwgjnmgIdcnVQG0" />
+
+    <!--
       The title and description are aimed at a search box, not at a brand.
       "Handoff3D" is a word nobody types; "3D print from an iPad" is what
       somebody with an iPad and a Bambu printer actually asks for, so the name

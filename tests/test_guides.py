@@ -179,6 +179,16 @@ def test_the_faq_json_parses(slugs):
             json.loads(block)
 
 
+def test_the_search_console_token_is_still_there():
+    """Google re-checks ownership, and a property whose token has gone loses
+    its indexing history -- quietly, and long after whatever removed it. The
+    tag is public by design, so there is nothing to protect here; it just has
+    to survive every future edit to this file's head."""
+    html = (WEB / "index.html").read_text(encoding="utf-8")
+    assert 'name="google-site-verification"' in html, (
+        "the Search Console ownership tag has been dropped from index.html")
+
+
 def test_the_app_page_json_parses():
     html = (WEB / "index.html").read_text(encoding="utf-8")
     blocks = re.findall(
