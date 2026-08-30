@@ -366,29 +366,62 @@ before the fallback is ever consulted. It also adds a 301 the other way, from
 `/bambu-studio-on-ipad.html` to the clean path, which is what keeps one page
 from being indexed at two addresses.
 
-Two knock-on effects, both harmless and both worth knowing before they look
-like bugs. `/dashboard` is now answered from the filesystem rather than by its
-rewrite -- the rewrite is redundant, and kept because it costs nothing and says
-what is intended. `/local` is unaffected: there is no `local.html`, so it still
-falls through to the fallback, which is the whole point of it being a rewrite
-rather than a redirect.
+`/dashboard` is now answered from the filesystem rather than by its rewrite.
+The rewrite is redundant while `cleanUrls` is on, and kept because it costs
+nothing and is correct again the moment it is off.
+
+### With `cleanUrls`, a rewrite must never point at a `.html` path
+
+**This took `/local` down for one deploy.** `cleanUrls` makes every `.html`
+path a *redirect* rather than something that serves -- `/index.html` answers
+308, pointing at `/`. A rewrite whose destination is `/index.html` therefore
+has no target left, and Vercel answers a hard 404.
+
+Both fallbacks pointed there, so the damage was `/local` -- the address people
+were actually given -- returning 404, and every unknown path with it. Measured
+on the live deploy 2026-08-30:
+
+| path | before | after |
+|---|---|---|
+| `/index.html` | serves | **308 to `/`** |
+| `/local` | serves the app | **404** |
+| `/no-such-page` | serves the app | **404** |
+| `/dashboard` | serves | serves |
+
+`/dashboard` is what made it easy to miss: it kept working throughout, because
+`cleanUrls` resolves it from the filesystem before any rewrite is consulted. So
+"the rewrites are fine, I checked one" was true and useless.
+
+Destinations are `/` now, which serves the index and is unaffected by any of
+this. `tests/test_guides.py` fails on a `.html` destination while `cleanUrls`
+is on, `/dashboard.html` excepted for the reason above.
+
+**Nothing here is reproducible locally** -- `vite dev` implements neither
+`cleanUrls` nor the rewrites -- so the only check that means anything is curl
+against the deploy, below.
 
 **None of this is testable locally** -- `npm run dev` serves `public/` at the
 root but knows nothing about `cleanUrls`, so in dev the pages answer only at
 their `.html` addresses. After a deploy, check the real thing:
 
 ```bash
+B=https://bambu-print-prep.vercel.app
 for p in bambu-studio-on-ipad resize-a-model-on-ipad 3d-print-from-ipad \
          split-a-model-too-big-for-your-bed print-an-ai-generated-model \
-         how-to-print-from-an-ipad robots.txt sitemap.xml; do
-  echo "$p $(curl.exe -s -o /dev/null -w '%{http_code}' \
-    https://bambu-print-prep.vercel.app/$p)"
+         how-to-print-from-an-ipad; do
+  echo "$p -> $(curl.exe -s "$B/$p" | grep -o '<h1>[^<]*</h1>')"
+done
+for p in "" local dashboard robots.txt sitemap.xml; do
+  echo "$(curl.exe -s -o /dev/null -w '%{http_code}' "$B/$p")  /$p"
 done
 ```
 
-Every one should be `200`. A `200` is not on its own proof, because the
-catch-all answers an unknown path with the app and that is a `200` as well --
-so grep one of them for its own `<h1>` rather than trusting the status.
+Each guide must print **its own `<h1>`**, not a status code: the catch-all
+answers an unknown path with the app, and that is a `200` too, so a status
+alone cannot tell a live page from a typo in a slug. `/`, `/local`,
+`/dashboard`, `robots.txt` and `sitemap.xml` should all be `200` -- **`/local`
+especially**, because it is the address people were given and it is the first
+thing a broken rewrite destination takes down.
 
 ### Vercel will try to build the FastAPI app as serverless functions
 

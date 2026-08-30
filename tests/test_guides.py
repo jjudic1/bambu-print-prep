@@ -248,6 +248,31 @@ def test_vercel_serves_the_pages_without_their_extension():
     assert config.get("cleanUrls") is True
 
 
+def test_no_rewrite_points_at_a_dot_html_path():
+    """`cleanUrls` turns every .html path into a *redirect*, not something that
+    serves -- so a rewrite whose destination ends in .html has no target left.
+
+    Measured on the live deploy 2026-08-30, and it took `/local` down: the
+    address people were given returned a hard 404, and so did every unknown
+    path, because both rewrites pointed at `/index.html`. `/dashboard` went on
+    working and hid it, because cleanUrls resolves that one from the filesystem
+    before any rewrite is consulted. Destinations are `/` now.
+
+    `/dashboard.html` is the exception and is allowed: that rewrite is dead
+    config while cleanUrls is on -- the filesystem answers first -- and is the
+    correct destination again the moment it is off."""
+    config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
+    if not config.get("cleanUrls"):
+        return
+    offenders = [
+        r for r in config["rewrites"]
+        if r["destination"].endswith(".html")
+        and r["destination"] != "/dashboard.html"
+    ]
+    assert not offenders, (
+        f"cleanUrls is on, so these rewrites have no target: {offenders}")
+
+
 def test_the_catch_all_still_lets_the_counting_script_through():
     """Unchanged by this work, and re-asserted because the fallback sits right
     next to it: a plain "/(.*)" answers /_vercel/insights/script.js with HTML."""

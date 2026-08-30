@@ -205,6 +205,15 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   Renaming one and not the others is not a visible 404: the catch-all rewrite
   answers an unknown path with the app, so a dead link reads as a link that
   did nothing. `tests/test_guides.py` compares all four.
+- **With `cleanUrls` on, a rewrite destination must never end in `.html`.**
+  `cleanUrls` makes every `.html` path a *redirect* -- `/index.html` answers
+  308 -- so a rewrite pointing there has no target and Vercel returns a hard
+  404. Both fallbacks pointed at `/index.html`, which took `/local` down for a
+  deploy along with every unknown path. `/dashboard` kept working the whole
+  time and hid it, because cleanUrls answers that one from the filesystem
+  before any rewrite runs. Destinations are `/` now, and
+  `tests/test_guides.py` fails on a `.html` one. None of it reproduces
+  locally; only curl against the deploy sees it.
 - **`cleanUrls: true` is load-bearing, and `x-safari-https:` must stay away
   from these links.** The pages are `.html` files linked without the
   extension; `cleanUrls` is what resolves that, in the filesystem step, ahead

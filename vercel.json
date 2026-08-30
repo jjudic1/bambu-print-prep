@@ -8,7 +8,7 @@
   "rewrites": [
     {
       "source": "/local",
-      "destination": "/index.html"
+      "destination": "/"
     },
     {
       "source": "/dashboard",
@@ -16,7 +16,7 @@
     },
     {
       "source": "/((?!_vercel/|api/).*)",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ]
 }
