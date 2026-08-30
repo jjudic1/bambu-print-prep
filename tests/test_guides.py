@@ -188,6 +188,34 @@ def test_the_app_page_json_parses():
         json.loads(block)
 
 
+def test_nothing_is_escaped_twice(slugs):
+    """`&amp;quot;` and friends: an entity written into a field the renderer
+    escapes, so its `&` became `&amp;` and the entity ships visible. One did --
+    a heading read `What &quot;too big&quot; means` on the live site for a day.
+    Nothing about the source says which fields are escaped and which are raw
+    HTML, so this catches the mistake by its output instead."""
+    doubled = re.compile(r"&amp;(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);")
+    for slug in slugs:
+        html = (PUBLIC / f"{slug}.html").read_text(encoding="utf-8")
+        assert not doubled.findall(html), (
+            f"{slug} escapes an entity twice: {doubled.findall(html)[:3]} -- "
+            "write the character itself, the renderer escapes that field")
+
+
+def test_the_faq_answers_are_plain_prose(pages, slugs):
+    """They are read twice: into the page as HTML, and into the JSON-LD through
+    JSON.stringify, which does not know what an entity is. A tag or an entity
+    would come out literal in the structured data while the page looked fine."""
+    for slug in slugs:
+        html = (PUBLIC / f"{slug}.html").read_text(encoding="utf-8")
+        block = re.search(
+            r'<script type="application/ld\+json">\n(.*?)\n</script>',
+            html, re.S)
+        for question in json.loads(block.group(1))["mainEntity"]:
+            text = question["acceptedAnswer"]["text"]
+            assert "&" not in text and "<" not in text, (slug, text)
+
+
 def test_no_page_is_thin(slugs):
     """A page with a paragraph on it is not an answer, and gets treated as one
     more doorway. The floor is deliberately low; the point is to catch a page

@@ -104,6 +104,28 @@ const dashes = (text) => text.split(' -- ').join(' &mdash; ')
 /**
  * The pages. Each is a question somebody types, answered in the first
  * paragraph, because that paragraph is what an answer engine quotes.
+ *
+ * HALF THESE FIELDS ARE ESCAPED AND HALF ARE RAW HTML, and nothing about a
+ * string says which it is, so it is written down here:
+ *
+ *   escaped     title, description, h1, section headings, faq questions.
+ *               Write them as plain text. An entity in one of these comes out
+ *               visible, because `escape` turns its `&` into `&amp;` -- which
+ *               is how a heading shipped reading `What &quot;too big&quot;
+ *               means`. Type the quote or the apostrophe itself and let
+ *               `escape` do it.
+ *   raw HTML    lede, section bodies, faq answers. These carry their own tags
+ *               and their own entities, and are passed through untouched
+ *               apart from `dashes`. A bare `&` or `<` in one of these is a
+ *               bug in the other direction.
+ *
+ * faq answers are the one field read twice -- into the page as HTML, and into
+ * the JSON-LD through JSON.stringify, which does not know what an entity is.
+ * So an entity there would come out literal in the structured data even while
+ * the visible page looked right. Keep them plain prose: no tags, no entities.
+ *
+ * tests/test_guides.py fails on any `&amp;` followed by an entity name, which
+ * is the signature of the first mistake wherever it happens.
  */
 export const PAGES = [
   {
@@ -339,7 +361,7 @@ export const PAGES = [
       + 'an iPad, in Safari. You get one file containing every plate, in '
       + 'order.',
     sections: [
-      ['What &quot;too big&quot; means on each machine', [
+      ['What "too big" means on each machine', [
         '<p>Bed sizes vary more than people expect. An A1 mini gives you '
         + '180&nbsp;&times;&nbsp;180&nbsp;&times;&nbsp;180&nbsp;mm. A P1S, an '
         + 'X1 Carbon or an A1 gives you roughly 256&nbsp;mm in each direction. '
