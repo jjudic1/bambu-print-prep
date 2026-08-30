@@ -58,6 +58,30 @@ const day = (iso) => new Date(iso).toLocaleDateString(undefined,
   { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 /**
+ * Say a country in words.
+ *
+ * Vercel answers with two-letter ISO codes -- "US", "DE", "GB" -- which are
+ * fine as an index and poor as a label: a column of them is a puzzle, and the
+ * whole point of this table is to read the shape of it at a glance. The
+ * browser already knows every code in the reader's own language, so ask it
+ * rather than carrying a list here that would go stale and only ever be in
+ * English.
+ *
+ * Built once, because Intl.DisplayNames is not free to construct and this runs
+ * per row. Anything that is not a plain two-letter code is handed back
+ * untouched: the API can answer with a blank -- already named "(none)"
+ * upstream -- and there is no sense guessing at what an unexpected value meant.
+ */
+const REGIONS = (() => {
+  try { return new Intl.DisplayNames(undefined, { type: 'region' }) } catch { return null }
+})()
+function place(code) {
+  if (!/^[A-Za-z]{2}$/.test(code)) return code
+  const iso = code.toUpperCase()
+  try { return REGIONS?.of(iso) || iso } catch { return iso }
+}
+
+/**
  * A row of a table that is also a bar chart.
  *
  * The bar is the magnitude and the number is the value; the label is text in
@@ -174,6 +198,12 @@ export default function Dashboard() {
       visitors: step.key ? (byName.get(step.key)?.visitors || 0) : arrived,
     }))
   }, [data])
+
+  // Named here rather than in the row, so the sort Vercel's answer arrived in
+  // is not disturbed and the work happens once per load instead of per render.
+  const countries = useMemo(
+    () => (data?.countries || []).map((row) => ({ ...row, label: place(row.label) })),
+    [data])
 
   if (!key) {
     return (
@@ -331,6 +361,18 @@ export default function Dashboard() {
             title="Where they came from"
             rows={data.referrers || []}
             empty="Nobody has arrived from a link yet. Anyone typing the address straight in shows as (none)."
+          />
+          {/* Where in the world, which is the one thing here that says
+              something about the *audience* rather than about the posting. It
+              answers a question the referrer table cannot: whether a post
+              landed with people who could actually be reached again, and
+              whether anyone outside English is turning up. */}
+          <Bars
+            title="Where in the world"
+            rows={countries}
+            empty={data?.unavailable?.countries
+              ? 'Vercel would not answer for countries; the reason is below.'
+              : 'Nobody counted yet in this window.'}
           />
           <Bars
             title="Where you posted it"

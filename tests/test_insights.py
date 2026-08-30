@@ -7,7 +7,7 @@ guarding, and neither is about JSON:
 * **Shut unless switched on.** No INSIGHTS_KEY and it must refuse -- including
   refusing a request that sends no key at all, which is the one an accidental
   deploy gets hit with first.
-* **Partly working is a real answer.** Seven queries go upstream and any one can
+* **Partly working is a real answer.** Eight queries go upstream and any one can
   be refused on its own: a dimension Vercel does not offer for that dataset, a
   plan limit, analytics switched off. If one failure took the whole call down,
   the dashboard would show an error on the day a single dimension changed name.

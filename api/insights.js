@@ -10,7 +10,7 @@
  *
  * **This was Python on Cloud Run until the compute came down.** The rest of that
  * service -- repair, analysis, the orientation solver -- is a 2 GB container
- * that exists to do mesh work, and keeping it deployed to proxy seven GETs was
+ * that exists to do mesh work, and keeping it deployed to proxy eight GETs was
  * the tail wagging the dog. Ported here it needs no server of ours at all,
  * which is the same argument that moved the writer into the browser in the
  * first place. The Python original is gone rather than kept alongside: this
@@ -28,7 +28,7 @@
  *   every request is refused, including one sending no key at all.
  *   Open-by-default would publish where the traffic comes from to anyone who
  *   guessed the path, and "nobody will guess it" is not an access control.
- * - **It never fails as a whole.** Seven queries go upstream and any one can be
+ * - **It never fails as a whole.** Eight queries go upstream and any one can be
  *   refused on its own -- a dimension Vercel does not offer for that dataset, a
  *   plan limit, a project with analytics switched off. Each is reported
  *   separately so the dashboard draws what it has, instead of showing one error
@@ -52,8 +52,8 @@ const API = 'https://api.vercel.com/v1/query/web-analytics'
 const TIMEOUT = 20000
 
 /**
- * The seven. Between them: how many came, when, what they landed on, where
- * from, which campaign brought them, and how far they got.
+ * The eight. Between them: how many came, when, what they landed on, where
+ * from, where in the world, which campaign brought them, and how far they got.
  *
  * `by` empty means a count rather than an aggregate -- a different endpoint and
  * a different response shape.
@@ -66,6 +66,11 @@ const QUERIES = [
   { name: 'daily', dataset: 'visits', by: ['day'], limit: 100, chronological: true },
   { name: 'pages', dataset: 'visits', by: ['requestPath'] },
   { name: 'referrers', dataset: 'visits', by: ['referrerHostname'] },
+  // Two-letter ISO codes, not names -- Vercel answers "US", "DE". Turned into
+  // words in the page rather than here, because the reader's own browser knows
+  // them in the reader's own language and a table of codes baked in here would
+  // not.
+  { name: 'countries', dataset: 'visits', by: ['country'] },
   { name: 'utmSource', dataset: 'visits', by: ['utmSource'] },
   { name: 'utmCampaign', dataset: 'visits', by: ['utmCampaign'] },
   { name: 'events', dataset: 'events', by: ['eventName'] },
@@ -98,7 +103,7 @@ function sameKey(given, expected) {
  * team's project, and the scope is a dropdown that is easy to leave alone.
  *
  * Vercel's own message is appended rather than dropped. Swallowing it cost a
- * round of guessing on the day this was first switched on: seven identical
+ * round of guessing on the day this was first switched on: eight identical
  * "check the token and its scope" lines, when the upstream body said something
  * more specific each time.
  */
@@ -388,7 +393,7 @@ module.exports = async function insights(request, response) {
 
   // `?raw=1` hands back what Vercel actually said, untouched, next to the URL
   // it was asked. It exists because the alternative is a deploy per guess: this
-  // endpoint reshapes seven upstream answers and cannot show its working, so
+  // endpoint reshapes eight upstream answers and cannot show its working, so
   // when a number comes out wrong there is no way to tell a bad request from a
   // misread response without one. It costs nothing to carry, needs the same key
   // as everything else here, and no secret goes into it -- the token travels in
