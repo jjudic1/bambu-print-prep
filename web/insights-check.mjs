@@ -7,7 +7,7 @@
  * - **Shut unless switched on.** No INSIGHTS_KEY and it must refuse, including
  *   a request sending no key at all -- the one an accidental deploy gets hit
  *   with first.
- * - **Partly working is a real answer.** Seven queries go upstream and any one
+ * - **Partly working is a real answer.** Eight queries go upstream and any one
  *   can be refused on its own. If a single failure took the whole call down,
  *   the dashboard would show an error on the day one dimension changed name.
  *
@@ -34,6 +34,7 @@ function serve(answers) {
     const by = at.searchParams.getAll('by')
     const name = shape === 'count' ? 'totals'
       : ({ day: 'daily', requestPath: 'pages', referrerHostname: 'referrers',
+           country: 'countries',
            utmSource: 'utmSource', utmCampaign: 'utmCampaign',
            eventName: dataset === 'events' ? 'events' : '?' }[by[0]] || '?')
 
@@ -94,6 +95,7 @@ const ALL = {
   daily: rows('day', ['2026-08-27', 10]),
   pages: rows('requestPath', ['/', 30]),
   referrers: rows('referrerHostname', ['reddit.com', 22], ['google.com', 8]),
+  countries: rows('country', ['US', 24], ['GB', 9], ['DE', 7]),
   utmSource: rows('utmSource', ['reddit', 22]),
   utmCampaign: rows('utmCampaign', ['launch', 22]),
   events: rows('eventName', ['model opened', 12], ['file made', 5]),
@@ -253,7 +255,7 @@ console.log('\n--- what it hands back ------------------------------------------
 }
 
 {
-  // The escape hatch. Reshaping seven upstream answers with no way to see them
+  // The escape hatch. Reshaping eight upstream answers with no way to see them
   // is what turned one wrong number into a deploy per guess, so raw mode hands
   // back what Vercel said and the URL it was asked -- behind the same key as
   // everything else, and carrying no secret, because the token is a header.
@@ -399,7 +401,13 @@ console.log('\n--- what goes upstream ------------------------------------------
     [true, false])
   check('both shapes are used: a count for the totals, aggregates for the rest',
     [got.urls.filter((u) => u.includes('/count?')).length,
-     got.urls.filter((u) => u.includes('/aggregate?')).length], [1, 6])
+     got.urls.filter((u) => u.includes('/aggregate?')).length], [1, 7])
+  // Vercel's dimension is `country` and it answers in two-letter ISO codes.
+  // The names people read are made in the page from those codes, so the codes
+  // have to survive this far untouched.
+  check('countries are asked for by that name, and arrive as codes',
+    [got.urls.some((u) => u.includes('by=country')),
+     got.body.countries.map((r) => r.label)], [true, ['US', 'GB', 'DE']])
   check('the team is passed, or a personal token cannot see the project',
     got.urls.every((u) => u.includes('teamId=team_test')), true)
 }
