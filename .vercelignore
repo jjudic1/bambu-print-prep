@@ -5,7 +5,8 @@
 #    function. That directory is also the FastAPI app -- api/main.py and
 #    friends -- and Vercel would try to build each of those as a Python
 #    function, on an image with no trimesh, manifold3d or scikit-image. The
-#    only thing in there meant to be deployed is insights.js.
+#    only things in there meant to be deployed are insights.js and
+#    contact.js.
 # 2. The build only ever runs `npm --prefix web`, so none of the Python, the
 #    profiles, the corpus or the design masters is reachable from it anyway.
 api/*.py
@@ -27,9 +28,10 @@ pyproject.toml
 result.json
 my-printer.txt
 
-# The check harness for api/insights.js. It lives in web/ precisely so Vercel
-# does not see it as a function, but it is test-only either way.
+# The check harnesses for the two functions. They live in web/ precisely so
+# Vercel does not see them as functions, but they are test-only either way.
 web/insights-check.mjs
+web/contact-check.mjs
 web/flatten-check.mjs
 web/parts-check.mjs
 web/framing-check.mjs

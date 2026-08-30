@@ -147,7 +147,8 @@ is the part nobody else has.
 |---|---|---|
 | The app | `bambu-print-prep.vercel.app` and `/local` | One page, both addresses. Vercel, free, auto-deploys on push |
 | Usage | `/dashboard` | Who is turning up. Behind a key; dark until it is set |
-| Function | `/api/insights` | The only server-side code left. ~60 lines, no dependencies |
+| Function | `/api/insights` | Reads the usage numbers back. No dependencies |
+| Function | `/api/contact` | The Contact us sheet's mail, through Resend. Dark until `RESEND_API_KEY` is set |
 
 **Nothing runs on Google any more.** The Cloud Run service was deleted on
 2026-08-28 and its URL 404s. About 1 GB of container images is still sitting in
@@ -164,6 +165,16 @@ counts. The source is `"/((?!_vercel/|api/).*)"`.
 every file in a top-level `api/` directory, and that directory is also the
 FastAPI app. Without it, the build tries to deploy `main.py` on an image with no
 trimesh.
+
+**There are two functions now, not one.** `api/contact.js` is behind the
+Contact us link on the landing screen and at the bottom of the arrange panel:
+a topic, a message and an optional name and address, mailed to the support
+address through Resend. It holds nothing, same as the other one -- a POST in,
+one email out. The reason it exists at all rather than the browser posting
+straight to a form service is that both the address and the sending key stay
+off the page. It is shut until `RESEND_API_KEY` is set, and says so; the setup,
+including the trap about which address Resend's shared sender will deliver to,
+is in `deploy.md`.
 
 gcloud is installed, and still needs `CLOUDSDK_PYTHON` pointed at its bundled
 interpreter or every command dies with "Python was not found" — see `deploy.md`.

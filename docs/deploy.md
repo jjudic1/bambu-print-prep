@@ -356,8 +356,62 @@ never counts anything. The source is now `"/((?!_vercel/|api/).*)"`.
 Vercel turns every file in a top-level `api/` directory into a function. That
 directory is also the Python API, so without `.vercelignore` excluding
 `api/*.py` the build attempts a serverless function out of `main.py` -- on an
-image with no trimesh, no manifold3d, no scikit-image. Only `api/insights.js` is
-meant to deploy.
+image with no trimesh, no manifold3d, no scikit-image. Only `api/insights.js`
+and `api/contact.js` are meant to deploy.
+
+## The contact form, and the one variable it needs
+
+`api/contact.js` takes what somebody wrote on the Contact us sheet and sends it
+as an email. It is the second and last function under this deploy, and like the
+first it stores nothing: a POST in, one email out, no database and no session.
+The address it goes to is not in the app's bundle -- that is the reason this is
+a function at all rather than the browser posting to a form service, along with
+the key, which would otherwise ship to every visitor who cared to read it.
+
+**It is shut until `RESEND_API_KEY` is set**, and says so to anyone who tries.
+That is deliberate: a form that accepts a message it cannot send is worse than
+one that admits it is off, because the person walks away believing they have
+been heard.
+
+1. **Make a Resend account** at https://resend.com, and **open it with the
+   address the mail is meant to land in** -- `tresjdesignsupport@gmail.com`.
+   This matters more than it looks. With no domain of your own verified, the
+   only sender available is Resend's shared `onboarding@resend.dev`, and Resend
+   will deliver from it *only to the address the account itself belongs to*.
+   Signing up as somebody else and pointing `CONTACT_TO` at the support address
+   fails at send time, with a message the person on the form never sees.
+2. **Make an API key** at https://resend.com/api-keys, sending permission only.
+3. **Set it on the Vercel project** (Settings -> Environment Variables,
+   Production), as sensitive:
+
+```powershell
+vercel env add RESEND_API_KEY production      # re_...
+vercel env add CONTACT_TO production          # optional -- defaults to the support address
+vercel env add CONTACT_FROM production        # optional -- defaults to Handoff3D <onboarding@resend.dev>
+```
+
+4. **Redeploy.** Same as above: environment variables attach to a new
+   deployment, not to the running one.
+
+`CONTACT_TO` and `CONTACT_FROM` both have defaults in the code, so the only
+variable that has to exist is the key. Set `CONTACT_FROM` once a domain is
+verified with Resend -- a `from` on your own domain is what stops the mail
+being filed as spam, and is the only way to send anywhere but the Resend
+account's own address.
+
+### The subject is written by the server, on purpose
+
+`[Handoff3D] Web app support from Jo`. The brand comes first because that is
+what the inbox filters on and what has to be legible in a list of forty other
+things; the topic decides what happens to the mail; the name is the only part
+anybody typed, and it is stripped of anything that could be a header of its own
+before it goes in. Nothing else from the form reaches a header, which is what
+keeps a newline in the name field from becoming a second recipient.
+
+`web/contact-check.mjs` runs the function with `fetch` replaced -- no key and
+nothing sent -- and `tests/test_contact.py` hands its checks to pytest. It also
+diffs the topic list against `web/src/contact.js` and the brand against
+`web/src/brand.js`, both of which are the same constant written twice.
 
 ### What the numbers cannot tell you
 

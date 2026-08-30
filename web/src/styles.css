@@ -493,3 +493,49 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   display: block; width: 100%; height: 100%; min-height: 100%;
   border: 0; background: var(--bg);
 }
+
+/* --- contact form ----------------------------------------------------- */
+/* Inside the sheet, which already supplies the bar and the scrolling body.
+   A column of fields with the same furniture as the panel's -- same field
+   labels, same option buttons, same green Send as Make the file -- because it
+   opens over the panel and a form that looks like a different product is one
+   more thing to be suspicious of. */
+.form {
+  display: flex; flex-direction: column; gap: 1.05rem;
+  padding: 1rem 1.15rem calc(2rem + env(safe-area-inset-bottom));
+  max-width: 34rem; margin: 0 auto;
+  /* Said outright, because the sheet opens from two screens with different
+     ideas about it: on the landing screen it renders inside `.landing`, which
+     centres everything it contains, and a form whose labels are centred over
+     left-aligned boxes reads as a different app depending on where you opened
+     it from. */
+  text-align: left;
+}
+.form p { margin: 0; }
+/* 16px at least, on both. Anything smaller and iOS zooms the page in when the
+   field is focused -- and then does not zoom back out, which leaves the app
+   scrolled sideways with the Send button off the edge. */
+.form textarea, .form input[type=text], .form input[type=email] {
+  background: #0d0f12; border: 1px solid var(--line); border-radius: 10px;
+  padding: .6rem .7rem; width: 100%; font: inherit; font-size: max(16px, 1rem);
+  color: var(--ink);
+}
+.form textarea { resize: vertical; min-height: 7.5rem; line-height: 1.45; }
+.form textarea:focus, .form input:focus { outline: 1px solid var(--accent); }
+/* The topic buttons wrap to one per line on a phone and sit in a row on
+   anything wider; `.option` already flexes, this only stops three of them
+   being squeezed to a word each. */
+.form .options { gap: .5rem; }
+.form .option { flex: 1 1 8rem; padding: .6rem .7rem; text-align: left; }
+/* The honeypot. Off the side rather than display:none, which some robots read
+   as "skip me"; no space taken and nothing reaches it by tab or by voice. */
+.trap {
+  position: absolute; left: -9999px; width: 1px; height: 1px;
+  overflow: hidden; opacity: 0;
+}
+/* The link into the form, at the bottom of the panel. Given a rule above it so
+   it reads as a footer rather than as another instruction about the file. */
+.contact-line {
+  margin: 0; font-size: .85rem;
+  border-top: 1px solid var(--line); padding-top: .9rem;
+}

@@ -180,6 +180,17 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   either with a page of HTML — the script tag then parses as HTML and silently
   never counts anything. The source is `"/((?!_vercel/|api/).*)"`. Same trap
   the old API rewrite had. See `docs/deploy.md`.
+- **The contact form is the one thing that sends what a user typed.**
+  `api/contact.js` mails it through Resend; nothing about the model goes with
+  it, and the address it lands at is only ever in the environment, never in the
+  bundle. It is **shut unless `RESEND_API_KEY` is set** -- a form that accepts a
+  message it cannot send is worse than one that says it is off. The subject is
+  written server-side (`[Handoff3D] Feature request from Jo`) because that is
+  the whole feature: obviously from the app before it is opened. The brand and
+  the three topics are each written twice -- `api/contact.js` cannot import the
+  app's ESM -- and `tests/test_contact.py` fails when the copies drift. Resend's
+  shared sender only delivers to the address the Resend account itself was
+  opened with; anywhere else needs a verified domain and `CONTACT_FROM`.
 - **`api/insights.js` is a Vercel function; `api/*.py` must never become one.**
   Vercel turns every file in a top-level `api/` directory into a function, and
   the FastAPI app lives in that same directory. `.vercelignore` excludes the
