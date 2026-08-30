@@ -87,6 +87,44 @@ export function splitParts(geometry, { maxParts = 64 } = {}) {
   })
 }
 
+/**
+ * The parts of the bed nothing may stand on, as rectangles in bed millimetres.
+ *
+ * A P1S, a P1P and every X1 keep an 18 x 28 mm corner at the front left for
+ * purging and wiping the nozzle; the A1 family and the H2 machines have none.
+ * It is a fact about the machine, carried per printer in the baked profiles,
+ * and it is the reason this exists at all: a plate whose parts sit in that
+ * corner opens perfectly well and then fails to slice on upload, with nothing
+ * on screen having looked wrong.
+ *
+ * Each region is stored as the polygon the vendor profile writes, and reduced
+ * here to the box around it. Every one of them is already a rectangle, and
+ * where one day it is not, the box is the conservative read -- it keeps parts
+ * further out rather than letting them creep in.
+ */
+export function keepOuts(printer) {
+  return (printer?.exclude_areas || []).map((polygon) => {
+    const xs = polygon.map((p) => p[0])
+    const ys = polygon.map((p) => p[1])
+    return {
+      x0: Math.min(...xs), y0: Math.min(...ys),
+      x1: Math.max(...xs), y1: Math.max(...ys),
+    }
+  }).filter((z) => z.x1 > z.x0 && z.y1 > z.y0)
+}
+
+/**
+ * The first keep-out a footprint lands on, or null. `x`/`y` are its near corner.
+ *
+ * Touching along an edge is not landing on it: a part parked exactly at the
+ * zone's edge is where the packer deliberately puts things, and calling that a
+ * clash would push everything a further gap away for no reason.
+ */
+export function clash(zones, x, y, width, depth) {
+  return zones.find((z) => x < z.x1 && x + width > z.x0
+                        && y < z.y1 && y + depth > z.y0) || null
+}
+
 /** Footprint of a geometry under a given pose. */
 export function footprint(geometry, matrix) {
   const box = new THREE.Box3().setFromBufferAttribute(
@@ -108,6 +146,13 @@ export function footprint(geometry, matrix) {
  * reported. Refusing to place it would leave the user with no way to see the
  * problem.
  *
+ * The bed it fills is not always the whole rectangle. Rows start at the front
+ * left, which on a P1S or an X1 is exactly where the purge and wiping corner
+ * is, so the first part of every plate used to land in the one place the
+ * printer will not print -- a file that opens, looks right, and is refused at
+ * slice time. A row that runs into a keep-out steps past it, and starts a new
+ * row if that leaves no room.
+ *
  * `matrixFor` is a function rather than one matrix because parts no longer share
  * a pose -- each can be tipped onto its own face -- and a part's footprint is
  * what decides where it fits. Passing one shared matrix would lay out the shapes
@@ -117,6 +162,7 @@ export function arrange(parts, printer, matrixFor, { gap = 6, margin = 8 } = {})
   const [bedX, bedY] = printer.bed_mm
   const usableX = bedX - margin * 2
   const usableY = bedY - margin * 2
+  const zones = keepOuts(printer)
 
   const measured = parts.map((part) => ({
     part, ...footprint(part.geometry, matrixFor(part)),
@@ -134,8 +180,19 @@ export function arrange(parts, printer, matrixFor, { gap = 6, margin = 8 } = {})
     plate += 1; cursorX = margin; cursorY = margin; shelfDepth = 0
   }
 
+  // Whether a footprint has anywhere to go at all once the keep-outs are taken
+  // out of the bed: a row to the right of them, or a row beyond them. A part
+  // that has neither is as unplaceable as one bigger than the bed, and is
+  // reported the same way rather than being shuffled around forever.
+  const pastZones = zones.length ? Math.max(...zones.map((z) => z.x1)) + gap : 0
+  const beyondZones = zones.length ? Math.max(...zones.map((z) => z.y1)) + gap : 0
+  const fitsClear = (width, depth) => !zones.length
+    || pastZones + width <= margin + usableX
+    || beyondZones + depth <= margin + usableY
+
   for (const item of order) {
-    if (item.width > usableX || item.depth > usableY) {
+    if (item.width > usableX || item.depth > usableY
+        || !fitsClear(item.width, item.depth)) {
       // Its own plate, so at least it is visible and the warning is specific.
       if (placed.some((p) => p.plate === plate)) newPlate()
       placed.push({ ...item, plate, x: bedX / 2, y: bedY / 2 })
@@ -143,13 +200,24 @@ export function arrange(parts, printer, matrixFor, { gap = 6, margin = 8 } = {})
       newPlate()
       continue
     }
-    if (cursorX + item.width > margin + usableX) {   // next shelf
-      cursorX = margin
-      cursorY += shelfDepth + gap
-      shelfDepth = 0
-    }
-    if (cursorY + item.depth > margin + usableY) {   // next plate
-      newPlate()
+    // Find the first spot that is on the bed and clear of every keep-out.
+    // Stepping right past a zone can run the row off the edge, wrapping to the
+    // next row can drop it back alongside another zone, so this settles rather
+    // than tests once. The guard is not expected to bite -- rows only ever move
+    // up the bed and plates only ever forwards -- and if it ever did, placing
+    // the part is still better than looping.
+    for (let settle = 0; settle < 64; settle++) {
+      if (cursorX + item.width > margin + usableX) {   // next shelf
+        cursorX = margin
+        cursorY += shelfDepth + gap
+        shelfDepth = 0
+      }
+      if (cursorY + item.depth > margin + usableY) {   // next plate
+        newPlate()
+      }
+      const zone = clash(zones, cursorX, cursorY, item.width, item.depth)
+      if (!zone) break
+      cursorX = zone.x1 + gap                          // step past it
     }
     placed.push({
       ...item, plate,

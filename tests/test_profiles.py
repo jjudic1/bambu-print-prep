@@ -70,7 +70,32 @@ def test_resolution_drops_lookup_bookkeeping():
 
 def test_bed_exclusion_zone_is_carried():
     """The P1S has a purge area at the origin corner; placement must know about it."""
-    assert load_printer(P1S).exclude_areas
+    assert load_printer(P1S).exclude_areas == [
+        [(0.0, 0.0), (18.0, 0.0), (18.0, 28.0), (0.0, 28.0)]]
+
+
+def test_a_machine_without_one_says_so():
+    """The A1 family prints right up to the corner, and a keep-out drawn on a
+    bed that has none is a chunk of plate the user is told not to use."""
+    assert load_printer("Bambu Lab A1 mini 0.4 nozzle").exclude_areas == []
+
+
+def test_two_exclusion_zones_are_two_polygons():
+    """Bambu writes a second region by appending it to the same flat list. Read
+    as one polygon, the corner and the strip beside it become a self-crossing
+    shape that covers neither of them."""
+    assert profiles._exclude_areas(
+        ["0x0", "28x0", "28x28", "0x28", "0x28", "8x28", "8x256", "0x256"]) == [
+        [(0.0, 0.0), (28.0, 0.0), (28.0, 28.0), (0.0, 28.0)],
+        [(0.0, 28.0), (8.0, 28.0), (8.0, 256.0), (0.0, 256.0)],
+    ]
+
+
+def test_a_zone_that_is_not_a_quad_is_left_whole():
+    """Cutting into fours is a reading of how quads are concatenated, not of
+    what a polygon is. Anything else stays the one shape it was written as."""
+    assert profiles._exclude_areas(["0x0", "28x0", "28x28", "14x40", "0x28"]) == [
+        [(0.0, 0.0), (28.0, 0.0), (28.0, 28.0), (14.0, 40.0), (0.0, 28.0)]]
 
 
 def test_bed_centre():

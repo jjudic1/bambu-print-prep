@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 import { frameBed } from '../framing.js'
 import { posedGeometry } from './flatten.js'
-import { footprint } from './parts.js'
+import { clash, footprint } from './parts.js'
 
 /**
  * One plate, with the parts that sit on it, draggable.
@@ -18,6 +18,12 @@ import { footprint } from './parts.js'
  * Coordinates are the printer's own -- millimetres, Z up, origin at the front
  * left of the bed -- and a part's x/y is where its centre sits on that bed.
  *
+ * `keepOut` is the machine's own no-go areas, in the same millimetres -- the
+ * purge and wiping corner a P1S or an X1 keeps at the front left. It is drawn
+ * because it is invisible otherwise: a part standing on it makes a file that
+ * opens and looks right and is then refused at slice time, and the only way to
+ * know it is coming is to be able to see the corner while moving parts about.
+ *
  * `matrixFor` gives a part's pose. It is a function, not one shared matrix,
  * because each part can be tipped onto its own face; every part is still
  * re-centred on its own footprint and dropped to the plate afterwards, so
@@ -29,16 +35,22 @@ const BED = 0x1b1e24
 const GRID = 0x2f343d
 const GRID_10 = 0x262b33
 const TOO_BIG = 0xc4463a
+const KEEP_OUT = 0xc4463a
 const SELECTED = 0xffffff
 
 export default function PlateViewer({
-  parts, bed, height, colour = 0x22a45d, selectedId, matrixFor,
+  parts, bed, height, keepOut = [], colour = 0x22a45d, selectedId, matrixFor,
   onSelect, onMove, onReady,
 }) {
   const mount = useRef(null)
   const state = useRef({})
   const live = useRef({})
-  live.current = { parts, bed, height, colour, selectedId, matrixFor, onSelect, onMove }
+  live.current = { parts, bed, height, keepOut, colour, selectedId, matrixFor, onSelect, onMove }
+
+  // The rectangles are data, and effects want something they can compare. Their
+  // numbers come from the printer profile, so this changes exactly when the
+  // machine does.
+  const keepOutKey = JSON.stringify(keepOut)
 
   // --- scene, once ----------------------------------------------------------
   useEffect(() => {
@@ -206,6 +218,30 @@ export default function PlateViewer({
       world.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: tone })))
     }
 
+    // The keep-outs, lying on the plate: a flat red patch with a brighter
+    // edge, drawn above the grid so the lines do not read through it as a
+    // place you could still put something.
+    for (const z of keepOut) {
+      const w = z.x1 - z.x0
+      const d = z.y1 - z.y0
+      const patch = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, d),
+        new THREE.MeshBasicMaterial({
+          color: KEEP_OUT, transparent: true, opacity: 0.3,
+          depthWrite: false, side: THREE.DoubleSide,
+        }))
+      patch.position.set(z.x0 + w / 2, z.y0 + d / 2, 0.1)
+      world.add(patch)
+
+      const edge = new THREE.LineLoop(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(z.x0, z.y0, 0.12), new THREE.Vector3(z.x1, z.y0, 0.12),
+          new THREE.Vector3(z.x1, z.y1, 0.12), new THREE.Vector3(z.x0, z.y1, 0.12),
+        ]),
+        new THREE.LineBasicMaterial({ color: KEEP_OUT }))
+      world.add(edge)
+    }
+
     const limit = new THREE.Box3(new THREE.Vector3(0, 0, 0),
                                  new THREE.Vector3(bx, by, height))
     const helper = new THREE.Box3Helper(limit, new THREE.Color(GRID))
@@ -216,7 +252,7 @@ export default function PlateViewer({
     // A new printer is a new bed to look at, so the camera goes back to a view
     // of the whole of it.
     state.current.reframe()
-  }, [bed[0], bed[1], height])
+  }, [bed[0], bed[1], height, keepOutKey])
 
   // --- the parts ------------------------------------------------------------
   useEffect(() => {
@@ -247,13 +283,18 @@ export default function PlateViewer({
         ? footprint(part.geometry, matrixFor(part)).box.getSize(new THREE.Vector3())
         : box.getSize(new THREE.Vector3())
 
+      // Standing on the purge corner is the same class of problem as being
+      // bigger than the bed -- a file that opens and will not slice -- so it
+      // reads the same way. Measured on the footprint, from its near corner.
+      const onKeepOut = !!clash(keepOut, part.x - size.x / 2, part.y - size.y / 2,
+                                size.x, size.y)
       const fits = size.x <= bx && size.y <= by && size.z <= height
       if (!fits) anyTooBig = true
 
       // A part may carry its own colour; `colour` is the model's default.
       // Too-big still wins, because that is a warning and not a preference.
       const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-        color: fits ? (part.colour ?? colour) : TOO_BIG,
+        color: fits && !onKeepOut ? (part.colour ?? colour) : TOO_BIG,
         roughness: 0.55,
         metalness: 0.05,
         emissive: part.id === selectedId ? SELECTED : 0x000000,
@@ -265,7 +306,7 @@ export default function PlateViewer({
     }
 
     models.userData.anyTooBig = anyTooBig
-  }, [parts, matrixFor, colour, selectedId, bed[0], bed[1], height])
+  }, [parts, matrixFor, colour, selectedId, bed[0], bed[1], height, keepOutKey])
 
   return <div ref={mount} className="viewer" />
 }

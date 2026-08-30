@@ -15,7 +15,7 @@ import { posedGeometry } from './flatten.js'
 import { MAKERWORLD_URL, renderHandoff } from './handoff.js'
 import { outward, standalone } from './outside.js'
 import { plateImages, readModel, spoken, toArrays } from './mesh.js'
-import { arrange, footprint, splitParts } from './parts.js'
+import { arrange, clash, footprint, keepOuts, splitParts } from './parts.js'
 import {
   DEFAULT_NOZZLE_MM, models, nozzlesFor, pick, startingPrinter,
 } from './printers.js'
@@ -318,6 +318,12 @@ export default function LocalApp() {
 
   const onPlate = useMemo(
     () => parts.filter((p) => p.plate === activePlate), [parts, activePlate])
+
+  // The corners this machine will not print on -- a P1S and every X1 keep one
+  // at the front left for purging and wiping. Drawn on the plate, and kept
+  // clear by Arrange; the only way onto one is to drag a part there, so the
+  // panel says so when someone has.
+  const keepOut = useMemo(() => keepOuts(printer), [printer])
   const selected = useMemo(
     () => parts.find((p) => p.id === selectedId) || null, [parts, selectedId])
 
@@ -525,6 +531,11 @@ export default function LocalApp() {
     const shortest = Math.min(...list.map((p) => sizeOfPart(p)[2]))
     return Math.max(CUT_STEP, snap(snapDown(shortest * MOST_OF_IT)))
   }, [selected, parts, sizeOfPart])
+
+  const onKeepOut = useMemo(() => onPlate.filter((part) => {
+    const [width, depth] = sizeOfPart(part)
+    return clash(keepOut, part.x - width / 2, part.y - depth / 2, width, depth)
+  }), [onPlate, keepOut, sizeOfPart])
 
   // Only worth saying when one part's height is the answer. Across a mixed
   // batch each part stands at its own height, and the panel says so instead.
@@ -760,6 +771,7 @@ export default function LocalApp() {
         parts={onPlate}
         bed={printer.bed_mm}
         height={printer.height_mm}
+        keepOut={keepOut}
         colour={colour}
         matrixFor={matrixFor}
         selectedId={selectedId}
@@ -815,6 +827,16 @@ export default function LocalApp() {
             <p className="reason">
               This plate is empty. Bambu Studio refuses a file with an empty
               plate, so it will be left out unless you put something on it.
+            </p>
+          )}
+          {onKeepOut.length > 0 && (
+            <p className="reason">
+              {onKeepOut.length === 1
+                ? `${short(onKeepOut[0].name)} is standing`
+                : `${onKeepOut.length} parts are standing`}{' '}
+              on the shaded corner, which your printer keeps for itself to clean
+              its nozzle on. Nothing can be printed there - drag{' '}
+              {onKeepOut.length === 1 ? 'it' : 'them'} clear, or press Arrange.
             </p>
           )}
         </div>

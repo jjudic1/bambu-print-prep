@@ -99,6 +99,12 @@ def build() -> tuple[dict, dict]:
             "height_mm": printer.height_mm,
             "nozzle_mm": printer.nozzle_mm,
             "bed_type": printer.bed_type,
+            # The corners nothing may be placed on. Carried per machine because
+            # they are per machine: a P1S has an 18 x 28 mm purge area at the
+            # front left and an A1 has none, and a part laid out on top of one
+            # is a file MakerWorld refuses to slice.
+            "exclude_areas": [[[x, y] for x, y in area]
+                              for area in printer.exclude_areas],
             "process": process,
             # Names only. What each one resolves to lives in the other file.
             "materials": sorted(materials, key=MATERIALS.index),

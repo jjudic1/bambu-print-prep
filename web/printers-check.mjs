@@ -75,6 +75,25 @@ console.log('--- the data ----------------------------------------------------')
   check('every chosen layer height is printable by the nozzle it belongs to',
     layers, [])
 
+  // The bit of the bed the machine keeps for itself. It is per model, it is
+  // what Arrange has to step around, and a wrong one is invisible until a file
+  // that opens fine is refused at slice time -- so it is checked against the
+  // bed it belongs to, and against the five machines that are known to have
+  // one. The nozzle cannot change it, for the same reason the bed cannot.
+  const withZone = models(printers).filter((p) => p.exclude_areas.length)
+  check('the machines that keep a corner for purging are the P1 and X1 families',
+    withZone.map((p) => p.model).sort(),
+    ['Bambu Lab P1P', 'Bambu Lab P1S', 'Bambu Lab X1',
+     'Bambu Lab X1 Carbon', 'Bambu Lab X1E'])
+  check('every keep-out is on the bed it belongs to, and not the whole of it',
+    printers.filter((p) => p.exclude_areas.some((area) => area.some(
+      ([x, y]) => x < 0 || y < 0 || x > p.bed_mm[0] || y > p.bed_mm[1])
+      || area.length < 3)).map((p) => p.id), [])
+  check('a keep-out belongs to the machine, not to the nozzle in it',
+    models(printers).filter((p) => printers.filter((q) => q.model === p.model)
+      .some((q) => JSON.stringify(q.exclude_areas) !== JSON.stringify(p.exclude_areas)))
+      .map((p) => p.model), [])
+
   // Bed and height belong to the machine, not to what is screwed into it. If
   // this ever stops holding, the printer picker showing one bed per model is a
   // lie and the plate is drawn at the wrong size.

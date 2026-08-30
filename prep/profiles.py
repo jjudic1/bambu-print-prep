@@ -127,6 +127,25 @@ def _parse_point(text: str) -> tuple[float, float]:
     return float(x), float(y)
 
 
+def _exclude_areas(points: list[str]) -> list[list[tuple[float, float]]]:
+    """The keep-out regions of a bed, one polygon each.
+
+    Bambu writes `bed_exclude_area` as a single flat list of points, and a
+    second region is simply appended to the end of it: the common P1/X1 base
+    carries a 28 mm corner *and* an 8 mm strip up the left side as eight points
+    in a row. Read as one polygon those two rectangles become a self-crossing
+    shape that covers neither, so a list divisible by four is cut into quads --
+    which is every region the vendored tree actually has. Anything else is left
+    as the one polygon it is written as, rather than chopped into nonsense.
+    """
+    corners = [_parse_point(p) for p in points]
+    if not corners:
+        return []
+    if len(corners) % 4 == 0:
+        return [corners[i:i + 4] for i in range(0, len(corners), 4)]
+    return [corners]
+
+
 @dataclass(frozen=True)
 class Printer:
     """Everything the pipeline needs to know about the target machine."""
@@ -137,6 +156,8 @@ class Printer:
     height_mm: float
     nozzle_mm: float
     bed_type: str
+    # Bits of the bed nothing may be placed on -- the purge and wiping corner
+    # on a P1/X1. Empty on the machines that have none. One polygon per region.
     exclude_areas: list[list[tuple[float, float]]] = field(default_factory=list)
     settings: dict = field(default_factory=dict, repr=False)
 
@@ -178,7 +199,7 @@ def load_printer(name: str, vendor: str = DEFAULT_VENDOR) -> Printer:
         height_mm=float(s["printable_height"]),
         nozzle_mm=float(nozzles[0]),
         bed_type=s.get("default_bed_type") or _model_default_bed(vendor, model),
-        exclude_areas=[[_parse_point(p) for p in exclude]] if exclude else [],
+        exclude_areas=_exclude_areas(exclude),
         settings=s,
     )
 

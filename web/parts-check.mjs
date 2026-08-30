@@ -19,7 +19,7 @@
 
 import * as THREE from 'three'
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
-import { arrange, footprint, splitParts } from './src/local/parts.js'
+import { arrange, clash, footprint, keepOuts, splitParts } from './src/local/parts.js'
 import { IDENTITY, sameOrientation, turn } from './src/orientation.js'
 
 // --- the same maths LocalApp does, lifted out of React -----------------------
@@ -232,6 +232,60 @@ console.log("\n--- arrange uses each part's own footprint ----------------------
   const big = arrange(huge, printer, matrixFor)
   check('a part bigger than the bed is placed anyway and reported',
     [big.placements.length, big.tooBig.length], [1, 1])
+}
+
+console.log('\n--- the bed a printer will not print on --------------------------')
+{
+  // What the baked profile for a P1S, a P1P or any X1 actually carries: the
+  // 18 x 28 mm corner at the front left that the machine purges and wipes on.
+  // Rows used to start at (8, 8), which is inside it -- the file opened, the
+  // plate looked right, and MakerWorld refused to slice it.
+  const p1s = { bed_mm: [256, 256], exclude_areas: [[[0, 0], [18, 0], [18, 28], [0, 28]]] }
+  const a1 = { bed_mm: [256, 256], exclude_areas: [] }
+
+  check('a machine with no keep-out has none', keepOuts(a1), [])
+  check('a keep-out polygon becomes the box around it',
+    keepOuts(p1s), [{ x0: 0, y0: 0, x1: 18, y1: 28 }])
+  check('a printer from before this existed is not a crash', keepOuts({ bed_mm: [180, 180] }), [])
+  check('touching a keep-out along its edge is not standing on it',
+    [clash(keepOuts(p1s), 18, 0, 40, 40), clash(keepOuts(p1s), 17.9, 0, 40, 40)].map(Boolean),
+    [false, true])
+
+  const bs = baseSizeOf(parts, IDENTITY)
+  const f = factorsOf(bs, true, null, Math.max(...bs))
+  const model = modelMatrixOf(IDENTITY, f)
+  const matrixFor = matrixForOf(model)
+
+  const standsOn = (printer, placements) => placements.filter((place) => {
+    const item = parts.find((p) => p.id === place.id)
+    const { width, depth } = footprint(item.geometry, matrixFor(item))
+    return clash(keepOuts(printer), place.x - width / 2, place.y - depth / 2, width, depth)
+  }).map((p) => p.id)
+
+  const clear = arrange(parts, p1s, matrixFor)
+  check('no part is laid out on the keep-out', standsOn(p1s, clear.placements), [])
+  check('and every part is still placed, on one plate',
+    [clear.placements.length, clear.plateCount, clear.tooBig.length], [3, 1, 0])
+
+  // The one on a machine that has none must not move: the keep-out is the only
+  // thing that changed, and a printer without one gets the layout it always had.
+  const before = arrange(parts, a1, matrixFor).placements
+  check('a machine with no keep-out lays out exactly as it did',
+    before.map((p) => [p.plate, Math.round(p.x), Math.round(p.y)]),
+    [[0, 58, 28], [0, 144, 23], [0, 195, 23]])   // measured before keep-outs existed
+
+  // The same three parts on the same bed, only stepped past the corner. This
+  // is the bug, in numbers: the first row used to start at x = 8.
+  check('a keep-out moves the row right, and nothing else',
+    clear.placements.map((p) => [p.plate, Math.round(p.x), Math.round(p.y)]),
+    before.map((p) => [p.plate, Math.round(p.x) + 16, Math.round(p.y)]))
+
+  // A part with nowhere to stand clear is reported rather than shuffled about
+  // forever: a bed that is nearly all keep-out is not a bed.
+  const walled = { bed_mm: [256, 256], exclude_areas: [[[0, 0], [250, 0], [250, 250], [0, 250]]] }
+  const stuck = arrange(parts, walled, matrixFor)
+  check('a part with no clear spot is reported, not lost',
+    [stuck.placements.length, stuck.tooBig.length], [3, 3])
 }
 
 console.log('\n--- what the writer would receive -------------------------------')

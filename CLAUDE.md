@@ -72,6 +72,17 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   it is referenced by, and plates are regions of world space at 1.2x the bed
   wrapping after two columns. Get either wrong and parts are dropped from a file
   that still opens. See `docs/transport-findings.md` §A2d.
+- **Part of the bed is not printable, and only on some machines.** A P1P, a P1S
+  and every X1 keep an 18 x 28 mm corner at the front left to purge and wipe the
+  nozzle on (`bed_exclude_area` in the profile); the A1 family and the H2s have
+  none. Arrange used to start its first row at (8, 8) -- inside it -- and the
+  result is a file that opens, looks right on every screen, and is **refused at
+  slice time on upload**. Nothing in the container or the bounding box says so.
+  The zones are baked into `printers.json`, drawn on the plate by
+  `PlateViewer.jsx`, and stepped around by `arrange()`. Bambu writes a second
+  region by appending it to the same flat list of points, so `_exclude_areas`
+  cuts the list into quads -- read as one polygon, a corner and the strip beside
+  it become a self-crossing shape covering neither.
 - Printer geometry is resolved from **vendored Bambu Studio profiles** in
   `prep/data/profiles` (not OrcaSlicer's — the two produce different files, and
   the accepted one used Bambu Studio's). Never hard-code a bed size.
