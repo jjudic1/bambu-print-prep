@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import PlateViewer from './PlateViewer.jsx'
 import PlaneHero from '../PlaneHero.jsx'
 import { BRAND, TAGLINE } from '../brand.js'
+import Contact from '../Contact.jsx'
 import Disclaimer from '../disclaimer.jsx'
 import { printers, warmSettings, withSettings } from '../data/profiles.js'
 import { frameBed } from '../framing.js'
@@ -183,6 +184,9 @@ export default function LocalApp() {
   const [hideReminder, setHideReminder] = useState(reminderMuted)
   // Whether the how-to-print page is being read over the top of the app.
   const [steps, setSteps] = useState(false)
+  // And whether the contact form is. Both sheets, and only ever one at a time
+  // -- the form is opened from under the steps as often as from the panel.
+  const [contact, setContact] = useState(false)
   const sceneRef = useRef(null)
 
   const printer = useMemo(
@@ -731,6 +735,19 @@ export default function LocalApp() {
             if you want to support the project.
           </p>
         )}
+        {/* Last, under everything, and deliberately not competing with Choose
+            a model: on this screen nobody has tried anything yet, so a contact
+            link is for the person who has come back because something went
+            wrong before. The one on the panel is the live one. */}
+        <p className="hint">
+          Something not working, or something it should do?{' '}
+          <button type="button" className="link" onClick={() => setContact(true)}>
+            Contact us
+          </button>
+        </p>
+        {contact && (
+          <Contact context="Landing screen" onClose={() => setContact(false)} />
+        )}
       </main>
     )
   }
@@ -1205,6 +1222,19 @@ export default function LocalApp() {
             {busy || 'Make the file'}
           </button>
         )}
+
+        {/* Under the button that makes the file, which is where the panel
+            already ends -- so it is the last thing in a scroll somebody has
+            reached the bottom of, rather than something between them and the
+            thing they came to do. This is the copy of the link that matters:
+            a report written from here arrives with a model open and the
+            problem still on the screen. */}
+        <p className="hint contact-line">
+          <button type="button" className="link" onClick={() => setContact(true)}>
+            Contact us
+          </button>
+          {' '}about anything that is not working, or anything this should do.
+        </p>
       </section>
 
       {/* The how-to-print page, read here rather than saved and opened --
@@ -1245,6 +1275,17 @@ export default function LocalApp() {
             />
           </div>
         </div>
+      )}
+
+      {/* After the steps sheet, so it sits over that one as well -- the steps
+          are read at the printer, which is exactly where somebody finds the
+          thing they want to write about. */}
+      {/* The screen it was opened from, and nothing measured from the model.
+          The model's own name was in here for one draft and came straight back
+          out: the form says only what you type is sent, and a file name is not
+          something anybody typed into it. */}
+      {contact && (
+        <Contact context="Arrange page" onClose={() => setContact(false)} />
       )}
     </main>
   )
