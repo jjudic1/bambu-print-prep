@@ -28,13 +28,161 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="apple-mobile-web-app-title" content="Handoff3D" />
 
-    <title>Handoff3D</title>
-    <meta name="description" content="3D print - no computer necessary. Turn a model into a print-ready file for your Bambu printer, on your iPad. Nothing is uploaded." />
-    <meta property="og:title" content="Handoff3D" />
-    <meta property="og:description" content="3D print - no computer necessary." />
+    <!--
+      The title and description are aimed at a search box, not at a brand.
+      "Handoff3D" is a word nobody types; "3D print from an iPad" is what
+      somebody with an iPad and a Bambu printer actually asks for, so the name
+      comes second. See web/guides.mjs for the rest of the argument and for the
+      static pages that carry the long answers.
+    -->
+    <title>3D print from an iPad - no computer needed | Handoff3D</title>
+    <meta
+      name="description"
+      content="Prepare any 3D model for a Bambu Lab printer on your iPad. Resize it, split a model too big for the bed, flatten the bottom, and save a print-ready file - free, in Safari, with nothing installed and your model never uploaded."
+    />
+    <link rel="canonical" href="https://bambu-print-prep.vercel.app/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Handoff3D" />
+    <meta property="og:title" content="3D print from an iPad - no computer needed" />
+    <meta
+      property="og:description"
+      content="Turn a model into a print-ready file for your Bambu printer, on your iPad. Free, nothing installed, your model is never uploaded."
+    />
+    <meta property="og:url" content="https://bambu-print-prep.vercel.app/" />
+    <meta property="og:image" content="https://bambu-print-prep.vercel.app/icons/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="3D print from an iPad - no computer needed" />
+    <meta
+      name="twitter:description"
+      content="Turn a model into a print-ready file for your Bambu printer, on your iPad."
+    />
+    <meta name="twitter:image" content="https://bambu-print-prep.vercel.app/icons/icon-512.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Handoff3D",
+        "url": "https://bambu-print-prep.vercel.app/",
+        "applicationCategory": "DesignApplication",
+        "operatingSystem": "iPadOS, iOS, any modern web browser",
+        "browserRequirements": "Runs entirely in the browser. No installation.",
+        "description": "Prepares 3D models for Bambu Lab printers on an iPad. Resizes, splits models too large for the build plate across several plates, flattens curved bottoms, and writes a print-ready Bambu project file. Runs on the device; the model is not uploaded.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "featureList": [
+          "Resize a model to an exact size in millimetres",
+          "Split a model too big for the printer bed across several plates",
+          "Flatten a curved bottom so the model stands on the plate",
+          "Reads STL, 3MF, OBJ and PLY",
+          "Writes a Bambu Lab project file",
+          "Runs on the device with no upload of the model"
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Can I 3D print from an iPad without a computer?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, with a Bambu Lab printer. Prepare the file in Safari with Handoff3D, upload it as a private model on MakerWorld, and print it from the Bambu Handy app. No desktop computer is involved at any point."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is there a version of Bambu Studio for iPad?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Bambu Studio is a desktop application for Windows, macOS and Linux, and there is no iPadOS version. Handoff3D covers the common case in Safari instead: sizing a model, standing it up, and writing a print-ready file."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I resize an STL on an iPad?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Open Handoff3D in Safari, choose the STL from your Files app, and type the size you want in millimetres. It writes a resized, print-ready file back into Files."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is my model uploaded anywhere?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. The model is read, measured and rewritten inside the browser tab on your own device. Visits to the page are counted anonymously; the model, its name and everything measured from it stay on the device."
+            }
+          }
+        ]
+      }
+    </script>
+
+    <!--
+      The fallback below is styled here rather than in styles.css, because
+      styles.css is imported by the bundle and so does not exist until the
+      JavaScript has run -- which is exactly the moment this markup is for.
+      Every rule is scoped to #prerender, which React removes when it mounts,
+      so nothing here can reach the app.
+    -->
+    <style>
+      html, body { margin: 0; background: #101215; color: #e9ecef; }
+      #prerender {
+        font: 500 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        max-width: 34rem;
+        margin: 0 auto;
+        padding: 3rem 1.5rem;
+        text-align: center;
+      }
+      #prerender h1 { font-size: 2.1rem; letter-spacing: -.02em; margin: 0 0 .3rem; }
+      #prerender .tag { color: #22a45d; font-weight: 600; margin: 0 0 1.2rem; }
+      #prerender p { color: #949ba6; }
+      #prerender ul { list-style: none; padding: 0; margin: 1.6rem 0 0; text-align: left; }
+      #prerender li { margin: 0 0 .5rem; }
+      #prerender a { color: #22a45d; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Not a placeholder and not a spinner: the same claim the landing screen
+        makes, in the HTML, because the crawlers behind AI answers fetch this
+        file and never run the script that would otherwise fill the page. It
+        sits inside #root on purpose -- React clears the container on mount, so
+        this is what is on screen only until the bundle arrives, and it is
+        genuinely visible for that moment rather than hidden text aimed at a
+        robot. The links are the other half of the job: they are how a crawler
+        reaches the six pages in web/guides.mjs at all.
+      -->
+      <div id="prerender">
+        <h1>Handoff3D</h1>
+        <p class="tag">3D print&hellip; no computer necessary</p>
+        <p>
+          Prepare a 3D model for your <b>Bambu Lab printer on an iPad</b>. Drop in
+          any model &mdash; STL, 3MF, OBJ or PLY &mdash; and get one your printer
+          will take. Resize it to an exact measurement, flatten a curved bottom so
+          it stands on the plate, and if it is too big for your bed, split it and
+          spread it over as many plates as it needs.
+        </p>
+        <p>
+          There is no version of Bambu Studio for iPad. This runs in Safari, costs
+          nothing, needs no account, and does all of the work on your device
+          &mdash; your model is never uploaded.
+        </p>
+        <p>Loading the app&hellip; if nothing happens, JavaScript is switched off.</p>
+        <ul>
+          <li><a href="/bambu-studio-on-ipad">Bambu Studio on iPad: what works, what does not</a></li>
+          <li><a href="/resize-a-model-on-ipad">How to resize an STL or 3MF on an iPad</a></li>
+          <li><a href="/3d-print-from-ipad">3D printing from an iPad, with no computer</a></li>
+          <li><a href="/split-a-model-too-big-for-your-bed">When a model is too big for the bed</a></li>
+          <li><a href="/print-an-ai-generated-model">Printing an AI-generated model</a></li>
+          <li><a href="/how-to-print-from-an-ipad">Getting the file to the printer</a></li>
+        </ul>
+      </div>
+    </div>
     <script type="module" src="/src/local/main.jsx"></script>
   </body>
 </html>

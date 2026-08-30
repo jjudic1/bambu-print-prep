@@ -86,6 +86,23 @@ const SOURCES = [
   { name: 'Thingiverse', url: 'https://thingiverse.com' },
 ]
 
+/**
+ * The static pages under web/public/, written by web/build-guides.mjs.
+ *
+ * Kept in step by tests/test_guides.py, which reads both this list and the
+ * generator: a page renamed in one place and not the other is a link into a
+ * 404, and the catch-all rewrite answers a 404 with the app, so it would look
+ * like the link merely did nothing.
+ */
+const GUIDES = [
+  ['/bambu-studio-on-ipad', 'Bambu Studio on iPad'],
+  ['/resize-a-model-on-ipad', 'Resizing a model'],
+  ['/3d-print-from-ipad', 'Printing with no computer'],
+  ['/split-a-model-too-big-for-your-bed', 'Too big for the bed'],
+  ['/print-an-ai-generated-model', 'AI-generated models'],
+  ['/how-to-print-from-an-ipad', 'Getting it to the printer'],
+]
+
 const COLOURS = [
   { name: 'Green', hex: 0x22a45d }, { name: 'Grey', hex: 0xb6bcc4 },
   { name: 'Orange', hex: 0xe07b39 }, { name: 'Red', hex: 0xc4443a },
@@ -746,8 +763,8 @@ export default function LocalApp() {
             if you want to support the project.
           </p>
         )}
-        {/* Last, under everything, and deliberately not competing with Choose
-            a model: on this screen nobody has tried anything yet, so a contact
+        {/* Under everything, and deliberately not competing with Choose a
+            model: on this screen nobody has tried anything yet, so a contact
             link is for the person who has come back because something went
             wrong before. The one on the panel is the live one. */}
         <p className="hint">
@@ -759,6 +776,17 @@ export default function LocalApp() {
         {contact && (
           <Contact context="Landing screen" onClose={() => setContact(false)} />
         )}
+        {/* The same six links that sit in the fallback markup in index.html.
+            They are repeated here because React clears #root on mount and takes
+            that markup with it -- so without this, a crawler that does run the
+            script sees a page with no way onward, and the two versions of the
+            page disagree about whether the guides exist. Plain <a> and no
+            outward(): same origin, so there is nothing to hand to Safari. */}
+        <nav className="guides">
+          {GUIDES.map(([path, label]) => (
+            <a key={path} href={path}>{label}</a>
+          ))}
+        </nav>
       </main>
     )
   }

@@ -4,6 +4,7 @@
   "installCommand": "npm install --prefix web",
   "outputDirectory": "web/dist",
   "framework": null,
+  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/local",

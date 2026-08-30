@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101215">
+<title>How to resize an STL or 3MF on an iPad</title>
+<meta name="description" content="Scale a downloaded 3D model to the size you want on an iPad, in Safari, and save a print-ready file for a Bambu Lab printer. No app, no account, nothing uploaded.">
+<link rel="canonical" href="https://bambu-print-prep.vercel.app/resize-a-model-on-ipad">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Handoff3D">
+<meta property="og:title" content="How to resize an STL or 3MF on an iPad">
+<meta property="og:description" content="Scale a downloaded 3D model to the size you want on an iPad, in Safari, and save a print-ready file for a Bambu Lab printer. No app, no account, nothing uploaded.">
+<meta property="og:url" content="https://bambu-print-prep.vercel.app/resize-a-model-on-ipad">
+<meta property="og:image" content="https://bambu-print-prep.vercel.app/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="How to resize an STL or 3MF on an iPad">
+<meta name="twitter:description" content="Scale a downloaded 3D model to the size you want on an iPad, in Safari, and save a print-ready file for a Bambu Lab printer. No app, no account, nothing uploaded.">
+<meta name="twitter:image" content="https://bambu-print-prep.vercel.app/icons/icon-512.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do I scale an STL on an iPad?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Open Handoff3D in Safari, choose the STL from your Files app, and enter the size you want in millimetres. It writes a resized, print-ready file back into Files. Nothing is installed and the model is not uploaded."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I resize a 3MF without a computer?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. 3MF is one of the four formats it reads, alongside STL, OBJ and PLY, and the file it writes back out is a Bambu project file."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does resizing in a browser lose quality?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Scaling a model is arithmetic on its coordinates. The shape is described mathematically, so it comes out as the same shape at a different size, with nothing thrown away."
+      }
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Handoff3D",
+      "item": "https://bambu-print-prep.vercel.app/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "How to resize a model on an iPad",
+      "item": "https://bambu-print-prep.vercel.app/resize-a-model-on-ipad"
+    }
+  ]
+}
+</script>
+<style>
+:root { color-scheme: light dark;
+        --ink: #1a1a1a; --dim: #5b5b5b; --bg: #fbfaf8; --card: #fff;
+        --line: #e5e2dc; --accent: #17663f; }
+@media (prefers-color-scheme: dark) {
+  :root { --ink: #ececec; --dim: #a6a6a6; --bg: #17181a; --card: #212327;
+          --line: #34363b; --accent: #6fd39b; } }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0 5vw 14vw; background: var(--bg); color: var(--ink);
+       font: 400 18px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+       -webkit-text-size-adjust: 100%; }
+main, header, footer { max-width: 38rem; margin: 0 auto; }
+header { padding: 1.6rem 0 .4rem; }
+header a.home { color: var(--dim); text-decoration: none; font-size: .93rem; }
+header a.home b { color: var(--ink); }
+h1 { font-size: 1.95rem; line-height: 1.18; margin: 1.2rem 0 .6rem;
+     letter-spacing: -.015em; }
+h2 { font-size: 1.22rem; line-height: 1.3; margin: 2.3rem 0 .5rem; }
+h3 { font-size: 1.02rem; margin: 1.5rem 0 .3rem; }
+p { margin: 0 0 1rem; }
+.lede { font-size: 1.12rem; margin-bottom: 1.6rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.3rem; }
+li { margin: 0 0 .45rem; }
+a { color: var(--accent); }
+b { font-weight: 650; }
+.cta { display: block; background: var(--accent); color: var(--bg);
+       text-decoration: none; text-align: center; font-weight: 650;
+       padding: .95rem 1.2rem; border-radius: 13px; margin: 2rem 0 .6rem; }
+.cta-sub { text-align: center; color: var(--dim); font-size: .9rem;
+           margin: 0 0 2rem; }
+.card { background: var(--card); border: 1px solid var(--line);
+        border-radius: 14px; padding: 1.1rem 1.25rem; margin: 0 0 1.4rem; }
+.card p:last-child { margin-bottom: 0; }
+footer { border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1.4rem;
+         color: var(--dim); font-size: .93rem; }
+footer ul { list-style: none; padding: 0; }
+</style>
+</head>
+<body>
+<header><a class="home" href="/">&larr; <b>Handoff3D</b> &mdash; 3D print, no computer necessary</a></header>
+<main>
+<h1>How to resize a model on an iPad</h1>
+<p class="lede">You can resize a downloaded model on an iPad without installing anything: open <a href="/">Handoff3D</a> in Safari, choose the file, and type the size you want in millimetres. It shows you the model at that size on your printer&#x27;s own bed and saves a print-ready file into Files. The whole thing happens in the browser tab &mdash; your model is never uploaded.</p>
+<a class="cta" href="/">Open Handoff3D</a>
+<p class="cta-sub">Free, no account, nothing installed. Works in Safari on an iPad or an iPhone.</p>
+<h2>Step by step</h2>
+<ol><li><b>Get the file onto the iPad.</b> Downloading from MakerWorld, Printables or Thingiverse in Safari puts it in Files, under Downloads.</li><li><b>Open the page and tap Choose a model.</b> iOS offers Photo Library and Take Photo first &mdash; you want <b>Choose File</b>, the third row down.</li><li><b>Pick your printer.</b> The bed drawn underneath the model changes to match, so you can see immediately whether the thing fits.</li><li><b>Set the size.</b> Type a measurement in millimetres, or drag the slider. Across, deep and tall are all shown, so you can size by whichever one matters &mdash; the height of a figure, the width of a bracket, the diameter of a lid.</li><li><b>Save it.</b> Out comes a Bambu project file, and a page of instructions for getting it to the printer.</li></ol>
+<h2>Size by the measurement that matters, not by percent</h2>
+<p>Most resizing goes wrong because it is done as a percentage. &quot;Scale to 140%&quot; tells you nothing about whether the result fits the shelf. Here you give the real measurement, in millimetres, and the other two directions follow proportionally.</p>
+<p>One thing worth knowing if your model arrived tipped or lying on its side: the sizes are measured against the model as it will stand on the plate, not against however the file happened to be saved. So &quot;tall&quot; is the height it will actually print at.</p>
+<h2>If it is too big for the bed</h2>
+<p>Scaling down is not the only way out. A model larger than your bed can be cut up and spread over as many plates as it needs, then printed in pieces &mdash; see <a href="/split-a-model-too-big-for-your-bed">when a model is too big for the bed</a>.</p>
+<h2>Which files it will open</h2>
+<p>STL, 3MF, OBJ and PLY &mdash; the four formats models are actually published in. A 3MF exported by Bambu Studio or OrcaSlicer opens fine.</p>
+<h2>Common questions</h2>
+<h3>How do I scale an STL on an iPad?</h3>
+<p>Open Handoff3D in Safari, choose the STL from your Files app, and enter the size you want in millimetres. It writes a resized, print-ready file back into Files. Nothing is installed and the model is not uploaded.</p>
+<h3>Can I resize a 3MF without a computer?</h3>
+<p>Yes. 3MF is one of the four formats it reads, alongside STL, OBJ and PLY, and the file it writes back out is a Bambu project file.</p>
+<h3>Does resizing in a browser lose quality?</h3>
+<p>No. Scaling a model is arithmetic on its coordinates. The shape is described mathematically, so it comes out as the same shape at a different size, with nothing thrown away.</p>
+<a class="cta" href="/">Open Handoff3D</a>
+</main>
+<footer>
+<p><b>Handoff3D</b> is a free page that prepares 3D models for Bambu Lab printers on an iPad. Nothing is installed, and your model is not uploaded.</p>
+<ul>
+<li><a href="/bambu-studio-on-ipad">Bambu Studio on iPad</a></li>
+<li><a href="/3d-print-from-ipad">3D printing from an iPad, with no computer</a></li>
+<li><a href="/split-a-model-too-big-for-your-bed">When a model is too big for the bed</a></li>
+<li><a href="/print-an-ai-generated-model">Printing an AI-generated model</a></li>
+<li><a href="/how-to-print-from-an-ipad">Getting the file to the printer</a></li>
+</ul>
+</footer>
+</body>
+</html>

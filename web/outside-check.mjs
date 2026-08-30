@@ -104,6 +104,15 @@ console.log('\n--- no outward link in the app skips it -------------------------
     // The three save buttons hand out blob: URLs made in this file. Those
     // are the app's own object URLs, not somewhere outside it.
     if (/^written\.(url|pictureUrl|pageUrl)$/.test(value)) continue
+    // `path` is one of the GUIDES entries: the static pages in web/public/,
+    // which are on this origin and must NOT be rewritten. The scheme is for
+    // getting *out* of a Home Screen app, and a same-origin page is somewhere
+    // the app is already allowed to be -- handing iOS `x-safari-https:` for it
+    // would throw the reader out into a second browser for no reason, and on
+    // every other platform the tap would do nothing at all. Checked below that
+    // the list really is root-relative, so the exemption cannot be borrowed by
+    // an outward link that happens to be called `path`.
+    if (value === 'path') continue
     raw.push(value)
   }
   check('every href in LocalApp.jsx is a save link or goes through outward()',
@@ -116,6 +125,19 @@ console.log('\n--- no outward link in the app skips it -------------------------
 
   for (const m of text.matchAll(/href="([^"]*)"/g)) raw.push(m[1])
   check('and none of them is a literal address in the markup', raw, [])
+
+  // What the `path` exemption above rests on. If somebody ever puts a full
+  // address in GUIDES, it stops being a same-origin link and the exemption
+  // becomes a hole -- so the list is read here and every entry has to be a
+  // root-relative path with no scheme and no host in it.
+  const list = /const GUIDES = \[(.*?)\n\]/s.exec(text)
+  check('the GUIDES list is where it is expected to be', Boolean(list), true)
+  const entries = list
+    ? [...list[1].matchAll(/\[\s*'([^']*)'/g)].map((m) => m[1])
+    : []
+  check('  and there are six of them', entries.length, 6)
+  check('  every one is a path on this origin, not an address',
+    entries.filter((p) => !/^\/[\w-]+$/.test(p)), [])
 }
 
 const fails = results.filter((r) => !r.ok)

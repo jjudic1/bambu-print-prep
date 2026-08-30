@@ -351,6 +351,45 @@ the same shape of bug as the old API rewrite having to stay ahead of the SPA
 fallback, and just as silent: the script tag loads, parses as HTML, and simply
 never counts anything. The source is now `"/((?!_vercel/|api/).*)"`.
 
+### `cleanUrls` is what makes the search pages exist
+
+The six static pages written by `web/build-guides.mjs` live in `web/public/`,
+so Vercel copies them to the site root as `bambu-studio-on-ipad.html` and so
+on. They are linked, and their own canonicals are written, **without** the
+extension. `"cleanUrls": true` is the only thing joining those two facts up.
+
+Why it is safe next to a catch-all that swallows everything else: Vercel
+evaluates redirects, then headers, then **the filesystem**, then rewrites.
+`cleanUrls` extends the filesystem step to match an extensionless request
+against a `.html` file, so `/bambu-studio-on-ipad` is answered by the real file
+before the fallback is ever consulted. It also adds a 301 the other way, from
+`/bambu-studio-on-ipad.html` to the clean path, which is what keeps one page
+from being indexed at two addresses.
+
+Two knock-on effects, both harmless and both worth knowing before they look
+like bugs. `/dashboard` is now answered from the filesystem rather than by its
+rewrite -- the rewrite is redundant, and kept because it costs nothing and says
+what is intended. `/local` is unaffected: there is no `local.html`, so it still
+falls through to the fallback, which is the whole point of it being a rewrite
+rather than a redirect.
+
+**None of this is testable locally** -- `npm run dev` serves `public/` at the
+root but knows nothing about `cleanUrls`, so in dev the pages answer only at
+their `.html` addresses. After a deploy, check the real thing:
+
+```bash
+for p in bambu-studio-on-ipad resize-a-model-on-ipad 3d-print-from-ipad \
+         split-a-model-too-big-for-your-bed print-an-ai-generated-model \
+         how-to-print-from-an-ipad robots.txt sitemap.xml; do
+  echo "$p $(curl.exe -s -o /dev/null -w '%{http_code}' \
+    https://bambu-print-prep.vercel.app/$p)"
+done
+```
+
+Every one should be `200`. A `200` is not on its own proof, because the
+catch-all answers an unknown path with the app and that is a `200` as well --
+so grep one of them for its own `<h1>` rather than trusting the status.
+
 ### Vercel will try to build the FastAPI app as serverless functions
 
 Vercel turns every file in a top-level `api/` directory into a function. That

@@ -8,3 +8,15 @@
 *.3mf   binary
 *.stl   binary
 *.glb   binary
+
+# Generated files, compared against freshly generated text on every test run.
+#
+# web/build-guides.mjs writes LF and --check diffs what it would write against
+# what is committed. This machine checks out with core.autocrlf=true, so
+# without these rules a fresh clone gets CRLF on disk, every byte comparison
+# fails, and tests/test_guides.py reports six pages as out of date when not one
+# word has changed. Pinning them to LF makes the working copy the same on every
+# machine, which is the only way a byte comparison means anything.
+web/public/*.html   text eol=lf
+web/public/robots.txt   text eol=lf
+web/public/sitemap.xml  text eol=lf
