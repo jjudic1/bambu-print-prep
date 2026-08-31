@@ -101,8 +101,10 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
 - **`default_filament` matches on `filament_type`, not on the name.** It used to
   fall through to `options[0]` — every filament the printer knows, of every
   material — so a machine with no ABS handed back a PETG profile for a file that
-  said ABS on it. The A1 family is open-frame and has no ABS at all; no 0.2 mm
-  nozzle has TPU. It raises now, and the material picker offers what exists.
+  said ABS on it. **The machines with no ABS are the A1 mini and the A2L** —
+  not "the A1 family", which is what this said until 2026-08-30: the A1 itself
+  carries ABS on all four nozzles, and only those two do not. No 0.2 mm nozzle
+  has TPU. It raises now, and the material picker offers what exists.
 - **The baked profiles are two files and go stale together**: `printers.json` is
   the 13 KB index the pickers read, `printer-settings.json` the 4.8 MB of blobs,
   fetched on demand — static, it put 4 MB of JavaScript in front of first paint

@@ -83,6 +83,17 @@ b { font-weight: 650; }
 .card { background: var(--card); border: 1px solid var(--line);
         border-radius: 14px; padding: 1.1rem 1.25rem; margin: 0 0 1.4rem; }
 .card p:last-child { margin-bottom: 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+       font-size: .92em; background: var(--card); border: 1px solid var(--line);
+       border-radius: 5px; padding: .08em .35em; }
+/* The bed table is the one thing here wider than a phone. It scrolls inside
+   its own box rather than making the whole page scroll sideways. */
+.scroll { overflow-x: auto; margin: 0 0 1.2rem; }
+table { border-collapse: collapse; width: 100%; min-width: 21rem;
+        font-size: .95rem; }
+th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
+th { font-weight: 650; }
+td:last-child { white-space: nowrap; color: var(--dim); }
 footer { border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1.4rem;
          color: var(--dim); font-size: .93rem; }
 footer ul { list-style: none; padding: 0; }
@@ -546,6 +557,274 @@ export const PAGES = [
         + 'all.'],
     ],
   },
+
+  {
+    slug: 'bambu-project-3mf',
+    title: 'A Bambu project 3MF is not the same thing as a 3MF',
+    description:
+      'Why a plain 3MF opens on a Bambu printer with none of its settings, what '
+      + 'a Bambu project file carries that a generic one does not, and how to '
+      + 'get one without a desktop slicer.',
+    h1: 'What makes a Bambu project file different',
+    lede:
+      'Both end in <b>.3mf</b> and only one of them will print the way you '
+      + 'meant. A generic 3MF is a shape. A Bambu project file is a shape plus '
+      + 'every decision about how to print it -- which machine, which nozzle, '
+      + 'layer height, supports, what sits on which plate -- and Bambu Studio '
+      + 'is strict about which one it thinks it has been handed.',
+    sections: [
+      ['The one string that decides it', [
+        '<p>Bambu Studio reads print settings only from a file whose '
+        + '<code>Application</code> metadata declares Bambu Studio format. '
+        + 'Anything else is treated as a foreign import: the geometry comes in '
+        + 'and <b>every setting is discarded</b>, with the message <i>"The 3mf '
+        + 'file has invalid config, load geometry data only"</i>.</p>',
+        '<div class="card"><p>This was measured, not guessed. A genuine Bambu '
+        + 'config copied verbatim into a container of ours was <i>also</i> '
+        + 'rejected, which ruled out the settings themselves. Swapping the '
+        + 'container apart one member at a time narrowed it to a single line '
+        + 'inside the model file -- the name of the application that wrote '
+        + 'it.</p></div>',
+        '<p>So a file exported as "3MF" by a modelling app, a scanner, or a '
+        + 'text-to-3D tool cannot carry print settings to a Bambu machine, no '
+        + 'matter what is in it. There is nowhere in a generic 3MF for them to '
+        + 'live that Bambu Studio will read.</p>',
+      ]],
+      ['What the project file carries that a plain one does not', [
+        '<p>Roughly five hundred settings, resolved against the profile tree '
+        + 'for the exact machine and nozzle, plus the parts a generic 3MF has '
+        + 'no concept of:</p>',
+        '<ul>'
+        + '<li>Which plate each object belongs to, and where on it</li>'
+        + '<li>Rendered previews of each plate -- what MakerWorld shows as the '
+        + 'listing image</li>'
+        + '<li>Per-object settings, and the relationships that tie the '
+        + 'thumbnails to the container</li>'
+        + '<li>The 3MF <b>production extension</b>, which is how each part gets '
+        + 'its own geometry file and a stable identity</li>'
+        + '</ul>',
+        '<p>None of that is exotic, but all of it has to be right at once. Two '
+        + 'mistakes in particular produce a file that <i>opens perfectly</i> '
+        + 'and is still wrong: parts assigned to plates by a label rather than '
+        + 'by where they sit in space, which silently drops them, and a build '
+        + 'transform written the wrong way round, which prints the object '
+        + 'mirrored while every measurement of it stays correct.</p>',
+      ]],
+      ['Getting one on an iPad', [
+        '<p>Producing this file is the entire job of <a href="/">' + BRAND
+        + '</a>, and it does it in Safari without a desktop slicer anywhere in '
+        + 'the loop. You bring an STL, 3MF, OBJ or PLY; you pick the machine '
+        + 'and the nozzle; it writes the project file, and MakerWorld and Bambu '
+        + 'Studio both accept it.</p>',
+        '<p>What it does not do is decide how the print should go -- there is '
+        + 'no support painting and no custom profile. It writes the standard '
+        + 'settings for the machine you chose, correctly, which is the thing '
+        + 'that was impossible without a computer.</p>',
+      ]],
+      ['Why a plain 3MF or STL still prints something', [
+        '<p>Because the geometry is fine. Hand a printer a shape with no '
+        + 'settings and the software falls back to its defaults, so you get an '
+        + 'object -- at whatever size the file happened to be saved at, on '
+        + 'whichever face it happened to be resting, with whatever profile was '
+        + 'last selected. It prints. It is just not what you chose.</p>',
+      ]],
+    ],
+    faq: [
+      ['What is the difference between a 3MF and a Bambu project file?',
+        'A generic 3MF carries geometry. A Bambu project file carries geometry '
+        + 'plus the full print configuration -- machine, nozzle, layer height, '
+        + 'supports, plate layout and plate previews. Bambu Studio reads those '
+        + 'settings only from a file whose Application metadata declares Bambu '
+        + 'Studio format; from any other 3MF it loads the geometry and discards '
+        + 'every setting.'],
+      ['Why does Bambu Studio say "invalid config, load geometry data only"?',
+        'Because the file does not declare itself as a Bambu Studio file. The '
+        + 'settings inside can be perfectly valid and are still discarded -- it '
+        + 'is the Application metadata that decides, not the settings.'],
+      ['Can I make a Bambu project 3MF without Bambu Studio?',
+        'Yes. Handoff3D writes one in the browser, on an iPad, and both '
+        + 'MakerWorld and Bambu Studio accept the result.'],
+      ['Will a plain STL print on a Bambu printer?',
+        'The shape will. It arrives with no size you chose, no orientation you '
+        + 'chose and no settings, so the printer uses defaults for all three.'],
+    ],
+  },
+
+  {
+    slug: 'makerworld-on-ipad',
+    title: 'Using MakerWorld on an iPad, start to finish',
+    description:
+      'Download a model from MakerWorld on an iPad, prepare it without a '
+      + 'computer, upload it back as a private model, and print it through '
+      + 'Bambu Handy.',
+    h1: 'MakerWorld on an iPad',
+    lede:
+      'MakerWorld works fine in Safari on an iPad -- browsing it, downloading '
+      + 'from it and uploading to it all work. The gap has always been the '
+      + 'middle: turning what you downloaded into something your printer will '
+      + 'take. That step now runs in the browser too, so the whole round trip '
+      + 'is possible on the iPad alone.',
+    sections: [
+      ['The round trip', [
+        '<ol>'
+        + '<li><b>Download the model.</b> On a MakerWorld listing, take the '
+        + 'model file rather than a print profile. In Safari it lands in Files, '
+        + 'under Downloads.</li>'
+        + '<li><b>Prepare it.</b> Open <a href="/">' + BRAND + '</a>, choose '
+        + 'the file, pick your printer, set the size. If it is too big for the '
+        + 'bed you can split it across plates here.</li>'
+        + '<li><b>Upload it back, privately.</b> Tap Upload on MakerWorld, '
+        + 'choose the file you just made, add any photo from your camera roll, '
+        + 'set visibility to <b>Private</b>, and publish.</li>'
+        + '<li><b>Print from Bambu Handy.</b> Profile picture, then 3D Models. '
+        + 'Yours is at the top.</li>'
+        + '</ol>',
+        '<p>The full detail of the last two steps, including the second route '
+        + 'to your own models inside Handy, is on <a href="/how-to-print-from-'
+        + 'an-ipad">getting the file to the printer</a>.</p>',
+      ]],
+      ['Why you upload to MakerWorld to print your own file', [
+        '<p>It looks absurd the first time: the model came from MakerWorld, and '
+        + 'now it goes back. The reason is that <b>no third-party app can hand '
+        + 'a file to a Bambu printer</b>. The machine takes work from '
+        + 'Bambu&#x27;s own software and Bambu&#x27;s own cloud, and from an '
+        + 'iPad the only door into that cloud is MakerWorld.</p>',
+        '<p>Set the model to Private and it is yours alone -- it does not '
+        + 'appear in search, on your profile, or anywhere else. Printing works '
+        + 'exactly the same.</p>',
+      ]],
+      ['When a print profile is not enough', [
+        '<p>Many MakerWorld listings include ready-made print profiles, and '
+        + 'when one exists for your exact machine you should use it -- it will '
+        + 'be better tuned than anything generated automatically.</p>',
+        '<p>It stops being enough the moment you want something different from '
+        + 'what the designer published: a different size, a different printer '
+        + 'from the one they used, one piece out of a set, or a model that '
+        + 'never had a profile in the first place. That is the case this fills, '
+        + 'and it is most downloads.</p>',
+      ]],
+      ['Keep it private until it has been printed', [
+        '<div class="card"><p>MakerWorld only allows a model to be made public '
+        + 'once you have printed it and can show a photo of the real thing. '
+        + 'Publishing without that photo breaks the terms you agreed to when '
+        + 'you signed up -- and a rendered picture will not do, which is why '
+        + 'the upload asks for a camera roll photo.</p></div>',
+      ]],
+    ],
+    faq: [
+      ['Can I use MakerWorld on an iPad?',
+        'Yes. Browsing, downloading and uploading all work in Safari. The step '
+        + 'that used to need a desktop was preparing the model in between, and '
+        + 'Handoff3D does that in the browser.'],
+      ['How do I upload my own model to MakerWorld from an iPad?',
+        'Tap Upload, then Choose file, and pick the file from your Files app. '
+        + 'MakerWorld requires a photo, which any picture from your camera roll '
+        + 'satisfies, and you can set the model to Private so nobody else sees '
+        + 'it.'],
+      ['Do I have to make my model public on MakerWorld to print it?',
+        'No. A private model prints identically. MakerWorld requires a photo of '
+        + 'a real print before it will let you make one public at all.'],
+      ['Why can I not send a file straight from my iPad to my Bambu printer?',
+        'There is no public way for a third-party app to hand a file to a Bambu '
+        + 'printer. It accepts work from Bambu software and the Bambu cloud, '
+        + 'and MakerWorld is the route into that cloud from an iPad.'],
+    ],
+  },
+
+  {
+    slug: 'bambu-printers-on-ipad',
+    title: 'Every Bambu printer, and what fits on it, from an iPad',
+    description:
+      'Build volumes, nozzle sizes and materials for the A1 mini, A1, P1P, '
+      + 'P1S, P2S, X1, X1 Carbon, X1E, X2D, A2L, H2C, H2S, H2D and H2D Pro -- '
+      + 'and how to prepare a file for any of them on an iPad.',
+    h1: 'Which Bambu printer, and what fits on it',
+    lede:
+      'All fourteen current Bambu Lab machines are supported, with bed sizes '
+      + 'and print settings taken from Bambu Studio&#x27;s own profiles rather '
+      + 'than guessed at. Pick yours in <a href="/">' + BRAND + '</a> and the '
+      + 'plate drawn under your model is the real one, at the real size.',
+    sections: [
+      ['Build volumes', [
+        '<div class="scroll"><table>'
+        + '<tr><th>Printer</th><th>Build volume</th></tr>'
+        + '<tr><td>A1 mini</td><td>180 &times; 180 &times; 180 mm</td></tr>'
+        + '<tr><td>A1</td><td>256 &times; 256 &times; 256 mm</td></tr>'
+        + '<tr><td>P1P, P1S</td><td>256 &times; 256 &times; 250 mm</td></tr>'
+        + '<tr><td>P2S</td><td>256 &times; 256 &times; 256 mm</td></tr>'
+        + '<tr><td>X1, X1 Carbon, X1E</td><td>256 &times; 256 &times; 250 mm</td></tr>'
+        + '<tr><td>X2D</td><td>256 &times; 256 &times; 261 mm</td></tr>'
+        + '<tr><td>A2L, H2C</td><td>330 &times; 320 &times; 325 mm</td></tr>'
+        + '<tr><td>H2S</td><td>340 &times; 320 &times; 340 mm</td></tr>'
+        + '<tr><td>H2D, H2D Pro</td><td>350 &times; 320 &times; 325 mm</td></tr>'
+        + '</table></div>',
+        '<p>Anything larger than the box for your machine has to be scaled '
+        + 'down, stood differently, or cut up -- see <a href="/split-a-model-'
+        + 'too-big-for-your-bed">when a model is too big for the bed</a>.</p>',
+      ]],
+      ['The nozzle is a printer, not a setting', [
+        '<p>This surprises people, and it matters more than it sounds. On a '
+        + 'Bambu machine there is no "0.6 mm option" you apply to a P1S. '
+        + '<b>"P1S with a 0.6 nozzle" is its own machine profile</b>, with its '
+        + 'own layer heights and its own line widths throughout. Choosing the '
+        + 'printer and choosing the nozzle is really one decision.</p>',
+        '<p>Which is why the nozzle is not remembered between visits: your '
+        + 'machine is, but the nozzle starts at 0.4 every time. A nozzle gets '
+        + 'swapped for one print and swapped back, and a file built for 0.8 mm '
+        + 'on a printer still wearing a 0.4 is a machine pushing four times the '
+        + 'plastic through a quarter of the hole.</p>',
+        '<p>Two consequences worth knowing:</p>'
+        + '<ul>'
+        + '<li><b>Only the 0.4 nozzle has a "0.20mm Standard" profile.</b> A '
+        + '0.2 mm nozzle cannot lay a 0.2 mm layer, so each nozzle has its own '
+        + 'standard: 0.10 mm for the 0.2 nozzle, 0.30 for the 0.6, 0.40 for the '
+        + '0.8.</li>'
+        + '<li><b>No 0.2 mm nozzle can print TPU</b> on any machine.</li>'
+        + '</ul>',
+      ]],
+      ['Materials, by machine', [
+        '<p>The material list offered is the one the machine actually has '
+        + 'profiles for, not a generic list. Two families differ from the '
+        + 'rest:</p>',
+        '<ul>'
+        + '<li><b>A1 mini and A2L have no ABS at all.</b> They are open-frame, '
+        + 'and Bambu publishes no ABS profile for them.</li>'
+        + '<li><b>Every other machine offers PLA, PETG and ABS</b>, with TPU on '
+        + 'every nozzle except the 0.2.</li>'
+        + '</ul>',
+        '<p>This is not a detail you can safely paper over: asking for ABS on a '
+        + 'machine that has no ABS profile used to hand back a PETG one instead '
+        + '-- a file saying ABS on it, built entirely from PETG settings.</p>',
+      ]],
+      ['Preparing a file for any of them', [
+        '<p>Same on every machine: open <a href="/">' + BRAND + '</a> in '
+        + 'Safari, choose your model, pick the printer and nozzle, set the '
+        + 'size, save. There is no version of Bambu Studio for iPad -- see '
+        + '<a href="/bambu-studio-on-ipad">what works and what does not</a> -- '
+        + 'and this covers the common case without one.</p>',
+      ]],
+    ],
+    faq: [
+      ['What is the build volume of the Bambu P1S?',
+        '256 x 256 x 250 mm. The A1 is 256 x 256 x 256 mm, the A1 mini is 180 x '
+        + '180 x 180 mm, and the H2D is 350 x 320 x 325 mm.'],
+      ['Which Bambu printers work with Handoff3D?',
+        'All fourteen current models: A1 mini, A1, P1P, P1S, P2S, X1, X1 '
+        + 'Carbon, X1E, X2D, A2L, H2C, H2S, H2D and H2D Pro, each in 0.2, 0.4, '
+        + '0.6 and 0.8 mm nozzle versions.'],
+      ['Is the nozzle size a setting I choose separately?',
+        'No. On a Bambu machine each nozzle is a distinct machine profile with '
+        + 'its own layer heights and line widths, so the printer and the nozzle '
+        + 'are one choice, not two.'],
+      ['Can the A1 mini print ABS?',
+        'No. The A1 mini and the A2L are open-frame and Bambu publishes no ABS '
+        + 'profile for either. Every other current model offers PLA, PETG and '
+        + 'ABS.'],
+      ['Can a 0.2 mm nozzle print TPU?',
+        'No, on any Bambu machine. It also cannot lay a 0.2 mm layer -- its '
+        + 'standard profile is 0.10 mm.'],
+    ],
+  },
 ]
 
 /** Short label for a page, used in the footer links between them. */
@@ -556,6 +835,9 @@ export const LABEL = {
   'split-a-model-too-big-for-your-bed': 'When a model is too big for the bed',
   'print-an-ai-generated-model': 'Printing an AI-generated model',
   'how-to-print-from-an-ipad': 'Getting the file to the printer',
+  'bambu-project-3mf': 'What makes a Bambu project file different',
+  'makerworld-on-ipad': 'MakerWorld on an iPad',
+  'bambu-printers-on-ipad': 'Which Bambu printer, and what fits on it',
 }
 
 /**

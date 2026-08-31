@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101215">
+<title>Using MakerWorld on an iPad, start to finish</title>
+<meta name="description" content="Download a model from MakerWorld on an iPad, prepare it without a computer, upload it back as a private model, and print it through Bambu Handy.">
+<link rel="canonical" href="https://bambu-print-prep.vercel.app/makerworld-on-ipad">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Handoff3D">
+<meta property="og:title" content="Using MakerWorld on an iPad, start to finish">
+<meta property="og:description" content="Download a model from MakerWorld on an iPad, prepare it without a computer, upload it back as a private model, and print it through Bambu Handy.">
+<meta property="og:url" content="https://bambu-print-prep.vercel.app/makerworld-on-ipad">
+<meta property="og:image" content="https://bambu-print-prep.vercel.app/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Using MakerWorld on an iPad, start to finish">
+<meta name="twitter:description" content="Download a model from MakerWorld on an iPad, prepare it without a computer, upload it back as a private model, and print it through Bambu Handy.">
+<meta name="twitter:image" content="https://bambu-print-prep.vercel.app/icons/icon-512.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Can I use MakerWorld on an iPad?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Browsing, downloading and uploading all work in Safari. The step that used to need a desktop was preparing the model in between, and Handoff3D does that in the browser."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I upload my own model to MakerWorld from an iPad?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Tap Upload, then Choose file, and pick the file from your Files app. MakerWorld requires a photo, which any picture from your camera roll satisfies, and you can set the model to Private so nobody else sees it."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I have to make my model public on MakerWorld to print it?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. A private model prints identically. MakerWorld requires a photo of a real print before it will let you make one public at all."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why can I not send a file straight from my iPad to my Bambu printer?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "There is no public way for a third-party app to hand a file to a Bambu printer. It accepts work from Bambu software and the Bambu cloud, and MakerWorld is the route into that cloud from an iPad."
+      }
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Handoff3D",
+      "item": "https://bambu-print-prep.vercel.app/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "MakerWorld on an iPad",
+      "item": "https://bambu-print-prep.vercel.app/makerworld-on-ipad"
+    }
+  ]
+}
+</script>
+<style>
+:root { color-scheme: light dark;
+        --ink: #1a1a1a; --dim: #5b5b5b; --bg: #fbfaf8; --card: #fff;
+        --line: #e5e2dc; --accent: #17663f; }
+@media (prefers-color-scheme: dark) {
+  :root { --ink: #ececec; --dim: #a6a6a6; --bg: #17181a; --card: #212327;
+          --line: #34363b; --accent: #6fd39b; } }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0 5vw 14vw; background: var(--bg); color: var(--ink);
+       font: 400 18px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+       -webkit-text-size-adjust: 100%; }
+main, header, footer { max-width: 38rem; margin: 0 auto; }
+header { padding: 1.6rem 0 .4rem; }
+header a.home { color: var(--dim); text-decoration: none; font-size: .93rem; }
+header a.home b { color: var(--ink); }
+h1 { font-size: 1.95rem; line-height: 1.18; margin: 1.2rem 0 .6rem;
+     letter-spacing: -.015em; }
+h2 { font-size: 1.22rem; line-height: 1.3; margin: 2.3rem 0 .5rem; }
+h3 { font-size: 1.02rem; margin: 1.5rem 0 .3rem; }
+p { margin: 0 0 1rem; }
+.lede { font-size: 1.12rem; margin-bottom: 1.6rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.3rem; }
+li { margin: 0 0 .45rem; }
+a { color: var(--accent); }
+b { font-weight: 650; }
+.cta { display: block; background: var(--accent); color: var(--bg);
+       text-decoration: none; text-align: center; font-weight: 650;
+       padding: .95rem 1.2rem; border-radius: 13px; margin: 2rem 0 .6rem; }
+.cta-sub { text-align: center; color: var(--dim); font-size: .9rem;
+           margin: 0 0 2rem; }
+.card { background: var(--card); border: 1px solid var(--line);
+        border-radius: 14px; padding: 1.1rem 1.25rem; margin: 0 0 1.4rem; }
+.card p:last-child { margin-bottom: 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+       font-size: .92em; background: var(--card); border: 1px solid var(--line);
+       border-radius: 5px; padding: .08em .35em; }
+/* The bed table is the one thing here wider than a phone. It scrolls inside
+   its own box rather than making the whole page scroll sideways. */
+.scroll { overflow-x: auto; margin: 0 0 1.2rem; }
+table { border-collapse: collapse; width: 100%; min-width: 21rem;
+        font-size: .95rem; }
+th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
+th { font-weight: 650; }
+td:last-child { white-space: nowrap; color: var(--dim); }
+footer { border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1.4rem;
+         color: var(--dim); font-size: .93rem; }
+footer ul { list-style: none; padding: 0; }
+</style>
+</head>
+<body>
+<header><a class="home" href="/">&larr; <b>Handoff3D</b> &mdash; 3D print, no computer necessary</a></header>
+<main>
+<h1>MakerWorld on an iPad</h1>
+<p class="lede">MakerWorld works fine in Safari on an iPad &mdash; browsing it, downloading from it and uploading to it all work. The gap has always been the middle: turning what you downloaded into something your printer will take. That step now runs in the browser too, so the whole round trip is possible on the iPad alone.</p>
+<a class="cta" href="/">Open Handoff3D</a>
+<p class="cta-sub">Free, no account, nothing installed. Works in Safari on an iPad or an iPhone.</p>
+<h2>The round trip</h2>
+<ol><li><b>Download the model.</b> On a MakerWorld listing, take the model file rather than a print profile. In Safari it lands in Files, under Downloads.</li><li><b>Prepare it.</b> Open <a href="/">Handoff3D</a>, choose the file, pick your printer, set the size. If it is too big for the bed you can split it across plates here.</li><li><b>Upload it back, privately.</b> Tap Upload on MakerWorld, choose the file you just made, add any photo from your camera roll, set visibility to <b>Private</b>, and publish.</li><li><b>Print from Bambu Handy.</b> Profile picture, then 3D Models. Yours is at the top.</li></ol>
+<p>The full detail of the last two steps, including the second route to your own models inside Handy, is on <a href="/how-to-print-from-an-ipad">getting the file to the printer</a>.</p>
+<h2>Why you upload to MakerWorld to print your own file</h2>
+<p>It looks absurd the first time: the model came from MakerWorld, and now it goes back. The reason is that <b>no third-party app can hand a file to a Bambu printer</b>. The machine takes work from Bambu&#x27;s own software and Bambu&#x27;s own cloud, and from an iPad the only door into that cloud is MakerWorld.</p>
+<p>Set the model to Private and it is yours alone &mdash; it does not appear in search, on your profile, or anywhere else. Printing works exactly the same.</p>
+<h2>When a print profile is not enough</h2>
+<p>Many MakerWorld listings include ready-made print profiles, and when one exists for your exact machine you should use it &mdash; it will be better tuned than anything generated automatically.</p>
+<p>It stops being enough the moment you want something different from what the designer published: a different size, a different printer from the one they used, one piece out of a set, or a model that never had a profile in the first place. That is the case this fills, and it is most downloads.</p>
+<h2>Keep it private until it has been printed</h2>
+<div class="card"><p>MakerWorld only allows a model to be made public once you have printed it and can show a photo of the real thing. Publishing without that photo breaks the terms you agreed to when you signed up &mdash; and a rendered picture will not do, which is why the upload asks for a camera roll photo.</p></div>
+<h2>Common questions</h2>
+<h3>Can I use MakerWorld on an iPad?</h3>
+<p>Yes. Browsing, downloading and uploading all work in Safari. The step that used to need a desktop was preparing the model in between, and Handoff3D does that in the browser.</p>
+<h3>How do I upload my own model to MakerWorld from an iPad?</h3>
+<p>Tap Upload, then Choose file, and pick the file from your Files app. MakerWorld requires a photo, which any picture from your camera roll satisfies, and you can set the model to Private so nobody else sees it.</p>
+<h3>Do I have to make my model public on MakerWorld to print it?</h3>
+<p>No. A private model prints identically. MakerWorld requires a photo of a real print before it will let you make one public at all.</p>
+<h3>Why can I not send a file straight from my iPad to my Bambu printer?</h3>
+<p>There is no public way for a third-party app to hand a file to a Bambu printer. It accepts work from Bambu software and the Bambu cloud, and MakerWorld is the route into that cloud from an iPad.</p>
+<a class="cta" href="/">Open Handoff3D</a>
+</main>
+<footer>
+<p><b>Handoff3D</b> is a free page that prepares 3D models for Bambu Lab printers on an iPad. Nothing is installed, and your model is not uploaded.</p>
+<ul>
+<li><a href="/bambu-studio-on-ipad">Bambu Studio on iPad</a></li>
+<li><a href="/resize-a-model-on-ipad">Resizing a model on an iPad</a></li>
+<li><a href="/3d-print-from-ipad">3D printing from an iPad, with no computer</a></li>
+<li><a href="/split-a-model-too-big-for-your-bed">When a model is too big for the bed</a></li>
+<li><a href="/print-an-ai-generated-model">Printing an AI-generated model</a></li>
+<li><a href="/how-to-print-from-an-ipad">Getting the file to the printer</a></li>
+<li><a href="/bambu-project-3mf">What makes a Bambu project file different</a></li>
+<li><a href="/bambu-printers-on-ipad">Which Bambu printer, and what fits on it</a></li>
+</ul>
+</footer>
+</body>
+</html>

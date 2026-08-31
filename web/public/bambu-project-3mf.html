@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101215">
+<title>A Bambu project 3MF is not the same thing as a 3MF</title>
+<meta name="description" content="Why a plain 3MF opens on a Bambu printer with none of its settings, what a Bambu project file carries that a generic one does not, and how to get one without a desktop slicer.">
+<link rel="canonical" href="https://bambu-print-prep.vercel.app/bambu-project-3mf">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Handoff3D">
+<meta property="og:title" content="A Bambu project 3MF is not the same thing as a 3MF">
+<meta property="og:description" content="Why a plain 3MF opens on a Bambu printer with none of its settings, what a Bambu project file carries that a generic one does not, and how to get one without a desktop slicer.">
+<meta property="og:url" content="https://bambu-print-prep.vercel.app/bambu-project-3mf">
+<meta property="og:image" content="https://bambu-print-prep.vercel.app/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="A Bambu project 3MF is not the same thing as a 3MF">
+<meta name="twitter:description" content="Why a plain 3MF opens on a Bambu printer with none of its settings, what a Bambu project file carries that a generic one does not, and how to get one without a desktop slicer.">
+<meta name="twitter:image" content="https://bambu-print-prep.vercel.app/icons/icon-512.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is the difference between a 3MF and a Bambu project file?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A generic 3MF carries geometry. A Bambu project file carries geometry plus the full print configuration -- machine, nozzle, layer height, supports, plate layout and plate previews. Bambu Studio reads those settings only from a file whose Application metadata declares Bambu Studio format; from any other 3MF it loads the geometry and discards every setting."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why does Bambu Studio say \"invalid config, load geometry data only\"?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Because the file does not declare itself as a Bambu Studio file. The settings inside can be perfectly valid and are still discarded -- it is the Application metadata that decides, not the settings."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I make a Bambu project 3MF without Bambu Studio?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Handoff3D writes one in the browser, on an iPad, and both MakerWorld and Bambu Studio accept the result."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Will a plain STL print on a Bambu printer?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The shape will. It arrives with no size you chose, no orientation you chose and no settings, so the printer uses defaults for all three."
+      }
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Handoff3D",
+      "item": "https://bambu-print-prep.vercel.app/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "What makes a Bambu project file different",
+      "item": "https://bambu-print-prep.vercel.app/bambu-project-3mf"
+    }
+  ]
+}
+</script>
+<style>
+:root { color-scheme: light dark;
+        --ink: #1a1a1a; --dim: #5b5b5b; --bg: #fbfaf8; --card: #fff;
+        --line: #e5e2dc; --accent: #17663f; }
+@media (prefers-color-scheme: dark) {
+  :root { --ink: #ececec; --dim: #a6a6a6; --bg: #17181a; --card: #212327;
+          --line: #34363b; --accent: #6fd39b; } }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0 5vw 14vw; background: var(--bg); color: var(--ink);
+       font: 400 18px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+       -webkit-text-size-adjust: 100%; }
+main, header, footer { max-width: 38rem; margin: 0 auto; }
+header { padding: 1.6rem 0 .4rem; }
+header a.home { color: var(--dim); text-decoration: none; font-size: .93rem; }
+header a.home b { color: var(--ink); }
+h1 { font-size: 1.95rem; line-height: 1.18; margin: 1.2rem 0 .6rem;
+     letter-spacing: -.015em; }
+h2 { font-size: 1.22rem; line-height: 1.3; margin: 2.3rem 0 .5rem; }
+h3 { font-size: 1.02rem; margin: 1.5rem 0 .3rem; }
+p { margin: 0 0 1rem; }
+.lede { font-size: 1.12rem; margin-bottom: 1.6rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.3rem; }
+li { margin: 0 0 .45rem; }
+a { color: var(--accent); }
+b { font-weight: 650; }
+.cta { display: block; background: var(--accent); color: var(--bg);
+       text-decoration: none; text-align: center; font-weight: 650;
+       padding: .95rem 1.2rem; border-radius: 13px; margin: 2rem 0 .6rem; }
+.cta-sub { text-align: center; color: var(--dim); font-size: .9rem;
+           margin: 0 0 2rem; }
+.card { background: var(--card); border: 1px solid var(--line);
+        border-radius: 14px; padding: 1.1rem 1.25rem; margin: 0 0 1.4rem; }
+.card p:last-child { margin-bottom: 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+       font-size: .92em; background: var(--card); border: 1px solid var(--line);
+       border-radius: 5px; padding: .08em .35em; }
+/* The bed table is the one thing here wider than a phone. It scrolls inside
+   its own box rather than making the whole page scroll sideways. */
+.scroll { overflow-x: auto; margin: 0 0 1.2rem; }
+table { border-collapse: collapse; width: 100%; min-width: 21rem;
+        font-size: .95rem; }
+th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
+th { font-weight: 650; }
+td:last-child { white-space: nowrap; color: var(--dim); }
+footer { border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1.4rem;
+         color: var(--dim); font-size: .93rem; }
+footer ul { list-style: none; padding: 0; }
+</style>
+</head>
+<body>
+<header><a class="home" href="/">&larr; <b>Handoff3D</b> &mdash; 3D print, no computer necessary</a></header>
+<main>
+<h1>What makes a Bambu project file different</h1>
+<p class="lede">Both end in <b>.3mf</b> and only one of them will print the way you meant. A generic 3MF is a shape. A Bambu project file is a shape plus every decision about how to print it &mdash; which machine, which nozzle, layer height, supports, what sits on which plate &mdash; and Bambu Studio is strict about which one it thinks it has been handed.</p>
+<a class="cta" href="/">Open Handoff3D</a>
+<p class="cta-sub">Free, no account, nothing installed. Works in Safari on an iPad or an iPhone.</p>
+<h2>The one string that decides it</h2>
+<p>Bambu Studio reads print settings only from a file whose <code>Application</code> metadata declares Bambu Studio format. Anything else is treated as a foreign import: the geometry comes in and <b>every setting is discarded</b>, with the message <i>"The 3mf file has invalid config, load geometry data only"</i>.</p>
+<div class="card"><p>This was measured, not guessed. A genuine Bambu config copied verbatim into a container of ours was <i>also</i> rejected, which ruled out the settings themselves. Swapping the container apart one member at a time narrowed it to a single line inside the model file &mdash; the name of the application that wrote it.</p></div>
+<p>So a file exported as "3MF" by a modelling app, a scanner, or a text-to-3D tool cannot carry print settings to a Bambu machine, no matter what is in it. There is nowhere in a generic 3MF for them to live that Bambu Studio will read.</p>
+<h2>What the project file carries that a plain one does not</h2>
+<p>Roughly five hundred settings, resolved against the profile tree for the exact machine and nozzle, plus the parts a generic 3MF has no concept of:</p>
+<ul><li>Which plate each object belongs to, and where on it</li><li>Rendered previews of each plate &mdash; what MakerWorld shows as the listing image</li><li>Per-object settings, and the relationships that tie the thumbnails to the container</li><li>The 3MF <b>production extension</b>, which is how each part gets its own geometry file and a stable identity</li></ul>
+<p>None of that is exotic, but all of it has to be right at once. Two mistakes in particular produce a file that <i>opens perfectly</i> and is still wrong: parts assigned to plates by a label rather than by where they sit in space, which silently drops them, and a build transform written the wrong way round, which prints the object mirrored while every measurement of it stays correct.</p>
+<h2>Getting one on an iPad</h2>
+<p>Producing this file is the entire job of <a href="/">Handoff3D</a>, and it does it in Safari without a desktop slicer anywhere in the loop. You bring an STL, 3MF, OBJ or PLY; you pick the machine and the nozzle; it writes the project file, and MakerWorld and Bambu Studio both accept it.</p>
+<p>What it does not do is decide how the print should go &mdash; there is no support painting and no custom profile. It writes the standard settings for the machine you chose, correctly, which is the thing that was impossible without a computer.</p>
+<h2>Why a plain 3MF or STL still prints something</h2>
+<p>Because the geometry is fine. Hand a printer a shape with no settings and the software falls back to its defaults, so you get an object &mdash; at whatever size the file happened to be saved at, on whichever face it happened to be resting, with whatever profile was last selected. It prints. It is just not what you chose.</p>
+<h2>Common questions</h2>
+<h3>What is the difference between a 3MF and a Bambu project file?</h3>
+<p>A generic 3MF carries geometry. A Bambu project file carries geometry plus the full print configuration &mdash; machine, nozzle, layer height, supports, plate layout and plate previews. Bambu Studio reads those settings only from a file whose Application metadata declares Bambu Studio format; from any other 3MF it loads the geometry and discards every setting.</p>
+<h3>Why does Bambu Studio say &quot;invalid config, load geometry data only&quot;?</h3>
+<p>Because the file does not declare itself as a Bambu Studio file. The settings inside can be perfectly valid and are still discarded &mdash; it is the Application metadata that decides, not the settings.</p>
+<h3>Can I make a Bambu project 3MF without Bambu Studio?</h3>
+<p>Yes. Handoff3D writes one in the browser, on an iPad, and both MakerWorld and Bambu Studio accept the result.</p>
+<h3>Will a plain STL print on a Bambu printer?</h3>
+<p>The shape will. It arrives with no size you chose, no orientation you chose and no settings, so the printer uses defaults for all three.</p>
+<a class="cta" href="/">Open Handoff3D</a>
+</main>
+<footer>
+<p><b>Handoff3D</b> is a free page that prepares 3D models for Bambu Lab printers on an iPad. Nothing is installed, and your model is not uploaded.</p>
+<ul>
+<li><a href="/bambu-studio-on-ipad">Bambu Studio on iPad</a></li>
+<li><a href="/resize-a-model-on-ipad">Resizing a model on an iPad</a></li>
+<li><a href="/3d-print-from-ipad">3D printing from an iPad, with no computer</a></li>
+<li><a href="/split-a-model-too-big-for-your-bed">When a model is too big for the bed</a></li>
+<li><a href="/print-an-ai-generated-model">Printing an AI-generated model</a></li>
+<li><a href="/how-to-print-from-an-ipad">Getting the file to the printer</a></li>
+<li><a href="/makerworld-on-ipad">MakerWorld on an iPad</a></li>
+<li><a href="/bambu-printers-on-ipad">Which Bambu printer, and what fits on it</a></li>
+</ul>
+</footer>
+</body>
+</html>

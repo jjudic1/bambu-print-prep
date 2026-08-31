@@ -135,7 +135,7 @@ console.log('\n--- no outward link in the app skips it -------------------------
   const entries = list
     ? [...list[1].matchAll(/\[\s*'([^']*)'/g)].map((m) => m[1])
     : []
-  check('  and there are six of them', entries.length, 6)
+  check('  and there are nine of them', entries.length, 9)
   check('  every one is a path on this origin, not an address',
     entries.filter((p) => !/^\/[\w-]+$/.test(p)), [])
 }

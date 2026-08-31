@@ -103,6 +103,17 @@ b { font-weight: 650; }
 .card { background: var(--card); border: 1px solid var(--line);
         border-radius: 14px; padding: 1.1rem 1.25rem; margin: 0 0 1.4rem; }
 .card p:last-child { margin-bottom: 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+       font-size: .92em; background: var(--card); border: 1px solid var(--line);
+       border-radius: 5px; padding: .08em .35em; }
+/* The bed table is the one thing here wider than a phone. It scrolls inside
+   its own box rather than making the whole page scroll sideways. */
+.scroll { overflow-x: auto; margin: 0 0 1.2rem; }
+table { border-collapse: collapse; width: 100%; min-width: 21rem;
+        font-size: .95rem; }
+th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
+th { font-weight: 650; }
+td:last-child { white-space: nowrap; color: var(--dim); }
 footer { border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1.4rem;
          color: var(--dim); font-size: .93rem; }
 footer ul { list-style: none; padding: 0; }
@@ -138,6 +149,9 @@ footer ul { list-style: none; padding: 0; }
 <li><a href="/3d-print-from-ipad">3D printing from an iPad, with no computer</a></li>
 <li><a href="/split-a-model-too-big-for-your-bed">When a model is too big for the bed</a></li>
 <li><a href="/how-to-print-from-an-ipad">Getting the file to the printer</a></li>
+<li><a href="/bambu-project-3mf">What makes a Bambu project file different</a></li>
+<li><a href="/makerworld-on-ipad">MakerWorld on an iPad</a></li>
+<li><a href="/bambu-printers-on-ipad">Which Bambu printer, and what fits on it</a></li>
 </ul>
 </footer>
 </body>
