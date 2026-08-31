@@ -19,4 +19,5 @@
 # machine, which is the only way a byte comparison means anything.
 web/public/*.html   text eol=lf
 web/public/robots.txt   text eol=lf
+web/public/llms.txt     text eol=lf
 web/public/sitemap.xml  text eol=lf
