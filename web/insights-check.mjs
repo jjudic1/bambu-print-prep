@@ -36,6 +36,11 @@ function serve(answers) {
       : ({ day: 'daily', requestPath: 'pages', referrerHostname: 'referrers',
            country: 'countries',
            utmSource: 'utmSource', utmCampaign: 'utmCampaign',
+           // The operating-system query has three candidate spellings and the
+           // whole point of it is which one is accepted, so each is its own key
+           // here rather than all three collapsing to one name. A test writes
+           // `{ osName: 400, os: rows(...) }` to make the first be refused.
+           osName: 'osName', os: 'os', operatingSystem: 'operatingSystem',
            eventName: dataset === 'events' ? 'events' : '?' }[by[0]] || '?')
 
     globalThis.__urls.push(at.toString())
@@ -99,6 +104,7 @@ const ALL = {
   utmSource: rows('utmSource', ['reddit', 22]),
   utmCampaign: rows('utmCampaign', ['launch', 22]),
   events: rows('eventName', ['model opened', 12], ['file made', 5]),
+  osName: rows('osName', ['iOS', 26], ['Windows', 9], ['Mac OS', 5]),
 }
 
 // --- the harness -------------------------------------------------------------
@@ -401,7 +407,7 @@ console.log('\n--- what goes upstream ------------------------------------------
     [true, false])
   check('both shapes are used: a count for the totals, aggregates for the rest',
     [got.urls.filter((u) => u.includes('/count?')).length,
-     got.urls.filter((u) => u.includes('/aggregate?')).length], [1, 7])
+     got.urls.filter((u) => u.includes('/aggregate?')).length], [1, 8])
   // Vercel's dimension is `country` and it answers in two-letter ISO codes.
   // The names people read are made in the page from those codes, so the codes
   // have to survive this far untouched.
@@ -410,6 +416,70 @@ console.log('\n--- what goes upstream ------------------------------------------
      got.body.countries.map((r) => r.label)], [true, ['US', 'GB', 'DE']])
   check('the team is passed, or a personal token cannot see the project',
     got.urls.every((u) => u.includes('teamId=team_test')), true)
+}
+
+console.log('\n--- the operating system, whose dimension name is a guess -------')
+{
+  // Vercel documents country, referrerHostname, deviceType, browserName and
+  // utmCampaign, and names nothing for the operating system. So the query
+  // carries three spellings and takes the first that is not refused.
+  const first = await call({ key: 'let-me-in', env: CREDENTIALS, answers: ALL })
+  check('the first spelling is asked for, and nothing else is when it works',
+    [first.body.systems.map((r) => r.label),
+     first.urls.filter((u) => /by=(osName|os|operatingSystem)/.test(u)).length],
+    [['iOS', 'Windows', 'Mac OS'], 1])
+
+  // 400 is Vercel's answer for an invalid query value, which is what an
+  // unknown `by` is. Only that status moves on to the next name.
+  const second = await call({
+    key: 'let-me-in', env: CREDENTIALS,
+    answers: { ...ALL, osName: 400, os: rows('os', ['iPadOS', 30]) },
+  })
+  check('a refused spelling falls through to the next one',
+    [second.body.systems.map((r) => r.label), 'systems' in second.body.unavailable],
+    [['iPadOS'], false])
+
+  const none = await call({
+    key: 'let-me-in', env: CREDENTIALS,
+    answers: { ...ALL, osName: 400, os: 400, operatingSystem: 400 },
+  })
+  check('when every spelling is refused it says so, and names them',
+    [none.body.systems, 'systems' in none.body.unavailable,
+     none.body.unavailable.systems.includes('operatingSystem')],
+    [[], true, true])
+
+  // A 403 is about the credentials, not the name, and would be equally true of
+  // all three. Retrying it would turn one honest error into three.
+  const refused = await call({
+    key: 'let-me-in', env: { ...CREDENTIALS, INSIGHTS_TEAM_ID: null },
+    answers: { ...ALL, osName: 403 },
+  })
+  check('but a 403 is not retried under another name',
+    refused.urls.filter((u) => /by=(osName|os|operatingSystem)/.test(u)).length, 1)
+}
+
+console.log('\n--- a full table is a floor, not a total ------------------------')
+{
+  // The page counts the rows of the country table and calls it a number of
+  // countries. Vercel returns at most the limit asked for and never says
+  // whether there was more, so a list that came back exactly full has to be
+  // flagged or the page states a total it does not have.
+  const room = await call({ key: 'let-me-in', env: CREDENTIALS, answers: ALL })
+  check('a short table is not flagged',
+    'countries' in room.body.truncated, false)
+
+  const full = Array.from({ length: 100 }, (_, i) => [`C${i}`, 100 - i])
+  const brim = await call({
+    key: 'let-me-in', env: CREDENTIALS,
+    answers: { ...ALL, countries: rows('country', ...full) },
+  })
+  check('a table exactly as long as the limit is flagged, with the limit',
+    [brim.body.truncated.countries, brim.body.countries.length], [100, 100])
+
+  // 100 is the API's own maximum. Asking for the default 20 would have made
+  // "14 countries" a count of the top twenty presented as a total.
+  check('countries are asked for a hundred at a time, not the default twenty',
+    room.urls.some((u) => u.includes('by=country') && u.includes('limit=100')), true)
 }
 
 const fails = results.filter((r) => !r.ok)

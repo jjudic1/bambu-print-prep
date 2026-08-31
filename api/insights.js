@@ -70,9 +70,35 @@ const QUERIES = [
   // words in the page rather than here, because the reader's own browser knows
   // them in the reader's own language and a table of codes baked in here would
   // not.
-  { name: 'countries', dataset: 'visits', by: ['country'] },
+  //
+  // 100 rather than the default 20, because the page now says how many
+  // countries there are and the default would have made that a count of the
+  // top twenty presented as a total. 100 is the API's own maximum, so it is
+  // still a ceiling -- `truncated` below is what stops a saturated list being
+  // read as an exact number.
+  { name: 'countries', dataset: 'visits', by: ['country'], limit: 100 },
   { name: 'utmSource', dataset: 'visits', by: ['utmSource'] },
   { name: 'utmCampaign', dataset: 'visits', by: ['utmCampaign'] },
+  // Which operating system, which for this app is the question underneath all
+  // the others: it is built for people whose only computer is an iPad, and
+  // this is the one panel that says whether those are the people arriving.
+  //
+  // **The dimension's name is not documented and is therefore a list.** Vercel
+  // documents `country`, `referrerHostname`, `deviceType`, `browserName` and
+  // `utmCampaign` and says "include", naming no dimension for the operating
+  // system at all. `osName` follows the convention the other two-word ones
+  // use, so it is tried first, then the two other plausible spellings. An
+  // unknown `by` is a 400, which `ask` treats as "try the next name" rather
+  // than as a failure -- the same reasoning as HITS and PEOPLE below, where
+  // trusting one documented field name is exactly what produced a confident
+  // wrong number for a week.
+  //
+  // Nothing here falls back to `deviceType`. It is a documented dimension and
+  // it would always answer, which is the problem: a panel headed "What they
+  // are using" that had quietly started reporting desktop-vs-mobile instead of
+  // the operating system would be wrong in the one way nobody would notice.
+  { name: 'systems', dataset: 'visits', by: ['osName'],
+    alternates: [['os'], ['operatingSystem']] },
   { name: 'events', dataset: 'events', by: ['eventName'] },
 ]
 
@@ -303,7 +329,22 @@ async function attempt(query, since, until, settings, withTeam) {
 async function ask(query, since, until, settings) {
   try {
     const named = Boolean(settings.teamId)
-    let got = await attempt(query, since, until, settings, named)
+
+    // Every spelling of the dimension this query is willing to accept, in
+    // order of confidence. All but one query has exactly one, so this loop
+    // costs them nothing: it exits on the first response that is not a 400.
+    //
+    // Only a 400 moves on. That is Vercel's answer for "one of the provided
+    // values in the request query is invalid", which is what an unknown `by`
+    // is; a 401, 403 or 404 says something about the credentials or the
+    // project and would be equally true of every other name, so retrying
+    // those would turn one honest error into three.
+    const spellings = [query.by, ...(query.alternates || [])]
+    let got = null
+    for (const by of spellings) {
+      got = await attempt({ ...query, by }, since, until, settings, named)
+      if (got.ok || got.status !== 400) break
+    }
     if (got.ok) return [got.payload, null, got.url]
 
     if (got.status === 403 && named) {
@@ -311,6 +352,13 @@ async function ask(query, since, until, settings) {
       if (alone.ok) return [alone.payload, null, alone.url]
       return [null, reason(403, got.detail, true)
         + ` Asking without the team was refused too (${alone.status}).`, got.url]
+    }
+    if (got.status === 400 && spellings.length > 1) {
+      return [null, 'Vercel does not offer this project a dimension by any of '
+        + `the names tried (${spellings.map((by) => by.join('+')).join(', ')}). `
+        + 'The name is not in Vercel\'s documented list, so it was guessed; if '
+        + 'the real one turns up, add it to `alternates` in api/insights.js. '
+        + `Vercel said: ${got.detail || '(nothing)'}`, got.url]
     }
     return [null, reason(got.status, got.detail, named), got.url]
   } catch (error) {
@@ -408,7 +456,12 @@ module.exports = async function insights(request, response) {
     })
   }
 
-  const result = { days, since, until, unavailable: {} }
+  // `truncated` names any table that came back exactly as long as the limit
+  // asked for. Vercel does not say whether there was more, and a list that
+  // stopped at its ceiling looks identical to one that ran out -- which does
+  // not matter while a table is only being read for its shape, and matters a
+  // great deal now the page counts the rows of one and calls it a total.
+  const result = { days, since, until, unavailable: {}, truncated: {} }
   for (const [query, payload, why] of answers) {
     if (why) {
       result.unavailable[query.name] = why
@@ -417,6 +470,9 @@ module.exports = async function insights(request, response) {
     }
     if (query.by.length) {
       result[query.name] = rows(payload, query.chronological)
+      if (result[query.name].length >= (query.limit || 20)) {
+        result.truncated[query.name] = query.limit || 20
+      }
       // Vercel buckets the day series inclusively at both ends, so a window of
       // [midnight, midnight) comes back with a bucket for the closing boundary
       // as well -- tomorrow, always empty, and drawn as the rightmost bar with

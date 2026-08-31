@@ -403,6 +403,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   font-style: normal; text-transform: none; letter-spacing: 0; color: var(--ink);
 }
 .card .reason { margin-top: .7rem; }
+/* A reading of the table above it -- "14 countries", "62% on iOS". Set in the
+   ordinary ink rather than the dim of .reason, because it is a finding and not
+   a caveat, and separated by a rule so it does not read as one more row. */
+.card .tally {
+  margin: .9rem 0 0; padding-top: .7rem; border-top: 1px solid var(--line);
+  font-size: .85rem; color: var(--ink); font-weight: 600;
+}
 
 /* Three values with no shape to show. A one-bar chart of a single number is
    decoration, so they are set as type instead. */

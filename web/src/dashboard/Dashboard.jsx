@@ -89,7 +89,7 @@ function place(code) {
  * colour. Every table on this page is one series, so there is nothing to tell
  * apart and no legend to draw.
  */
-function Bars({ title, rows, empty }) {
+function Bars({ title, rows, empty, note }) {
   const most = Math.max(1, ...rows.map((r) => r.visitors || r.count))
   return (
     <section className="card">
@@ -114,6 +114,10 @@ function Bars({ title, rows, empty }) {
       ) : (
         <p className="reason">{empty}</p>
       )}
+      {/* Under the bars rather than beside the heading: it is a reading of the
+          table, so it belongs where the eye lands after the table, and it is
+          only drawn when there is a table to read. */}
+      {note && rows.length > 0 && <p className="tally">{note}</p>}
     </section>
   )
 }
@@ -205,6 +209,28 @@ export default function Dashboard() {
     () => (data?.countries || []).map((row) => ({ ...row, label: place(row.label) })),
     [data])
 
+  /**
+   * How many countries, said under the table.
+   *
+   * It is the row count and nothing cleverer -- except for the one case where
+   * the row count is not the answer. Vercel returns at most the limit asked
+   * for and never says whether there was more, so a list that came back
+   * exactly full is a floor rather than a total, and `truncated` upstream is
+   * what tells the two apart. Saying "at least" there costs one word and stops
+   * the page stating a number it does not have.
+   *
+   * "(none)" is a real row -- Vercel's answer for a visit it could not place --
+   * and it is not a country, so it is not counted as one.
+   */
+  const countryTally = useMemo(() => {
+    const named = countries.filter((row) => row.label !== '(none)')
+    if (!named.length) return ''
+    const floor = Boolean(data?.truncated?.countries)
+    const n = named.length
+    return `${floor ? 'At least ' : ''}${n} countr${n === 1 ? 'y' : 'ies'}`
+      + `${floor ? ' -- the list stopped at the most Vercel will return' : ''}.`
+  }, [countries, data])
+
   if (!key) {
     return (
       <main className="dash gate">
@@ -239,6 +265,25 @@ export default function Dashboard() {
   // plan will not tell you". Custom events and UTM breakdowns are paid features
   // on Vercel, so where they are refused the panel says so instead of drawing a
   // row of confident zeros.
+  /**
+   * The share on iOS or iPadOS, said under the table.
+   *
+   * The bars already show the ranking; what is not readable off them is the
+   * one proportion this project actually cares about. Matched loosely because
+   * Vercel's spelling of the value is no more documented than the dimension's
+   * name -- "iOS", "iPadOS" and "Mac OS" have all been seen from analytics
+   * providers, and only the first two are the audience.
+   */
+  const systemNote = useMemo(() => {
+    const systems = data?.systems || []
+    const total = systems.reduce((sum, r) => sum + (r.visitors || r.count), 0)
+    if (!total) return ''
+    const apple = systems
+      .filter((r) => /^(ios|ipados)\b/i.test(r.label))
+      .reduce((sum, r) => sum + (r.visitors || r.count), 0)
+    return `${pct(apple, total)}% on iOS or iPadOS, which is who this is for.`
+  }, [data])
+
   const eventsOff = Boolean(data?.unavailable?.events)
   // Same rule as the paid-plan panels: a total we could not read is shown as
   // missing, never as zero. This one is louder, because unlike a plan limit it
@@ -370,6 +415,7 @@ export default function Dashboard() {
           <Bars
             title="Where in the world"
             rows={countries}
+            note={countryTally}
             empty={data?.unavailable?.countries
               ? 'Vercel would not answer for countries; the reason is below.'
               : 'Nobody counted yet in this window.'}
@@ -388,6 +434,21 @@ export default function Dashboard() {
             title="Which page"
             rows={data.pages || []}
             empty="No page views yet."
+          />
+
+          {/* The question underneath all the others. This is built for people
+              whose only computer is an iPad, and every other panel counts
+              arrivals without saying whether they were that person. A page of
+              visits that is nine tenths Windows is a page being read about
+              rather than used, and that is worth knowing before reading
+              anything into the funnel above it. */}
+          <Bars
+            title="What they are using"
+            rows={data.systems || []}
+            note={systemNote}
+            empty={data?.unavailable?.systems
+              ? 'Vercel would not answer for the operating system; the reason is below.'
+              : 'Nothing counted yet in this window.'}
           />
 
           {Object.keys(data.unavailable || {}).length > 0 && (
