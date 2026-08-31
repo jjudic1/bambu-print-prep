@@ -324,9 +324,16 @@ checkbox nobody can set from here.**
 ```powershell
 vercel env add INSIGHTS_KEY production        # then paste a secret you pick
 vercel env add INSIGHTS_TOKEN production      # then paste the token from step 2
-vercel env add INSIGHTS_PROJECT_ID production # prj_qTWpMAa2mO6XgECJhwFDpPIK5QlR
-vercel env add INSIGHTS_TEAM_ID production    # team_2VsnfArdtbvj58Oyg13T4Sir
+vercel env add INSIGHTS_PROJECT_ID production # the prj_... from .vercel/project.json
+vercel env add INSIGHTS_TEAM_ID production    # the orgId from the same file, if any
 ```
+
+Both values live in `.vercel/project.json`, which `.gitignore` keeps out of the
+repository -- they used to be written out here in full, and were taken out when
+this went public. They are identifiers rather than credentials and are useless
+without the token, but they name somebody's account and there is no reason for
+a repository to carry them. **They are still in the history**, so treat them as
+disclosed rather than secret: nothing here depends on them being unknown.
 
 **Not `VERCEL_*`.** That prefix is Vercel's own namespace for the system
 variables it injects into every deployment; putting our secrets in it invites a
