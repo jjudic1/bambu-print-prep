@@ -101,6 +101,7 @@ const GUIDES = [
   ['/split-a-model-too-big-for-your-bed', 'Too big for the bed'],
   ['/print-an-ai-generated-model', 'AI-generated models'],
   ['/how-to-print-from-an-ipad', 'Getting it to the printer'],
+  ['/bambu-studio-alternative-ipad', 'A Bambu Studio alternative'],
   ['/bambu-project-3mf', 'What the file is'],
   ['/makerworld-on-ipad', 'MakerWorld on an iPad'],
   ['/bambu-printers-on-ipad', 'Printers and what fits'],

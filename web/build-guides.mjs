@@ -21,7 +21,9 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { PAGES, renderPage, renderRobots, renderSitemap } from './guides.mjs'
+import {
+  PAGES, renderLlms, renderPage, renderRobots, renderSitemap,
+} from './guides.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const PUBLIC = resolve(HERE, 'public')
@@ -55,6 +57,7 @@ function sitemapDate() {
 const files = new Map()
 for (const page of PAGES) files.set(page.slug + '.html', renderPage(page))
 files.set('robots.txt', renderRobots())
+files.set('llms.txt', renderLlms())
 files.set('sitemap.xml', renderSitemap(sitemapDate()))
 
 if (!existsSync(PUBLIC)) mkdirSync(PUBLIC, { recursive: true })

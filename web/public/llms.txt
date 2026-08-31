@@ -1,0 +1,47 @@
+# Handoff3D
+
+> Handoff3D is a free, browser-based Bambu print preparation tool that creates Bambu-compatible project 3MF files from an iPad, without a Windows or Mac computer.
+
+Handoff3D runs entirely in the browser on the reader's own device. There
+is no account, nothing to install, and the model is never uploaded --
+it is read, measured and rewritten inside the browser tab.
+
+## What it does
+
+- Reads STL, 3MF, OBJ and PLY files
+- Resizes a model to an exact measurement in millimetres
+- Stands each part up in an orientation that will print
+- Flattens a curved bottom so a model has a face to stand on
+- Splits a model too large for the bed across as many plates as it needs
+- Writes a Bambu-compatible project 3MF, accepted by MakerWorld and by
+  Bambu Studio
+- Supports every current Bambu Lab machine -- A1 mini, A1, P1P, P1S, P2S, X1, X1 Carbon, X1E, X2D, A2L, H2C, H2S, H2D, H2D Pro -- in 0.2, 0.4, 0.6 and 0.8 mm nozzle versions
+
+## What it does not do
+
+Handoff3D is not a full replacement for Bambu Studio and does not claim
+to be one. It has no hand-placed supports, no painted-on settings, no
+custom filament profiles, and no multi-colour or AMS colour assignment:
+every object in the file is assigned to a single extruder. It writes the
+standard settings for the chosen machine and nozzle, and nothing beyond
+that. The slicing itself happens when the file is sent to the printer.
+
+## How a file reaches the printer
+
+No third-party app can hand a file to a Bambu printer directly. The file
+is saved to the Files app, uploaded to MakerWorld as a private model, and
+printed from the Bambu Handy app.
+
+## Pages
+
+- [Handoff3D](https://bambu-print-prep.vercel.app/): the app itself
+- [Bambu Studio on iPad](https://bambu-print-prep.vercel.app/bambu-studio-on-ipad): Bambu Studio has no iPad version and Apple will not run one. Here is what you can do instead, in Safari, to get a print-ready file for a Bambu Lab printer without a computer.
+- [Resizing a model on an iPad](https://bambu-print-prep.vercel.app/resize-a-model-on-ipad): Scale a downloaded 3D model to the size you want on an iPad, in Safari, and save a print-ready file for a Bambu Lab printer. No app, no account, nothing uploaded.
+- [3D printing from an iPad, with no computer](https://bambu-print-prep.vercel.app/3d-print-from-ipad): The complete route from a downloaded model to a finished print using only an iPad or iPhone and a Bambu Lab printer. Free, no account, nothing uploaded.
+- [When a model is too big for the bed](https://bambu-print-prep.vercel.app/split-a-model-too-big-for-your-bed): Cut an oversized model into pieces and spread them across as many build plates as it takes, on an iPad, with no desktop slicer.
+- [Printing an AI-generated model](https://bambu-print-prep.vercel.app/print-an-ai-generated-model): Take a model produced by a text-to-3D tool and get it printed on a Bambu Lab printer using only an iPad -- including the three things generated models always get wrong.
+- [Getting the file to the printer](https://bambu-print-prep.vercel.app/how-to-print-from-an-ipad): The exact taps that move a prepared file from the Files app to a Bambu Lab printer, through MakerWorld and Bambu Handy, with no computer involved.
+- [A Bambu Studio alternative for iPad](https://bambu-print-prep.vercel.app/bambu-studio-alternative-ipad): Handoff3D is a free browser-based Bambu print preparation tool for iPad. What it does, what Bambu Studio still does better, and an honest comparison of both.
+- [What makes a Bambu project file different](https://bambu-print-prep.vercel.app/bambu-project-3mf): Why a plain 3MF opens on a Bambu printer with none of its settings, what a Bambu project file carries that a generic one does not, and how to get one without a desktop slicer.
+- [MakerWorld on an iPad](https://bambu-print-prep.vercel.app/makerworld-on-ipad): Download a model from MakerWorld on an iPad, prepare it without a computer, upload it back as a private model, and print it through Bambu Handy.
+- [Which Bambu printer, and what fits on it](https://bambu-print-prep.vercel.app/bambu-printers-on-ipad): Build volumes, nozzle sizes and materials for the A1 mini, A1, P1P, P1S, P2S, X1, X1 Carbon, X1E, X2D, A2L, H2C, H2S, H2D and H2D Pro -- and how to prepare a file for any of them on an iPad.

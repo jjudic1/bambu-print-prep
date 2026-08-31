@@ -93,6 +93,25 @@ def test_every_page_is_committed(slugs):
 def test_robots_and_sitemap_are_committed():
     assert (PUBLIC / "robots.txt").is_file()
     assert (PUBLIC / "sitemap.xml").is_file()
+    assert (PUBLIC / "llms.txt").is_file()
+
+
+def test_llms_txt_lists_every_page(slugs):
+    """It is generated from PAGES for this reason: a hand-kept index of ten
+    pages goes stale the first time somebody adds an eleventh."""
+    text = (PUBLIC / "llms.txt").read_text(encoding="utf-8")
+    for slug in slugs:
+        assert f"{SITE}/{slug}" in text, slug
+
+
+def test_llms_txt_says_what_it_is_not():
+    """The limitation is in the file on purpose. A description claiming a full
+    slicer would be repeated back by whatever read it, and somebody would turn
+    up expecting painted supports. Being cited accurately beats being cited
+    flatteringly, and this is the sentence that does it."""
+    text = (PUBLIC / "llms.txt").read_text(encoding="utf-8").lower()
+    assert "not a full replacement" in text
+    assert "ams" in text
 
 
 # --- the four places a slug is written down ---------------------------------

@@ -559,6 +559,112 @@ export const PAGES = [
   },
 
   {
+    slug: 'bambu-studio-alternative-ipad',
+    title: 'A Bambu Studio alternative for iPad, and where it stops',
+    description:
+      'Handoff3D is a free browser-based Bambu print preparation tool for iPad. '
+      + 'What it does, what Bambu Studio still does better, and an honest '
+      + 'comparison of both.',
+    h1: 'A Bambu Studio alternative for iPad',
+    lede:
+      '<b>' + BRAND + ' is a free, browser-based Bambu print preparation tool '
+      + 'for iPad.</b> Bring an STL, 3MF, OBJ or PLY file, choose your Bambu '
+      + 'printer and nozzle, resize or turn the model, split it across plates '
+      + 'if it is too big for the bed, and save a Bambu-compatible project '
+      + 'file -- without a Windows or Mac computer anywhere in the loop. It is '
+      + 'not a full replacement for Bambu Studio, and the rest of this page is '
+      + 'about exactly where the line falls.',
+    sections: [
+      ['What each one is for', [
+        '<p><b>Bambu Studio</b> is the real thing: a desktop slicer that turns '
+        + 'a model into the instructions a printer follows, with control over '
+        + 'every part of how it does it. It runs on Windows, macOS and Linux, '
+        + 'and there is <a href="/bambu-studio-on-ipad">no iPad version</a>.</p>',
+        '<p><b>' + BRAND + '</b> does the preparation half in a browser: size, '
+        + 'orientation, plate layout, and writing a project file the Bambu '
+        + 'ecosystem accepts. The printer does the slicing when you send it. '
+        + 'That covers the common case -- somebody else&#x27;s model, a '
+        + 'sensible size, standard settings -- which is most prints, and it '
+        + 'was the case with no iPad answer at all.</p>',
+      ]],
+      ['Side by side, honestly', [
+        '<div class="scroll"><table>'
+        + '<tr><th></th><th>' + BRAND + '</th><th>Bambu Studio</th></tr>'
+        + '<tr><td>Runs on an iPad</td><td>Yes</td><td>No</td></tr>'
+        + '<tr><td>Needs Windows or a Mac</td><td>No</td><td>Yes</td></tr>'
+        + '<tr><td>Costs anything</td><td>No</td><td>No</td></tr>'
+        + '<tr><td>Reads STL, 3MF, OBJ, PLY</td><td>Yes</td><td>Yes</td></tr>'
+        + '<tr><td>Resize and re-orient</td><td>Yes</td><td>Yes</td></tr>'
+        + '<tr><td>Flatten a curved bottom</td><td>Yes</td><td>Yes</td></tr>'
+        + '<tr><td>Split across plates</td><td>Yes</td><td>Yes</td></tr>'
+        + '<tr><td>Writes a Bambu project file</td><td>Yes</td><td>Yes</td></tr>'
+        + '<tr><td>Supports painted on by hand</td><td>No</td><td>Yes</td></tr>'
+        + '<tr><td>Per-object and painted settings</td><td>No</td><td>Yes</td></tr>'
+        + '<tr><td>Multi-colour and AMS assignment</td><td>No</td><td>Yes</td></tr>'
+        + '<tr><td>Custom filament profiles</td><td>No</td><td>Yes</td></tr>'
+        + '<tr><td>Preview of what the printer will do</td><td>No</td><td>Yes</td></tr>'
+        + '<tr><td>A full slicer</td><td>No</td><td>Yes</td></tr>'
+        + '</table></div>',
+        '<p>If you have a computer, use Bambu Studio. It is free, and it is '
+        + 'better at its job than any web page. This is for the case where '
+        + 'there is no computer to use it on.</p>',
+      ]],
+      ['The other ways to do this', [
+        '<p><b>Bambu Handy</b> is Bambu&#x27;s own iOS app, and you will need '
+        + 'it either way -- it is what actually sends a file to the machine. '
+        + 'What it does not do is take a model you downloaded and turn it into '
+        + 'something printable at the size you want. It prints what is already '
+        + 'a print.</p>',
+        '<p><b>A desktop you can reach remotely.</b> If there is a PC at home, '
+        + 'a remote desktop app on the iPad gets you the whole of Bambu Studio, '
+        + 'and that is strictly more capable than anything here. It is not an '
+        + 'answer if the iPad is the only computer.</p>',
+        '<p><b>Cloud slicing services.</b> Several exist that will slice for '
+        + 'Bambu machines in a browser, and one may suit you better than this '
+        + 'does -- most want an account, and what they support changes often '
+        + 'enough that it is worth checking rather than taking anybody&#x27;s '
+        + 'word for it, including this page&#x27;s.</p>',
+      ]],
+      ['What it deliberately does not try to do', [
+        '<p>It writes the standard settings for the machine and nozzle you '
+        + 'chose, correctly, and nothing beyond that. No supports placed by '
+        + 'hand, no painted-on settings, no tuning. Every object in the file is '
+        + 'assigned to one extruder, so <b>multi-colour and AMS colour '
+        + 'assignment are not supported</b> -- an AMS will happily print the '
+        + 'result, in whichever single filament you pick when you send it.</p>',
+        '<p>Saying so is the point. A tool that claimed to replace a slicer and '
+        + 'then quietly did less would waste a print, and the failure would '
+        + 'happen at the machine rather than on the screen.</p>',
+      ]],
+    ],
+    faq: [
+      ['What is the best Bambu Studio alternative for iPad?',
+        'There is no full slicer for iPad, so the honest answer depends on what '
+        + 'you need. Handoff3D prepares a Bambu-compatible project file in the '
+        + 'browser -- sizing, orientation, plate splitting -- and Bambu Handy '
+        + 'sends it to the printer. For full slicing control you need Bambu '
+        + 'Studio on a desktop, or remote access to one.'],
+      ['Is Handoff3D a slicer?',
+        'No. It prepares a Bambu project file: the model at the size and '
+        + 'orientation you chose, with the standard settings for your machine '
+        + 'and nozzle. The slicing happens when the file is sent to print.'],
+      ['Does Handoff3D replace Bambu Studio?',
+        'Not for everything. It covers preparing a model on an iPad, which is '
+        + 'the case Bambu Studio cannot cover at all. It does not do painted '
+        + 'settings, hand-placed supports, custom filament profiles or '
+        + 'multi-colour assignment.'],
+      ['Does it work with the AMS?',
+        'An AMS will print the file, in whichever single filament you select '
+        + 'when you send it. What is not supported is assigning different '
+        + 'colours or materials to different parts -- every object in the file '
+        + 'is assigned to one extruder.'],
+      ['Do I need an account, and is my model uploaded?',
+        'No account, and the model is not uploaded. It is read, measured and '
+        + 'rewritten inside the browser tab on your own device.'],
+    ],
+  },
+
+  {
     slug: 'bambu-project-3mf',
     title: 'A Bambu project 3MF is not the same thing as a 3MF',
     description:
@@ -838,7 +944,21 @@ export const LABEL = {
   'bambu-project-3mf': 'What makes a Bambu project file different',
   'makerworld-on-ipad': 'MakerWorld on an iPad',
   'bambu-printers-on-ipad': 'Which Bambu printer, and what fits on it',
+  'bambu-studio-alternative-ipad': 'A Bambu Studio alternative for iPad',
 }
+
+/**
+ * The one sentence every page is a variation on.
+ *
+ * Written down once because the point of it is that it does not vary: a
+ * retrieval system learning what this is should meet the same claim, in the
+ * same words, wherever it lands. Used in llms.txt below and worth reaching for
+ * before inventing a new phrasing on a new page.
+ */
+export const ONE_LINE =
+  BRAND + ' is a free, browser-based Bambu print preparation tool that creates '
+  + 'Bambu-compatible project 3MF files from an iPad, without a Windows or Mac '
+  + 'computer.'
 
 /**
  * JSON-LD, two blocks per page. The FAQ is the one that earns its place -- it
@@ -960,6 +1080,56 @@ export function renderRobots() {
     + 'Disallow: /dashboard.html\n\n'
     + agents.map((a) => 'User-agent: ' + a + '\nAllow: /\n').join('\n')
     + '\nSitemap: ' + SITE + '/sitemap.xml\n'
+}
+
+/**
+ * llms.txt -- a plain-language description of the site, for a machine.
+ *
+ * An emerging convention rather than a standard anybody has committed to, and
+ * it is included with that firmly in mind: **no retrieval system is known to
+ * give this file weight**, and if one day they all ignore it, nothing here is
+ * lost. It costs one generated file and it is the only artefact on the site
+ * that states the whole product in one place in prose.
+ *
+ * Generated from PAGES rather than written out, for the reason everything else
+ * here is: a hand-kept index of nine pages is a list that goes stale the first
+ * time somebody adds a tenth and does not think of it.
+ *
+ * The limitation is in it on purpose. A description that claimed a full slicer
+ * would be repeated back by whatever read it, and then somebody arrives
+ * expecting painted supports and finds none. Being cited accurately is worth
+ * more than being cited flatteringly.
+ */
+export function renderLlms() {
+  const links = PAGES
+    .map((p) => `- [${LABEL[p.slug]}](${SITE}/${p.slug}): ${p.description}`)
+    .join('\n')
+  return `# ${BRAND}\n\n> ${ONE_LINE}\n\n`
+    + `${BRAND} runs entirely in the browser on the reader's own device. There\n`
+    + 'is no account, nothing to install, and the model is never uploaded --\n'
+    + 'it is read, measured and rewritten inside the browser tab.\n\n'
+    + '## What it does\n\n'
+    + '- Reads STL, 3MF, OBJ and PLY files\n'
+    + '- Resizes a model to an exact measurement in millimetres\n'
+    + '- Stands each part up in an orientation that will print\n'
+    + '- Flattens a curved bottom so a model has a face to stand on\n'
+    + '- Splits a model too large for the bed across as many plates as it needs\n'
+    + '- Writes a Bambu-compatible project 3MF, accepted by MakerWorld and by\n'
+    + '  Bambu Studio\n'
+    + '- Supports every current Bambu Lab machine -- ' + MODELS.join(', ')
+    + ' -- in 0.2, 0.4, 0.6 and 0.8 mm nozzle versions\n\n'
+    + '## What it does not do\n\n'
+    + `${BRAND} is not a full replacement for Bambu Studio and does not claim\n`
+    + 'to be one. It has no hand-placed supports, no painted-on settings, no\n'
+    + 'custom filament profiles, and no multi-colour or AMS colour assignment:\n'
+    + 'every object in the file is assigned to a single extruder. It writes the\n'
+    + 'standard settings for the chosen machine and nozzle, and nothing beyond\n'
+    + 'that. The slicing itself happens when the file is sent to the printer.\n\n'
+    + '## How a file reaches the printer\n\n'
+    + 'No third-party app can hand a file to a Bambu printer directly. The file\n'
+    + 'is saved to the Files app, uploaded to MakerWorld as a private model, and\n'
+    + 'printed from the Bambu Handy app.\n\n'
+    + `## Pages\n\n- [${BRAND}](${SITE}/): the app itself\n${links}\n`
 }
 
 /** sitemap.xml. The app first, then the pages -- all of them real files. */

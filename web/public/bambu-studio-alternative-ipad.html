@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101215">
+<title>A Bambu Studio alternative for iPad, and where it stops</title>
+<meta name="description" content="Handoff3D is a free browser-based Bambu print preparation tool for iPad. What it does, what Bambu Studio still does better, and an honest comparison of both.">
+<link rel="canonical" href="https://bambu-print-prep.vercel.app/bambu-studio-alternative-ipad">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Handoff3D">
+<meta property="og:title" content="A Bambu Studio alternative for iPad, and where it stops">
+<meta property="og:description" content="Handoff3D is a free browser-based Bambu print preparation tool for iPad. What it does, what Bambu Studio still does better, and an honest comparison of both.">
+<meta property="og:url" content="https://bambu-print-prep.vercel.app/bambu-studio-alternative-ipad">
+<meta property="og:image" content="https://bambu-print-prep.vercel.app/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="A Bambu Studio alternative for iPad, and where it stops">
+<meta name="twitter:description" content="Handoff3D is a free browser-based Bambu print preparation tool for iPad. What it does, what Bambu Studio still does better, and an honest comparison of both.">
+<meta name="twitter:image" content="https://bambu-print-prep.vercel.app/icons/icon-512.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is the best Bambu Studio alternative for iPad?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "There is no full slicer for iPad, so the honest answer depends on what you need. Handoff3D prepares a Bambu-compatible project file in the browser -- sizing, orientation, plate splitting -- and Bambu Handy sends it to the printer. For full slicing control you need Bambu Studio on a desktop, or remote access to one."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Handoff3D a slicer?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. It prepares a Bambu project file: the model at the size and orientation you chose, with the standard settings for your machine and nozzle. The slicing happens when the file is sent to print."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Handoff3D replace Bambu Studio?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Not for everything. It covers preparing a model on an iPad, which is the case Bambu Studio cannot cover at all. It does not do painted settings, hand-placed supports, custom filament profiles or multi-colour assignment."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it work with the AMS?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "An AMS will print the file, in whichever single filament you select when you send it. What is not supported is assigning different colours or materials to different parts -- every object in the file is assigned to one extruder."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need an account, and is my model uploaded?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No account, and the model is not uploaded. It is read, measured and rewritten inside the browser tab on your own device."
+      }
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Handoff3D",
+      "item": "https://bambu-print-prep.vercel.app/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "A Bambu Studio alternative for iPad",
+      "item": "https://bambu-print-prep.vercel.app/bambu-studio-alternative-ipad"
+    }
+  ]
+}
+</script>
+<style>
+:root { color-scheme: light dark;
+        --ink: #1a1a1a; --dim: #5b5b5b; --bg: #fbfaf8; --card: #fff;
+        --line: #e5e2dc; --accent: #17663f; }
+@media (prefers-color-scheme: dark) {
+  :root { --ink: #ececec; --dim: #a6a6a6; --bg: #17181a; --card: #212327;
+          --line: #34363b; --accent: #6fd39b; } }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0 5vw 14vw; background: var(--bg); color: var(--ink);
+       font: 400 18px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+       -webkit-text-size-adjust: 100%; }
+main, header, footer { max-width: 38rem; margin: 0 auto; }
+header { padding: 1.6rem 0 .4rem; }
+header a.home { color: var(--dim); text-decoration: none; font-size: .93rem; }
+header a.home b { color: var(--ink); }
+h1 { font-size: 1.95rem; line-height: 1.18; margin: 1.2rem 0 .6rem;
+     letter-spacing: -.015em; }
+h2 { font-size: 1.22rem; line-height: 1.3; margin: 2.3rem 0 .5rem; }
+h3 { font-size: 1.02rem; margin: 1.5rem 0 .3rem; }
+p { margin: 0 0 1rem; }
+.lede { font-size: 1.12rem; margin-bottom: 1.6rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.3rem; }
+li { margin: 0 0 .45rem; }
+a { color: var(--accent); }
+b { font-weight: 650; }
+.cta { display: block; background: var(--accent); color: var(--bg);
+       text-decoration: none; text-align: center; font-weight: 650;
+       padding: .95rem 1.2rem; border-radius: 13px; margin: 2rem 0 .6rem; }
+.cta-sub { text-align: center; color: var(--dim); font-size: .9rem;
+           margin: 0 0 2rem; }
+.card { background: var(--card); border: 1px solid var(--line);
+        border-radius: 14px; padding: 1.1rem 1.25rem; margin: 0 0 1.4rem; }
+.card p:last-child { margin-bottom: 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+       font-size: .92em; background: var(--card); border: 1px solid var(--line);
+       border-radius: 5px; padding: .08em .35em; }
+/* The bed table is the one thing here wider than a phone. It scrolls inside
+   its own box rather than making the whole page scroll sideways. */
+.scroll { overflow-x: auto; margin: 0 0 1.2rem; }
+table { border-collapse: collapse; width: 100%; min-width: 21rem;
+        font-size: .95rem; }
+th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
+th { font-weight: 650; }
+td:last-child { white-space: nowrap; color: var(--dim); }
+footer { border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1.4rem;
+         color: var(--dim); font-size: .93rem; }
+footer ul { list-style: none; padding: 0; }
+</style>
+</head>
+<body>
+<header><a class="home" href="/">&larr; <b>Handoff3D</b> &mdash; 3D print, no computer necessary</a></header>
+<main>
+<h1>A Bambu Studio alternative for iPad</h1>
+<p class="lede"><b>Handoff3D is a free, browser-based Bambu print preparation tool for iPad.</b> Bring an STL, 3MF, OBJ or PLY file, choose your Bambu printer and nozzle, resize or turn the model, split it across plates if it is too big for the bed, and save a Bambu-compatible project file &mdash; without a Windows or Mac computer anywhere in the loop. It is not a full replacement for Bambu Studio, and the rest of this page is about exactly where the line falls.</p>
+<a class="cta" href="/">Open Handoff3D</a>
+<p class="cta-sub">Free, no account, nothing installed. Works in Safari on an iPad or an iPhone.</p>
+<h2>What each one is for</h2>
+<p><b>Bambu Studio</b> is the real thing: a desktop slicer that turns a model into the instructions a printer follows, with control over every part of how it does it. It runs on Windows, macOS and Linux, and there is <a href="/bambu-studio-on-ipad">no iPad version</a>.</p>
+<p><b>Handoff3D</b> does the preparation half in a browser: size, orientation, plate layout, and writing a project file the Bambu ecosystem accepts. The printer does the slicing when you send it. That covers the common case &mdash; somebody else&#x27;s model, a sensible size, standard settings &mdash; which is most prints, and it was the case with no iPad answer at all.</p>
+<h2>Side by side, honestly</h2>
+<div class="scroll"><table><tr><th></th><th>Handoff3D</th><th>Bambu Studio</th></tr><tr><td>Runs on an iPad</td><td>Yes</td><td>No</td></tr><tr><td>Needs Windows or a Mac</td><td>No</td><td>Yes</td></tr><tr><td>Costs anything</td><td>No</td><td>No</td></tr><tr><td>Reads STL, 3MF, OBJ, PLY</td><td>Yes</td><td>Yes</td></tr><tr><td>Resize and re-orient</td><td>Yes</td><td>Yes</td></tr><tr><td>Flatten a curved bottom</td><td>Yes</td><td>Yes</td></tr><tr><td>Split across plates</td><td>Yes</td><td>Yes</td></tr><tr><td>Writes a Bambu project file</td><td>Yes</td><td>Yes</td></tr><tr><td>Supports painted on by hand</td><td>No</td><td>Yes</td></tr><tr><td>Per-object and painted settings</td><td>No</td><td>Yes</td></tr><tr><td>Multi-colour and AMS assignment</td><td>No</td><td>Yes</td></tr><tr><td>Custom filament profiles</td><td>No</td><td>Yes</td></tr><tr><td>Preview of what the printer will do</td><td>No</td><td>Yes</td></tr><tr><td>A full slicer</td><td>No</td><td>Yes</td></tr></table></div>
+<p>If you have a computer, use Bambu Studio. It is free, and it is better at its job than any web page. This is for the case where there is no computer to use it on.</p>
+<h2>The other ways to do this</h2>
+<p><b>Bambu Handy</b> is Bambu&#x27;s own iOS app, and you will need it either way &mdash; it is what actually sends a file to the machine. What it does not do is take a model you downloaded and turn it into something printable at the size you want. It prints what is already a print.</p>
+<p><b>A desktop you can reach remotely.</b> If there is a PC at home, a remote desktop app on the iPad gets you the whole of Bambu Studio, and that is strictly more capable than anything here. It is not an answer if the iPad is the only computer.</p>
+<p><b>Cloud slicing services.</b> Several exist that will slice for Bambu machines in a browser, and one may suit you better than this does &mdash; most want an account, and what they support changes often enough that it is worth checking rather than taking anybody&#x27;s word for it, including this page&#x27;s.</p>
+<h2>What it deliberately does not try to do</h2>
+<p>It writes the standard settings for the machine and nozzle you chose, correctly, and nothing beyond that. No supports placed by hand, no painted-on settings, no tuning. Every object in the file is assigned to one extruder, so <b>multi-colour and AMS colour assignment are not supported</b> &mdash; an AMS will happily print the result, in whichever single filament you pick when you send it.</p>
+<p>Saying so is the point. A tool that claimed to replace a slicer and then quietly did less would waste a print, and the failure would happen at the machine rather than on the screen.</p>
+<h2>Common questions</h2>
+<h3>What is the best Bambu Studio alternative for iPad?</h3>
+<p>There is no full slicer for iPad, so the honest answer depends on what you need. Handoff3D prepares a Bambu-compatible project file in the browser &mdash; sizing, orientation, plate splitting &mdash; and Bambu Handy sends it to the printer. For full slicing control you need Bambu Studio on a desktop, or remote access to one.</p>
+<h3>Is Handoff3D a slicer?</h3>
+<p>No. It prepares a Bambu project file: the model at the size and orientation you chose, with the standard settings for your machine and nozzle. The slicing happens when the file is sent to print.</p>
+<h3>Does Handoff3D replace Bambu Studio?</h3>
+<p>Not for everything. It covers preparing a model on an iPad, which is the case Bambu Studio cannot cover at all. It does not do painted settings, hand-placed supports, custom filament profiles or multi-colour assignment.</p>
+<h3>Does it work with the AMS?</h3>
+<p>An AMS will print the file, in whichever single filament you select when you send it. What is not supported is assigning different colours or materials to different parts &mdash; every object in the file is assigned to one extruder.</p>
+<h3>Do I need an account, and is my model uploaded?</h3>
+<p>No account, and the model is not uploaded. It is read, measured and rewritten inside the browser tab on your own device.</p>
+<a class="cta" href="/">Open Handoff3D</a>
+</main>
+<footer>
+<p><b>Handoff3D</b> is a free page that prepares 3D models for Bambu Lab printers on an iPad. Nothing is installed, and your model is not uploaded.</p>
+<ul>
+<li><a href="/bambu-studio-on-ipad">Bambu Studio on iPad</a></li>
+<li><a href="/resize-a-model-on-ipad">Resizing a model on an iPad</a></li>
+<li><a href="/3d-print-from-ipad">3D printing from an iPad, with no computer</a></li>
+<li><a href="/split-a-model-too-big-for-your-bed">When a model is too big for the bed</a></li>
+<li><a href="/print-an-ai-generated-model">Printing an AI-generated model</a></li>
+<li><a href="/how-to-print-from-an-ipad">Getting the file to the printer</a></li>
+<li><a href="/bambu-project-3mf">What makes a Bambu project file different</a></li>
+<li><a href="/makerworld-on-ipad">MakerWorld on an iPad</a></li>
+<li><a href="/bambu-printers-on-ipad">Which Bambu printer, and what fits on it</a></li>
+</ul>
+</footer>
+</body>
+</html>
