@@ -1,122 +1,125 @@
-# Print-Prep Service
+# Handoff3D
 
-Takes an AI-generated or downloaded 3D mesh and returns a print-ready, correctly-sized,
-correctly-oriented file — with no desktop software, no LAN setup, and no 3D-printing
-vocabulary required of the user.
+**3D print from an iPad. No computer necessary.**
 
-Full specification: [docs/print-prep-service-spec.md](docs/print-prep-service-spec.md)
+Handoff3D is a free, browser-based Bambu print preparation tool that creates
+Bambu-compatible project 3MF files from an iPad, without a Windows or Mac
+computer.
 
-## The app (Milestones 3-4, in progress)
+**→ [bambu-print-prep.vercel.app](https://bambu-print-prep.vercel.app)**
 
-Two processes. The API wraps `prep/`; the PWA is a client and does no mesh work.
+Bambu Studio is a desktop program for Windows, macOS and Linux. There is no
+iPad version and iPadOS will not run one, so somebody whose only computer is an
+iPad has no way to take a model they downloaded and turn it into something
+their printer will accept. That gap is the whole reason this exists.
+
+---
+
+## What it does
+
+Open the page in Safari, choose a model, and it writes a print-ready Bambu
+project file into the Files app.
+
+- Reads **STL, 3MF, OBJ and PLY**
+- **Resize** to an exact measurement in millimetres, not a percentage
+- **Stands each part up** in an orientation that will actually print
+- **Flattens a curved bottom**, so a sculpted model has a face to stand on
+- **Splits a model too large for the bed** across as many plates as it needs
+- Writes a **Bambu project 3MF** that MakerWorld and Bambu Studio both accept
+- Every current Bambu Lab machine — A1 mini, A1, P1P, P1S, P2S, X1, X1 Carbon,
+  X1E, X2D, A2L, H2C, H2S, H2D, H2D Pro — in 0.2, 0.4, 0.6 and 0.8 mm nozzle
+  versions, with bed sizes and settings taken from Bambu Studio's own profiles
+
+No account, nothing to install, and **the model is never uploaded**: it is
+read, measured and rewritten inside the browser tab, on the device. Page visits
+are counted anonymously; the model, its name and everything measured from it
+stay put.
+
+## What it does not do
+
+It is **not a full replacement for Bambu Studio**, and does not claim to be.
+No hand-placed supports, no painted-on settings, no custom filament profiles,
+and no multi-colour or AMS colour assignment — every object in the file is
+assigned to a single extruder, so an AMS will print the result in whichever one
+filament you select. It writes the standard settings for the machine and nozzle
+you chose, and nothing beyond that. The slicing happens when the file is sent.
+
+If you have a computer, use Bambu Studio. It is free and it is better at its
+job than any web page. This is for the case where there is no computer to run
+it on.
+
+## Getting the file to the printer
+
+No third-party app can hand a file to a Bambu printer — the machine takes work
+from Bambu's own software and cloud. So: save to Files → upload to MakerWorld
+as a **private** model → print from Bambu Handy. Clunky, once per model, and
+no computer involved. Every file comes with a page of those steps saved beside
+it.
+
+---
+
+## The interesting part: what a Bambu project 3MF actually requires
+
+Most of the work here was finding out what makes a file the Bambu ecosystem
+accepts. It is written up in [docs/transport-findings.md](docs/transport-findings.md);
+the short version, all measured rather than reasoned about:
+
+- **`Application` metadata must say `BambuStudio-<version>`.** Bambu Studio
+  reads print settings only from a file that declares itself one of its own.
+  Anything else gets *"invalid config, load geometry data only"* and **every
+  setting is discarded** — a genuine Bambu config copied verbatim into our
+  container was rejected too. It is that one string, nothing else.
+- **The 3MF build transform is row-vector — emit the transpose.** Bounding
+  boxes cannot detect the error. It prints mirrored.
+- **Multi-plate has two silent traps.** Every geometry part must declare the id
+  it is referenced by, and plates are regions of world space at 1.2× the bed,
+  wrapping after two columns. Get either wrong and parts are dropped from a
+  file that still opens.
+- **OrcaSlicer is not a stand-in for Bambu Studio.** It accepted every one of
+  the broken files above. Test against the program people actually run.
+- **`bambu-studio.exe` is a free oracle.** It prints nothing to a console, but
+  `--slice` still writes files and the G-code header echoes the config it used.
+
+## How it runs
+
+The whole job — parse, split, arrange, cut, render, write — happens in the
+browser. There is no server, which is why it costs nothing to operate and why
+the model never leaves the device.
+
+There is also a Python half (`prep/`) that does the same job from a command
+line, with the judgement features a browser cannot do: repair, analysis, and an
+orientation solver benchmarked against a model corpus.
 
 ```powershell
-.venv\Scripts\python.exe -m uvicorn api.main:app --port 8141 --reload
-npm install --prefix web
-npm run dev --prefix web
+npm run dev --prefix web                          # the app, on :5174
+.venv\Scripts\prep.exe model.stl --size 80mm      # the CLI
+.venv\Scripts\python.exe -m pytest tests\ -q      # the tests
 ```
 
-Then open **http://localhost:5174**. Vite proxies `/api` to 8141, so the app
-calls the same paths in development and in production.
-
-The viewer works in the printer's own frame -- millimetres, **Z up**, origin at
-the front-left of the bed. trimesh writes GLB with no Y-up conversion (verified,
-not assumed), so nothing is converted anywhere and the preview cannot mirror.
-
-What the user can do so far: pick their printer and see the real bed, choose
-between the solver's orientations or turn the model in quarter turns, and scale
-against a slider that is hard-clamped to the build volume. Then the same three
-files the launcher produces.
-
-## Status
-
-**Phase B — the pipeline works end to end.**
-
-**Easiest way to use it: drag a model onto `Prepare for printing.bat`.**
-It asks which printer you have (once, then remembers), asks how big, and opens
-the folder with the finished file. No terminal needed.
-
-You get three files, and they only work together -- send all of them to the iPad:
-
-| File | What it is |
-|---|---|
-| `dragon-80mm.3mf` | the model, named so you can find it again |
-| `dragon-80mm-preview.png` | the picture the upload asks for |
-| `dragon-80mm - how to print this.html` | the steps, written for the iPad |
-
-Open the last one on the iPad and follow it. It is self-contained -- no internet
-needed to read it -- and it is the same steps every time, so keep it.
-
-Every model also gets, by default:
-
-- **a levelled bottom** if it was sculpted resting on a curve, so it stands on
-  the plate instead of rocking on a point. The cut is the smallest one that
-  gives a real footprint, capped at 8% of the model's height, and it tells you
-  how much it took.
-- **automatic supports** (`tree(auto)`), because Bambu's stock profiles ship
-  with supports off and an overhanging model then prints into thin air. Auto
-  means a model that needs none still gets none.
-
-Turn either off with `--no-flatten` / `--no-supports`.
-
-**Bambu Studio must be installed.** MakerWorld rejects our own 3mf container
-even though Bambu Studio accepts it, so the finished file is handed back through
-`bambu-studio.exe --export-3mf` (~0.5s) to produce one MakerWorld will take.
-`--no-makerworld` skips that step; the file still opens fine in Bambu Studio.
-
-From a shell, the same thing:
-
-```powershell
-.venv\Scripts\prep.exe model.stl --size 80mm
-```
-
-| Milestone | State |
-|---|---|
-| A1 — write a Bambu-compatible project 3mf | done |
-| A2 — MakerWorld → Handy → printer | **done: prints from an iPad, no desktop** |
-| A3 — MakerWorld terms of service | read; decision recorded |
-| 1 — CLI pipeline | done |
-| 2 — orientation beats naive | done: 90% vs 83%, breaking 2 poses in 60 |
-| 5 — delivery works end to end | proven manually |
-| 6 — non-technical user prints alone | **not started — the only one that proves anything** |
-
-New here? Read [docs/HANDOFF.md](docs/HANDOFF.md) first, then
-[docs/transport-findings.md](docs/transport-findings.md) for the evidence.
-
-## Whose job is whose
-
-The tool prepares a file. It does not print it, and it has never printed it.
-
-- **Checking the print is the user's.** The settings come from Bambu's own
-  profiles, but no one has run this file on their machine. Watch the first few
-  minutes; stop the printer if it looks wrong.
-- **The printer is the user's.** Damage to it, or to anything else, is theirs
-  and not the tool's.
-- **A model may not go public unprinted.** MakerWorld only allows a public
-  listing once you have printed the thing yourself and can show a photo of it;
-  publishing without that breaks their terms of service. Private is fine, and
-  is what the handoff page tells the user to pick (§A2).
-
-Said in three places, because a user who reads one may not see the others: on
-both app screens (`web/src/disclaimer.jsx`), on the page that ships beside the
-file (`prep/handoff.py` and its port), and in the launcher's own output.
+The writer exists twice — `prep/write3mf.py` and `web/src/make3mf.js` — and
+`tests/test_web3mf.py` diffs them on every run so they cannot drift.
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `docs/` | Spec, ideation notes, spike findings |
-| `spikes/` | Phase A throwaway probes (kept for the record, not imported by `prep/`) |
-| `prep/` | The pipeline: ingest → analyze → repair → size → orient → 3mf → handoff |
-| `bench/` | Orientation solver benchmark against a local model corpus |
-| `tests/` | pytest |
+| `web/` | The product: the on-device app, and the static pages |
+| `prep/` | The Python pipeline: ingest → analyse → repair → size → orient → 3mf |
+| `api/` | A retired FastAPI service, plus the one live analytics function |
+| `docs/` | Spec, findings, deployment notes — start with `HANDOFF.md` |
+| `tests/` | pytest, including harnesses that run the JavaScript |
+| `bench/` | Orientation solver benchmark |
+| `spikes/` | Throwaway probes, kept for the record |
 
-## Local setup
+## Whose job is whose
 
-Python 3.12 is installed at `%LOCALAPPDATA%\Programs\Python\Python312\python.exe`
-(the bare `python` on PATH is the Microsoft Store stub — use `py` or the venv).
+The tool prepares a file. It does not print it, and it has never printed it.
 
-```powershell
-py -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
+- **Checking the print is yours.** The settings come from Bambu's own profiles,
+  but nobody has run your file on your machine. Watch the first few minutes and
+  stop the printer if it looks wrong.
+- **The printer is yours.** Damage to it, or to anything else, is yours and not
+  this tool's.
+- **A model may not go public unprinted.** MakerWorld allows a public listing
+  only once you have printed the thing and can show a photo of it. Private is
+  fine, and is what the instructions tell you to pick.
