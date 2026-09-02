@@ -281,6 +281,14 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   split, the poses and the layout by signed volume as well as size — a
   mirror leaves the bounding box alone.
 
+- **The promo videos are a separate Remotion project**, `handoff3d-video/`,
+  with its own `package.json` and its own CLAUDE.md. Nine vertical cuts for
+  Shorts/TikTok/Reels, rendered locally for nothing. Every claim on them is
+  lifted from `web/index.html`, `web/guides.mjs` or `web/src/local/handoff.js`
+  -- so a change to what the app claims is a change to the videos too, and the
+  panel in `handoff3d-video/src/components/Panel.tsx` is a replica of the real
+  one that goes stale if `web/src/styles.css` moves. Studio is on port 8142.
+
 ## Working rules for this project
 
 - **Measure, don't assume.** Every wrong turn here came from reasoning about a

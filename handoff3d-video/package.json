@@ -1,0 +1,27 @@
+{
+  "name": "handoff3d-video",
+  "version": "1.0.0",
+  "description": "Vertical promo videos for Handoff3D, built with Remotion",
+  "repository": {},
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "4.0.520",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.520"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.520",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.19.0",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio --port 8142",
+    "build": "remotion bundle",
+    "lint": "eslint src && tsc",
+    "render:all": "node render-all.mjs"
+  }
+}

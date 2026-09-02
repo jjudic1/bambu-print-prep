@@ -1,0 +1,12 @@
+node_modules
+.DS_Store
+.env
+
+# Remotion build output.
+.remotion
+build
+
+# Renders. `npm run render:all` rebuilds every cut in a few minutes for free,
+# so the source is the deliverable and the MP4s are not worth ~31MB of git
+# history on every copy tweak.
+out
