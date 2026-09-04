@@ -164,9 +164,9 @@ export const PAGES = [
     slug: 'bambu-studio-on-ipad',
     title: 'Bambu Studio on iPad: what works, what does not',
     description:
-      'Bambu Studio has no iPad version and Apple will not run one. Here is '
-      + 'what you can do instead, in Safari, to get a print-ready file for a '
-      + 'Bambu Lab printer without a computer.',
+      'Bambu Studio has no iPad version and Apple will not run one. What to do '
+      + 'instead, in Safari: a print-ready file for a Bambu Lab printer, with '
+      + 'no computer.',
     h1: 'Bambu Studio on iPad',
     lede:
       '<b>There is no iPad version of Bambu Studio, and there is not going to '
@@ -243,8 +243,8 @@ export const PAGES = [
     title: 'How to resize an STL or 3MF on an iPad',
     description:
       'Scale a downloaded 3D model to the size you want on an iPad, in Safari, '
-      + 'and save a print-ready file for a Bambu Lab printer. No app, no '
-      + 'account, nothing uploaded.',
+      + 'and save a print-ready file for a Bambu Lab printer. No app, nothing '
+      + 'uploaded.',
     h1: 'How to resize a model on an iPad',
     lede:
       'You can resize a downloaded model on an iPad without installing '
@@ -449,9 +449,9 @@ export const PAGES = [
     slug: 'print-an-ai-generated-model',
     title: 'How to print an AI-generated 3D model from an iPad',
     description:
-      'Take a model produced by a text-to-3D tool and get it printed on a Bambu '
-      + 'Lab printer using only an iPad -- including the three things generated '
-      + 'models always get wrong.',
+      'Take a model from a text-to-3D tool and print it on a Bambu Lab printer '
+      + 'using only an iPad -- including the three things generated models get '
+      + 'wrong.',
     h1: 'Printing an AI-generated model',
     lede:
       'Text-to-3D tools will hand you an STL or OBJ in a minute. Getting that '
@@ -690,8 +690,8 @@ export const PAGES = [
     title: 'A Bambu project 3MF is not the same thing as a 3MF',
     description:
       'Why a plain 3MF opens on a Bambu printer with none of its settings, what '
-      + 'a Bambu project file carries that a generic one does not, and how to '
-      + 'get one without a desktop slicer.',
+      + 'a Bambu project file carries instead, and how to get one without a '
+      + 'desktop slicer.',
     h1: 'What makes a Bambu project file different',
     lede:
       'Both end in <b>.3mf</b> and only one of them will print the way you '
@@ -862,9 +862,9 @@ export const PAGES = [
     slug: 'bambu-printers-on-ipad',
     title: 'Every Bambu printer, and what fits on it, from an iPad',
     description:
-      'Build volumes, nozzle sizes and materials for the A1 mini, A1, P1P, '
-      + 'P1S, P2S, X1, X1 Carbon, X1E, X2D, A2L, H2C, H2S, H2D and H2D Pro -- '
-      + 'and how to prepare a file for any of them on an iPad.',
+      'Build volumes, nozzles and materials for every current Bambu Lab '
+      + 'printer, from the A1 mini to the H2D Pro, and how to prepare a file '
+      + 'for any of them on an iPad.',
     h1: 'Which Bambu printer, and what fits on it',
     lede:
       'All fourteen current Bambu Lab machines are supported, with bed sizes '
@@ -956,10 +956,9 @@ export const PAGES = [
     slug: 'simplyprint-on-ipad',
     title: 'SimplyPrint on an iPad: the computer it still needs',
     description:
-      'SimplyPrint slices in a browser on an iPad, but sending the result to a '
-      + 'Bambu printer needs the SimplyPrint client running on an always-on PC, '
-      + 'Mac, Linux box or Raspberry Pi. What each half needs, and what an iPad '
-      + 'can do on its own.',
+      'SimplyPrint slices on an iPad, but sending the file to a Bambu printer '
+      + 'needs its client on an always-on computer. What an iPad can do '
+      + 'without it.',
     h1: 'SimplyPrint on an iPad, and the hardware behind it',
     lede:
       'Ask anything -- a search box, or an AI -- how to print from an iPad and '
