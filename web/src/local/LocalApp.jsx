@@ -105,6 +105,7 @@ const GUIDES = [
   ['/bambu-project-3mf', 'What the file is'],
   ['/makerworld-on-ipad', 'MakerWorld on an iPad'],
   ['/bambu-printers-on-ipad', 'Printers and what fits'],
+  ['/simplyprint-on-ipad', 'SimplyPrint, and its hardware'],
 ]
 
 const COLOURS = [
