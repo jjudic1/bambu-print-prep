@@ -302,9 +302,8 @@ def test_no_rewrite_points_at_a_dot_html_path():
         f"cleanUrls is on, so these rewrites have no target: {offenders}")
 
 
-def test_the_catch_all_still_lets_the_counting_script_through():
-    """Unchanged by this work, and re-asserted because the fallback sits right
-    next to it: a plain "/(.*)" answers /_vercel/insights/script.js with HTML."""
-    config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
-    sources = [r["source"] for r in config["rewrites"]]
-    assert "/((?!_vercel/|api/).*)" in sources
+# The catch-all rewrite that used to be asserted here is gone: it answered every
+# unmatched path with the app at status 200, which is a soft 404. What replaced
+# it -- 404.html, and the rule that no rewrite may be broader than a named path
+# -- is checked in tests/test_discovery.py, along with the property the old
+# regex existed for: that /_vercel/ and /api/ are never swallowed.

@@ -204,9 +204,10 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   fails the suite instead of shipping the old words.
 - **A slug is written down in four places** -- the generator, the committed
   file, the fallback markup in `index.html`, and `GUIDES` in `LocalApp.jsx`.
-  Renaming one and not the others is not a visible 404: the catch-all rewrite
-  answers an unknown path with the app, so a dead link reads as a link that
-  did nothing. `tests/test_guides.py` compares all four.
+  Renaming one and not the others used to be invisible -- the catch-all
+  answered an unknown path with the app, so a dead link read as a link that
+  did nothing. It is a real 404 now, but it is still four files.
+  `tests/test_guides.py` compares all four.
 - **With `cleanUrls` on, a rewrite destination must never end in `.html`.**
   `cleanUrls` makes every `.html` path a *redirect* -- `/index.html` answers
   308 -- so a rewrite pointing there has no target and Vercel returns a hard
@@ -224,12 +225,26 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   and applying it here would throw the reader into a second browser on iOS and
   do nothing at all everywhere else. `web/outside-check.mjs` allows the one
   exemption by name and checks the list really is root-relative.
-- **The catch-all rewrite must let `/_vercel/` and `/api/` through.** The
-  counting script is served from `/_vercel/insights/script.js` and the one
-  remaining function is at `/api/insights`; a plain `"/(.*)"` fallback answers
-  either with a page of HTML — the script tag then parses as HTML and silently
-  never counts anything. The source is `"/((?!_vercel/|api/).*)"`. Same trap
-  the old API rewrite had. See `docs/deploy.md`.
+- **There is no catch-all rewrite any more, and adding one back is a
+  regression.** It answered every unmatched path with the app at status 200,
+  so a mistyped address came back looking like a working page and a search
+  engine filed it as a soft 404. `404.html` (from `guides.mjs`, committed like
+  the rest) is what Vercel serves instead, with a real status. `/local` and
+  `/dashboard` keep their own *exact* rewrites, because they are addresses
+  people were given. `tests/test_discovery.py` fails on any rewrite source
+  broader than a named path -- which also keeps the old trap shut: the counting
+  script at `/_vercel/insights/script.js` and the function at `/api/insights`
+  were both answered with a page of HTML by a plain `"/(.*)"` fallback, and the
+  script tag then parsed as HTML and silently never counted anything.
+- **IndexNow is a push to Bing, run by hand, after the deploy.**
+  `node web/indexnow.mjs` submits the sitemap's URLs; a slug argument submits
+  one page. Google does not take part -- a new page there still wants Search
+  Console. Nothing runs it automatically on purpose: a build hook fires on
+  every preview deployment and would announce URLs that do not exist yet, and
+  the API fetches each one to check. The key is public by design, like the
+  Search Console token, and the key file at the site root is generated from
+  `INDEXNOW_KEY` because a file that does not match the key sent is the one
+  failure that is silent -- 202, and never crawled.
 - **The contact form is the one thing that sends what a user typed.**
   `api/contact.js` mails it through Resend; nothing about the model goes with
   it, and the address it lands at is only ever in the environment, never in the

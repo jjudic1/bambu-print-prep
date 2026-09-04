@@ -31,6 +31,23 @@ export const SITE = 'https://bambu-print-prep.vercel.app'
 export const BRAND = 'Handoff3D'
 
 /**
+ * IndexNow: the key that proves this site asked to be crawled.
+ *
+ * Bing and Yandex take a push -- "these URLs changed, come and look" -- instead
+ * of waiting to crawl a sitemap, and a new page turns up in hours rather than
+ * weeks. Google does not participate; nothing here replaces Search Console.
+ *
+ * The key is public by design, exactly like the Search Console token in
+ * index.html: it is worth nothing to anybody else, and it only proves that
+ * whoever controls the site controls the file. It is served as
+ * <key>.txt at the site root, which is where the API looks for it, and
+ * build-guides.mjs writes that file from this constant so the two cannot drift
+ * apart. Changing this string means the old file stops matching and every
+ * submission is rejected -- so do not, unless you mean to.
+ */
+export const INDEXNOW_KEY = '028e105836a17ec38714c67abd8fd285'
+
+/**
  * The share picture. No render was commissioned for this -- the app icon is
  * real, square and already in the repo, and a square og:image is better than
  * the grey box a link with none at all gets.
@@ -1278,6 +1295,77 @@ export function renderLlms() {
     + 'is saved to the Files app, uploaded to MakerWorld as a private model, and\n'
     + 'printed from the Bambu Handy app.\n\n'
     + `## Pages\n\n- [${BRAND}](${SITE}/): the app itself\n${links}\n`
+}
+
+/**
+ * 404.html -- the page for an address that is not here.
+ *
+ * IT IS NOT DECORATION; IT IS THE FIX FOR A REAL BUG. Until this existed the
+ * catch-all rewrite in vercel.json answered *every* unmatched path with the
+ * app, at status 200. A mistyped link, a renamed slug and a URL somebody
+ * invented all came back as a page that looked fine, which is how a dead link
+ * here reads as a link that simply did nothing -- the same symptom, and the
+ * same wasted afternoon, as the `x-safari-https:` trap. Search engines have a
+ * name for a 200 that is really a miss (a soft 404) and they will index the
+ * junk URL, or quietly distrust the whole site for producing them.
+ *
+ * Vercel serves this file, with a real 404 status, for anything that matches
+ * no file and no rewrite. So the catch-all is gone and this is what took its
+ * place. Two consequences worth knowing:
+ *
+ *   - `/local` and `/dashboard` keep their own explicit rewrites. They are
+ *     addresses people were given; they must not fall through to here.
+ *   - It carries `noindex` and is not in the sitemap. A 404 page that invites
+ *     indexing is its own kind of soft 404.
+ *
+ * The links are the point of it. Somebody who mistyped a guide URL is one tap
+ * from the right one instead of looking at an apology.
+ */
+export function renderNotFound() {
+  const links = PAGES
+    .map((p) => '<li><a href="/' + p.slug + '">' + escape(LABEL[p.slug])
+      + '</a></li>')
+    .join('\n')
+
+  return '<!doctype html>\n<html lang="en">\n<head>\n'
+    + '<meta charset="utf-8">\n'
+    + '<meta name="viewport" content="width=device-width, initial-scale=1, '
+    + 'viewport-fit=cover">\n'
+    + '<meta name="theme-color" content="#101215">\n'
+    + '<title>That page is not here | ' + BRAND + '</title>\n'
+    + '<meta name="robots" content="noindex">\n'
+    + '<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">\n'
+    + '<style>' + CSS + '</style>\n'
+    + '</head>\n<body>\n'
+    + '<header><a class="home" href="/">&larr; <b>' + BRAND + '</b> &mdash; '
+    + '3D print, no computer necessary</a></header>\n'
+    + '<main>\n'
+    + '<h1>That page is not here</h1>\n'
+    + '<p class="lede">The address does not match anything on this site. It '
+    + 'may have been mistyped, or it may be a link from somewhere that has '
+    + 'since changed.</p>\n'
+    + '<a class="cta" href="/">Open ' + BRAND + '</a>\n'
+    + '<p class="cta-sub">Free, no account, nothing installed. Works in Safari '
+    + 'on an iPad or an iPhone.</p>\n'
+    + '<h2>Everything that is here</h2>\n'
+    + '<ul>\n' + links + '\n</ul>\n'
+    + '</main>\n'
+    + '<footer>\n<p><b>' + BRAND + '</b> is a free page that prepares 3D '
+    + 'models for Bambu Lab printers on an iPad. Nothing is installed, and '
+    + 'your model is not uploaded.</p>\n</footer>\n'
+    + '</body>\n</html>\n'
+}
+
+/**
+ * The IndexNow key file: the key, on its own, at the root of the site.
+ *
+ * Written from INDEXNOW_KEY rather than typed out, because a key file whose
+ * contents do not match the key in the request is the one failure mode of the
+ * whole mechanism, and it fails silently -- the API answers 202 and simply
+ * never crawls.
+ */
+export function renderIndexNowKey() {
+  return INDEXNOW_KEY + '\n'
 }
 
 /** sitemap.xml. The app first, then the pages -- all of them real files. */
