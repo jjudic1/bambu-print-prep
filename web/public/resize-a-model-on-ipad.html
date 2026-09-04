@@ -114,6 +114,10 @@ table { border-collapse: collapse; width: 100%; min-width: 21rem;
 th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
 th { font-weight: 650; }
 td:last-child { white-space: nowrap; color: var(--dim); }
+/* The comparison table's last column is an answer, not an aside: it needs the
+   full ink and it needs to wrap, or a three-column table of sentences is a
+   pale strip running off the side of a phone. */
+table.compare td:last-child { white-space: normal; color: inherit; }
 footer { border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1.4rem;
          color: var(--dim); font-size: .93rem; }
 footer ul { list-style: none; padding: 0; }
@@ -156,6 +160,7 @@ footer ul { list-style: none; padding: 0; }
 <li><a href="/bambu-project-3mf">What makes a Bambu project file different</a></li>
 <li><a href="/makerworld-on-ipad">MakerWorld on an iPad</a></li>
 <li><a href="/bambu-printers-on-ipad">Which Bambu printer, and what fits on it</a></li>
+<li><a href="/simplyprint-on-ipad">SimplyPrint on an iPad, and the hardware behind it</a></li>
 </ul>
 </footer>
 </body>

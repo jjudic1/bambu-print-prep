@@ -94,6 +94,10 @@ table { border-collapse: collapse; width: 100%; min-width: 21rem;
 th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
 th { font-weight: 650; }
 td:last-child { white-space: nowrap; color: var(--dim); }
+/* The comparison table's last column is an answer, not an aside: it needs the
+   full ink and it needs to wrap, or a three-column table of sentences is a
+   pale strip running off the side of a phone. */
+table.compare td:last-child { white-space: normal; color: inherit; }
 footer { border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1.4rem;
          color: var(--dim); font-size: .93rem; }
 footer ul { list-style: none; padding: 0; }
@@ -931,6 +935,149 @@ export const PAGES = [
         + 'standard profile is 0.10 mm.'],
     ],
   },
+  {
+    slug: 'simplyprint-on-ipad',
+    title: 'SimplyPrint on an iPad: the computer it still needs',
+    description:
+      'SimplyPrint slices in a browser on an iPad, but sending the result to a '
+      + 'Bambu printer needs the SimplyPrint client running on an always-on PC, '
+      + 'Mac, Linux box or Raspberry Pi. What each half needs, and what an iPad '
+      + 'can do on its own.',
+    h1: 'SimplyPrint on an iPad, and the hardware behind it',
+    lede:
+      'Ask anything -- a search box, or an AI -- how to print from an iPad and '
+      + 'SimplyPrint is usually the first answer back. Half of that answer is '
+      + 'right: <b>its cloud slicer really does run in Safari on an iPad</b>, on '
+      + 'real slicing engines, and it is good. The half that does not is getting '
+      + 'the result to a Bambu printer. That goes through the SimplyPrint '
+      + 'client, and the client needs a computer that stays switched on -- '
+      + 'SimplyPrint&#x27;s own documentation says a phone or a tablet cannot '
+      + 'run it.',
+    sections: [
+      ['Which half works on an iPad alone', [
+        '<div class="scroll"><table class="compare">'
+        + '<tr><th>Step</th><th>SimplyPrint</th><th>' + BRAND + '</th></tr>'
+        + '<tr><td>Open a model on the iPad</td><td>Yes</td><td>Yes</td></tr>'
+        + '<tr><td>Resize it to a measurement</td><td>Yes</td><td>Yes</td></tr>'
+        + '<tr><td>Prepare it for a Bambu machine</td><td>Yes, on their '
+        + 'servers</td><td>Yes, on the iPad</td></tr>'
+        + '<tr><td>Save a file you can use</td><td>Yes</td><td>Yes</td></tr>'
+        + '<tr><td>Send it to the printer</td><td>Needs a second computer'
+        + '</td><td>Goes through Bambu Handy</td></tr>'
+        + '<tr><td>Watch the print remotely</td><td>Needs a second computer'
+        + '</td><td>Bambu Handy, as usual</td></tr>'
+        + '</table></div>',
+        '<p>So the honest version of "no computer needed" is: no computer to '
+        + '<i>prepare</i> a file, on either. A computer to <i>send</i> one, on '
+        + 'SimplyPrint.</p>',
+      ]],
+      ['Why the client needs its own machine', [
+        '<p>SimplyPrint is a cloud service, and its cloud cannot talk to a '
+        + 'Bambu printer by itself. The link runs through a small program -- the '
+        + 'SimplyPrint client -- sitting on your network, holding a connection '
+        + 'open to the printer at one end and to SimplyPrint at the other. It '
+        + 'has to be awake whenever you want to start a print, so it wants a '
+        + 'machine that is always on.</p>',
+        '<div class="card"><p>That machine can be a Windows PC, a Mac, a Linux '
+        + 'box or a Raspberry Pi. It cannot be an iPad or a phone: iPadOS and '
+        + 'iOS will not let an app hold a background connection open like that, '
+        + 'and SimplyPrint says so plainly rather than pretending otherwise. A '
+        + 'Raspberry Pi is the usual answer, and it is the cheapest one, but it '
+        + 'is still a computer to buy, set up and leave running.</p></div>',
+        '<p>The printer having Wi-Fi does not change this. An A1 mini is on your '
+        + 'network already; what is missing is something the cloud service is '
+        + 'allowed to speak to it through.</p>',
+      ]],
+      ['What this page is offering instead', [
+        '<p><b>' + BRAND + ' never sends anything to your printer</b>, which is '
+        + 'exactly why it needs no bridge and no second machine. It prepares the '
+        + 'file and stops there, and the file travels the rest of the way on '
+        + 'Bambu&#x27;s own rails: save it to Files, upload it to MakerWorld as '
+        + 'a private model, open Bambu Handy, print. That path already works '
+        + 'from an iPad and needs nothing new switched on.</p>',
+        '<p>It runs in Safari, costs nothing, has no account, and the model does '
+        + 'not leave the iPad -- it is read, measured and rewritten in the '
+        + 'browser tab. Out comes a Bambu project 3MF for the machine and nozzle '
+        + 'you picked. Full walk-through: <a href="/how-to-print-from-an-ipad">'
+        + 'getting the file to the printer</a>.</p>',
+      ]],
+      ['Where SimplyPrint is the better answer', [
+        '<p>This is not a page saying do not use it. If you have a computer that '
+        + 'is on anyway, or you are willing to add a Raspberry Pi, SimplyPrint '
+        + 'does a great deal that this does not do at all:</p>',
+        '<ul>'
+        + '<li><b>Starting prints remotely</b>, and a print queue across several '
+        + 'machines</li>'
+        + '<li><b>Monitoring</b> -- camera, progress, failure alerts, in one '
+        + 'place for a whole farm</li>'
+        + '<li><b>Real slicer settings</b>: it runs actual Bambu Studio, '
+        + 'OrcaSlicer and PrusaSlicer engines on its servers, so custom '
+        + 'profiles, supports and all the rest are there</li>'
+        + '<li><b>Your files in one library</b>, on any device</li>'
+        + '</ul>',
+        '<p>' + BRAND + ' has none of that and is not trying to. It writes the '
+        + 'standard settings for the machine you chose, correctly, and that is '
+        + 'the whole feature. No hand-placed supports, no custom profiles, no '
+        + 'multi-colour assignment, no monitoring.</p>',
+        '<p>The two also sit at different prices. SimplyPrint has a free tier '
+        + 'for a couple of printers and paid plans above it; the bridge computer '
+        + 'is on top of whichever plan you are on. This is free, with nothing to '
+        + 'sign up for.</p>',
+      ]],
+      ['The other difference: where your model goes', [
+        '<p>Cloud slicing means the model is uploaded. It has to be -- the '
+        + 'engine is running on a server, so the file goes to the server. That '
+        + 'is a normal, reasonable trade for what you get back, and it is worth '
+        + 'knowing you are making it.</p>',
+        '<p>' + BRAND + ' has no server to upload to. Everything -- reading the '
+        + 'file, measuring it, standing it up, cutting it, drawing the plate '
+        + 'picture, writing the finished project file -- happens in the browser '
+        + 'on your device. The one thing that does leave is anonymous counting '
+        + 'of how many people opened the page and how far they got. Your model, '
+        + 'its name and every measurement taken from it stay put.</p>',
+      ]],
+      ['If you already tried SimplyPrint and stopped at the client', [
+        '<p>That is the common way to land here, and nothing was done wrong -- '
+        + 'the slicing part worked, and then setup asked for a machine you do '
+        + 'not have. You do not need to undo any of it. Open <a href="/">'
+        + BRAND + '</a>, prepare the file on the iPad, and send it with Handy '
+        + 'the way you already send everything else.</p>',
+        '<p>Related: <a href="/bambu-studio-on-ipad">Bambu Studio on iPad</a>, '
+        + 'and <a href="/bambu-studio-alternative-ipad">what an alternative can '
+        + 'and cannot be</a>.</p>',
+      ]],
+    ],
+    faq: [
+      ['Can I use SimplyPrint with a Bambu printer without a computer?',
+        'Not for sending prints. SimplyPrint connects to a Bambu printer '
+        + 'through the SimplyPrint client, which has to run on a Windows PC, a '
+        + 'Mac, a Linux machine or a Raspberry Pi that stays switched on. You '
+        + 'can use its cloud slicer from an iPad without any of that, but the '
+        + 'result has to reach the printer some other way.'],
+      ['Can the SimplyPrint client run on an iPad or an iPhone?',
+        'No. SimplyPrint states that mobile devices cannot run the background '
+        + 'process the client needs. An iPad can control and watch printers '
+        + 'through SimplyPrint once a bridge machine is running somewhere else.'],
+      ['My A1 mini has Wi-Fi. Why is another device needed at all?',
+        'The printer is on your network, but SimplyPrint runs in the cloud and '
+        + 'reaches it through a local client rather than directly. The bridge '
+        + 'is the thing that holds a connection to both ends.'],
+      ['Do I have to buy a Raspberry Pi?',
+        'Only if you have no other computer that is left on. Any Windows, Mac '
+        + 'or Linux machine that is awake when you want to print will do; a '
+        + 'Raspberry Pi is just the cheapest one to leave running.'],
+      ['Is there a way to prepare a Bambu file on an iPad with no extra '
+       + 'hardware at all?',
+        'Yes. Handoff3D runs in Safari on the iPad, resizes and arranges the '
+        + 'model and writes a Bambu project 3MF on the device. Save it to '
+        + 'Files, upload it to MakerWorld as a private model and print it from '
+        + 'Bambu Handy. Nothing else is installed and nothing else has to be '
+        + 'switched on.'],
+      ['Is SimplyPrint free?',
+        'There is a free tier covering a small number of printers, with paid '
+        + 'plans above it. The bridge computer is a separate cost either way.'],
+    ],
+  },
 ]
 
 /** Short label for a page, used in the footer links between them. */
@@ -945,6 +1092,7 @@ export const LABEL = {
   'makerworld-on-ipad': 'MakerWorld on an iPad',
   'bambu-printers-on-ipad': 'Which Bambu printer, and what fits on it',
   'bambu-studio-alternative-ipad': 'A Bambu Studio alternative for iPad',
+  'simplyprint-on-ipad': 'SimplyPrint on an iPad, and the hardware behind it',
 }
 
 /**
