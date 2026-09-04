@@ -169,6 +169,42 @@ def test_the_printer_list_matches_the_profile_index(pages):
         "reword the page, do not just paste the list")
 
 
+def test_every_description_is_within_the_length_search_engines_accept(pages):
+    """Bing Webmaster Tools reports "Meta Description too long or too short" as
+    an SEO error at over 160 characters, and Google truncates at roughly the
+    same point -- so the tail of a longer one is written for nobody. Measured
+    2026-09-04 against the live site: six of eleven pages were over, the worst
+    at 232, and two of them were flagged on the pages Bing had actually got
+    round to crawling.
+
+    The floor is Bing's too. A description of a few words is treated as no
+    description at all.
+    """
+    for page in pages["pages"]:
+        length = len(page["description"])
+        assert 25 <= length <= 160, (
+            f"{page['slug']}: description is {length} characters")
+
+
+def test_the_app_page_description_is_too(pages):
+    """index.html is hand-written rather than generated, which is exactly why
+    it drifts -- it was 225 characters while every generated page was checked."""
+    html = (WEB / "index.html").read_text(encoding="utf-8")
+    found = re.search(r'name="description"\s*content="(.*?)"', html, re.S)
+    assert found, "index.html has no meta description"
+    description = " ".join(found.group(1).split())
+    assert 25 <= len(description) <= 160, (
+        f"index.html: description is {len(description)} characters")
+
+
+def test_no_title_is_too_long_to_survive_a_result_page(pages):
+    """Around 65 characters is where both engines start cutting. A title that
+    is cut loses its last words, which on these pages is where the answer is."""
+    for page in pages["pages"]:
+        assert len(page["title"]) <= 65, (
+            f"{page['slug']}: title is {len(page['title'])} characters")
+
+
 def test_the_site_url_has_no_trailing_slash(pages):
     """Every URL in the pages is SITE + '/' + slug; a trailing slash here would
     produce a canonical nobody can reach."""
@@ -302,9 +338,8 @@ def test_no_rewrite_points_at_a_dot_html_path():
         f"cleanUrls is on, so these rewrites have no target: {offenders}")
 
 
-def test_the_catch_all_still_lets_the_counting_script_through():
-    """Unchanged by this work, and re-asserted because the fallback sits right
-    next to it: a plain "/(.*)" answers /_vercel/insights/script.js with HTML."""
-    config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
-    sources = [r["source"] for r in config["rewrites"]]
-    assert "/((?!_vercel/|api/).*)" in sources
+# The catch-all rewrite that used to be asserted here is gone: it answered every
+# unmatched path with the app at status 200, which is a soft 404. What replaced
+# it -- 404.html, and the rule that no rewrite may be broader than a named path
+# -- is checked in tests/test_discovery.py, along with the property the old
+# regex existed for: that /_vercel/ and /api/ are never swallowed.

@@ -22,7 +22,8 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
-  PAGES, renderLlms, renderPage, renderRobots, renderSitemap,
+  INDEXNOW_KEY, PAGES, renderIndexNowKey, renderLlms, renderNotFound,
+  renderPage, renderRobots, renderSitemap,
 } from './guides.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -56,6 +57,8 @@ function sitemapDate() {
 
 const files = new Map()
 for (const page of PAGES) files.set(page.slug + '.html', renderPage(page))
+files.set('404.html', renderNotFound())
+files.set(INDEXNOW_KEY + '.txt', renderIndexNowKey())
 files.set('robots.txt', renderRobots())
 files.set('llms.txt', renderLlms())
 files.set('sitemap.xml', renderSitemap(sitemapDate()))

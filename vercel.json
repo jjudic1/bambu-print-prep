@@ -13,10 +13,6 @@
     {
       "source": "/dashboard",
       "destination": "/dashboard.html"
-    },
-    {
-      "source": "/((?!_vercel/|api/).*)",
-      "destination": "/"
     }
   ]
 }

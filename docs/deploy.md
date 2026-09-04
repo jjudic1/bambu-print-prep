@@ -105,6 +105,42 @@ vercel --prod
 Vercel auto-deploys on push once the project is linked, so after the first
 deploy this is only needed to force one.
 
+### After a deploy that adds or changes a page
+
+```bash
+node web/indexnow.mjs                        # everything in the sitemap
+node web/indexnow.mjs /simplyprint-on-ipad   # just the page you shipped
+```
+
+IndexNow tells Bing and Yandex that a URL changed instead of waiting for them
+to come and read the sitemap, which for a site with almost no inbound links can
+be weeks. **Google does not take part** -- a new page there still wants Search
+Console's URL Inspection, by hand.
+
+**Run it after the production deploy, never before.** The API fetches each URL
+to check it exists; announcing a page that has not shipped teaches Bing it is a
+404, which is worse than not asking. That is also why nothing runs it
+automatically: a build hook would fire on every preview deployment.
+
+The key lives in `INDEXNOW_KEY` in `web/guides.mjs` and the file it is checked
+against is generated from it into `web/public/`. Both are public by design, the
+same way the Search Console token in `index.html` is. If submissions start
+coming back 403, the two have drifted apart -- regenerate, do not invent a new
+key.
+
+### Unknown addresses answer 404, and that is load-bearing
+
+`vercel.json` has **no catch-all rewrite**. It used to, pointing at `/`, which
+meant every mistyped or stale URL returned the app at status 200 -- a soft 404,
+which search engines will index or hold against the site, and which made a dead
+internal link look like a link that did nothing. `web/public/404.html` is
+generated with the rest of the static pages and Vercel serves it, with a real
+404, for anything matching no file and no rewrite.
+
+`/local` and `/dashboard` still have rewrites and must keep them: they are
+exact paths people were given, not patterns. `tests/test_discovery.py` fails on
+a rewrite source broader than a named path.
+
 ## What is not solved
 
 **Jobs do not survive an instance recycling.** Cloud Run's filesystem is a
