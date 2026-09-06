@@ -11,6 +11,7 @@ import { frameBed } from '../framing.js'
 import { makeProject3mf } from '../make3mf.js'
 import { MADE, ON_DEVICE, OPENED, READ, SAVED, STEPS, countStep } from '../metrics.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
+import { DEMO_NAME, TOUR, demoModel } from './demo.js'
 import { posedGeometry } from './flatten.js'
 import { MAKERWORLD_URL, renderHandoff } from './handoff.js'
 import { outward, standalone } from './outside.js'
@@ -194,6 +195,16 @@ export default function LocalApp() {
   const [beforeSplit, setBeforeSplit] = useState(null)
   const [name, setName] = useState('')
 
+  // The walk-through: whether it is running, what the model looked like when it
+  // started, and which plates have been looked at. The last two are only here
+  // because two of the seven steps have no other trace -- resizing a model back
+  // to where it began and switching to plate 2 and back both leave the app in a
+  // state identical to the one before, and a step that un-ticks itself reads as
+  // the app not having noticed.
+  const [tour, setTour] = useState(false)
+  const [tourStart, setTourStart] = useState(null)
+  const [seenPlates, setSeenPlates] = useState([0])
+
   const [base, setBase] = useState(IDENTITY)
   const [longestMm, setLongestMm] = useState(80)
   const [uniform, setUniform] = useState(true)
@@ -338,6 +349,13 @@ export default function LocalApp() {
   useEffect(() => { setWritten(null) },
     [modelMatrix, parts, plateCount, printerId, material])
 
+  // Which plates have been looked at. Only the walk-through reads it: "switch
+  // between the plates" is the one step that leaves nothing behind it, since
+  // going to plate 2 and back is a state identical to never having gone.
+  useEffect(() => {
+    setSeenPlates((seen) => (seen.includes(activePlate) ? seen : [...seen, activePlate]))
+  }, [activePlate])
+
   const onPlate = useMemo(
     () => parts.filter((p) => p.plate === activePlate), [parts, activePlate])
 
@@ -356,6 +374,52 @@ export default function LocalApp() {
     () => (baseSize ? baseSize.map((v, i) => v * factors[i]) : null),
     [baseSize, factors])
 
+  /**
+   * Put a model on the plate, whichever way it arrived.
+   *
+   * The dropped file and the walk-through's own model land in exactly the same
+   * state, deliberately: the test model is not a rehearsal of the app, it *is*
+   * the app, and the file it writes at the end is a real one somebody can
+   * print. Hands back the size it settled on, which is the only thing the
+   * caller cannot read straight back out of state.
+   */
+  function startWith(geometry, modelName) {
+    geometry.computeBoundingBox()
+    const size = geometry.boundingBox.getSize(new THREE.Vector3())
+    const [bx, by] = printer.bed_mm
+
+    setParts([freshPart(geometry, modelName, bx / 2, by / 2)])
+    setPlateCount(1); setActivePlate(0); setSelectedId(null)
+    setBeforeSplit(null); setSeenPlates([0])
+    setName(modelName.replace(/\.[^.]+$/, ''))
+    setBase(IDENTITY); setUniform(true); setSizeMm(null)
+    const longest = Math.round(Math.max(size.x, size.y, size.z)) || 80
+    setLongestMm(longest)
+    return longest
+  }
+
+  /**
+   * The test model, and the seven steps to try on it.
+   *
+   * Here because the landing screen asks for a file before it will show
+   * anything at all, and the person this app is for has not got one yet --
+   * getting one means an account somewhere else, and most people do not come
+   * back from that. The model is built on the device by demo.js; nothing is
+   * fetched.
+   */
+  function loadDemo() {
+    setError(''); setNote(''); setWritten(null)
+    const longest = startWith(demoModel(), DEMO_NAME)
+    setTour(true)
+    setTourStart({ longestMm: longest, colour })
+    setNote('Three shapes, on one plate. Work down the list - nothing here can '
+            + 'break anything.')
+    // Counted as a model opened, because that is what it is, and with the kind
+    // it came in as: `demo` sits alongside `stl` and `3mf` so the funnel can
+    // still be read with the practice runs taken out of it.
+    countStep(OPENED, ON_DEVICE, { kind: 'demo' })
+  }
+
   async function onFile(file) {
     if (!file) return
     setBusy('Reading it...')
@@ -366,16 +430,8 @@ export default function LocalApp() {
       // again and reports it at the moment it is actually needed.
       warmSettings().catch(() => {})
       const geometry = await readModel(file)
-      geometry.computeBoundingBox()
-      const size = geometry.boundingBox.getSize(new THREE.Vector3())
-      const [bx, by] = printer.bed_mm
-
-      setParts([freshPart(geometry, file.name, bx / 2, by / 2)])
-      setPlateCount(1); setActivePlate(0); setSelectedId(null)
-      setBeforeSplit(null)
-      setName(file.name.replace(/\.[^.]+$/, ''))
-      setBase(IDENTITY); setUniform(true); setSizeMm(null)
-      setLongestMm(Math.round(Math.max(size.x, size.y, size.z)) || 80)
+      startWith(geometry, file.name)
+      setTour(false); setTourStart(null)
 
       // Past the landing screen. The kind of file is worth knowing -- if the
       // people arriving are all bringing 3MFs, they already have a slicer and
@@ -462,6 +518,12 @@ export default function LocalApp() {
     setParts((list) => list.map((p) => (
       p.id === id ? { ...p, plate, x: bx / 2, y: by / 2 } : p)))
     setActivePlate(plate)
+    // Start the "have they looked at both plates" count again from here. The
+    // walk-through's plates step ends on this line -- adding a plate already
+    // moved the view to it -- so without this the switching step would tick
+    // itself off in passing and nobody would ever be told that the picture
+    // shows one plate at a time while the file carries all of them.
+    setSeenPlates([plate])
   }
 
   // --- turning --------------------------------------------------------------
@@ -553,6 +615,31 @@ export default function LocalApp() {
     const shortest = Math.min(...list.map((p) => sizeOfPart(p)[2]))
     return Math.max(CUT_STEP, snap(snapDown(shortest * MOST_OF_IT)))
   }, [selected, parts, sizeOfPart])
+
+  /**
+   * Which of the walk-through's steps have been done.
+   *
+   * Read off the app's own state rather than counted as taps, so it says what
+   * is true rather than what was pressed: a part dragged to another plate ticks
+   * the plates step the same as the Send to button does, and undoing something
+   * un-ticks it. Keyed by demo.js's `key`; tests/test_local_demo.py checks the
+   * two lists still name the same seven things.
+   */
+  const tourDone = useMemo(() => ({
+    split: parts.length > 1,
+    plates: new Set(parts.map((p) => p.plate)).size > 1,
+    switch: seenPlates.length > 1,
+    size: !!tourStart && (longestMm !== tourStart.longestMm || !uniform
+                          || parts.some(resized)),
+    flatten: parts.some(flattened),
+    colour: !!tourStart && (colour !== tourStart.colour
+                            || parts.some((p) => p.colour != null)),
+    made: !!written,
+  }), [parts, seenPlates, tourStart, longestMm, uniform, colour, written])
+
+  // The first one still to do. Everything above it is done, so this is the
+  // whole of "where am I" -- and when there is no such step the tour is over.
+  const tourAt = TOUR.findIndex((step) => !tourDone[step.key])
 
   const onKeepOut = useMemo(() => onPlate.filter((part) => {
     const [width, depth] = sizeOfPart(part)
@@ -737,6 +824,21 @@ export default function LocalApp() {
           <span>{busy || 'Choose a model'}</span>
         </label>
         <p className="hint">{spoken('or')}.</p>
+        {/* The way in for somebody who has not got a model, which on this
+            screen is most people: the alternative on offer used to be "go and
+            make an account on MakerWorld, download something, come back", and
+            coming back is the step nobody takes. The model is built here, on
+            the device, by demo.js -- nothing is fetched, so this works on the
+            same aeroplane the rest of the page does. What it leads to is the
+            real app on a real model, not a video of one: the file at the end
+            of it prints. */}
+        <button type="button" className="demo" onClick={loadDemo}>
+          Try it with a test model
+        </button>
+        <p className="hint">
+          Three shapes on one plate, and seven things to try on them. Nothing is
+          saved until you ask for it.
+        </p>
         {/* What used to be here was the short disclaimer. It has not been
             dropped -- the full one is still on the panel, right above the
             button that makes the file, which is the moment it is actually
@@ -822,6 +924,7 @@ export default function LocalApp() {
           <button className="link" onClick={() => {
             revoke(written)
             setParts([]); setWritten(null); setBeforeSplit(null); setNote('')
+            setTour(false); setTourStart(null)
           }}>
             Start over
           </button>
@@ -830,6 +933,58 @@ export default function LocalApp() {
             {plateCount} plate{plateCount > 1 ? 's' : ''}
           </span>
         </div>
+
+        {/* --- the walk-through ---------------------------------------------
+            At the top of the panel, above the controls it is talking about, and
+            only when the test model is the thing on the plate. It ticks itself
+            off from the app's own state, so it follows somebody who does the
+            steps out of order or finds their own way to one -- which on a page
+            whose whole job is to be obvious is the likeliest thing to happen.
+
+            The steps stay on screen after they are done rather than
+            disappearing: seeing what you have already managed is most of what
+            makes a list like this worth reading. */}
+        {tour && (
+          <div className="field tour">
+            <span>
+              Test model
+              <em>
+                {tourAt < 0
+                  ? ' all seven done'
+                  : ` step ${tourAt + 1} of ${TOUR.length}`}
+              </em>
+            </span>
+            <ol className="steps">
+              {TOUR.map((step, i) => {
+                const done = tourDone[step.key]
+                const now = i === tourAt
+                // `ticked` rather than `done`: the panel already has a
+                // `.done` block -- the one holding Save the file -- and its
+                // styles would land on these list items too, stacking each
+                // number above its own step.
+                return (
+                  <li key={step.key} className={done ? 'step ticked' : (now ? 'step now' : 'step')}>
+                    <b>{done ? '\u2713' : i + 1}</b>
+                    <span>
+                      {step.title}
+                      {now && <em>{step.hint}</em>}
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
+            {tourAt < 0 && (
+              <p className="reason">
+                That is the whole of it. The file you just made is a real one -
+                save it and print it, or press Start over and do it again with
+                your own model.
+              </p>
+            )}
+            <button className="link" onClick={() => { setTour(false); setTourStart(null) }}>
+              Hide these steps
+            </button>
+          </div>
+        )}
 
         {/* --- plates ------------------------------------------------------ */}
         <div className="field">

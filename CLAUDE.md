@@ -296,6 +296,29 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   split, the poses and the layout by signed volume as well as size — a
   mirror leaves the bounding box alone.
 
+- **The landing screen has a model of its own** (`web/src/local/demo.js`), and
+  the button that loads it starts a seven-step walk-through in the panel. It is
+  built on the device out of three primitives -- nothing is fetched -- and it is
+  the *real* app on a real model: the file at the end prints. Two traps are
+  baked into it. **`mergeVertices` matches on every attribute, not on position**,
+  so a shape welded with its normals still attached welds almost nothing -- the
+  gem stayed eight loose triangles and the ball came out with 252 open edges,
+  and `Split into parts` then cut the model into ten. Strip to `position` first,
+  the way `readModel` does. And **the three shapes must not be welded to each
+  other**: the splitter is connected components, so `demo.js` concatenates them
+  by hand rather than merging the set. `web/demo-check.mjs` (run by
+  `tests/test_local_demo.py`) checks all of it -- three closed pieces, the
+  ball balancing on a point so the flatten step visibly does something, and the
+  whole thing fitting the 180 mm bed of an A1 mini unsplit, so the tour never
+  opens on a warning.
+- **The steps tick themselves off from state, not from taps** -- so the
+  walk-through follows somebody who finds their own way to a step, and un-ticks
+  when they undo one. Two of the seven leave no trace of their own and are
+  tracked on purpose: `seenPlates` for "look at both plates", which is otherwise
+  a state identical to never having looked, and `tourStart` for the size, which
+  can be dragged back to where it began. `movePartToPlate` restarts the plate
+  count, because `+ Add` already moves the view to the new plate and would
+  otherwise tick the switching step in passing.
 - **The promo videos are a separate Remotion project**, `handoff3d-video/`,
   with its own `package.json` and its own CLAUDE.md. Nine vertical cuts for
   Shorts/TikTok/Reels, rendered locally for nothing. Every claim on them is

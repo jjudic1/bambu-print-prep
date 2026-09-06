@@ -52,6 +52,17 @@ button, select, input { font: inherit; color: inherit; }
 .drop input { display: none; }
 .drop span { color: var(--accent); font-weight: 700; }
 
+/* The test model, under the picker and deliberately quieter than it: somebody
+   holding a model should not be talked out of using it. Full width of the
+   picker above so the two read as one pair of choices rather than as a button
+   that has wandered in. */
+.demo {
+  margin-top: .1rem; padding: .7rem 1.2rem; border: 1px solid var(--line);
+  border-radius: 12px; background: transparent; color: var(--ink);
+  font: inherit; font-weight: 700; cursor: pointer;
+}
+.demo:hover { border-color: var(--accent); color: var(--accent); }
+
 /* --- the landing animation -------------------------------------------- */
 /* A painting, not a line drawing: one gouache plate carries the tabletop and
    only the pieces that must move sit over it -- the plane, and the printer's
@@ -312,6 +323,28 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   padding: 0;
 }
 .swatch.on { border-color: var(--ink); }
+
+/* --- the walk-through ------------------------------------------------- */
+/* A list, not a wizard: every step stays readable, done ones keep their place,
+   and only the one being worked on carries its explanation. A step that
+   vanishes when it is finished takes with it the only evidence anyone has that
+   they are getting somewhere. */
+.tour { border: 1px solid var(--line); border-radius: 12px; padding: .8rem; }
+.steps { list-style: none; margin: 0; padding: 0;
+         display: flex; flex-direction: column; gap: .45rem; }
+.step { display: flex; gap: .55rem; align-items: baseline;
+        font-size: .88rem; color: var(--dim); }
+.step > b {
+  flex: 0 0 1.35rem; height: 1.35rem; border-radius: 50%;
+  border: 1px solid var(--line); display: inline-flex;
+  align-items: center; justify-content: center;
+  font-size: .72rem; font-weight: 700;
+}
+.step > span { display: flex; flex-direction: column; gap: .2rem; }
+.step em { font-style: normal; color: var(--dim); font-size: .82rem; }
+.step.now { color: var(--ink); }
+.step.now > b { border-color: var(--accent); color: var(--accent); }
+.step.ticked > b { border-color: var(--accent); background: var(--accent); color: var(--bg); }
 
 .axes { display: flex; flex-direction: column; gap: .55rem; }
 .axis { display: flex; flex-direction: column; gap: .2rem; }

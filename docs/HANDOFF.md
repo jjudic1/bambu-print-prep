@@ -74,6 +74,7 @@ web/           two Vite entries, one of them the product
 | `web/src/make3mf.js` | The container writer, in JavaScript. Port of `prep/write3mf.py`. |
 | `web/src/local/` | The no-server page: reader, splitter, arranger, plate viewer |
 | `web/src/local/printers.js` | Which machine, and which nozzle is in it. 0.4 mm every session |
+| `web/src/local/demo.js` | The test model on the landing screen, and the seven steps to try on it |
 | `web/src/framing.js` | Where the camera goes, solved from the shape of the viewer |
 | `web/src/local/flatten.js` | The bottom cut: clips the triangles, stitches the cap |
 | `web/src/metrics.js` | The four funnel events, and the one place they are named |
