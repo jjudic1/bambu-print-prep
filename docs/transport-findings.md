@@ -683,25 +683,35 @@ Two smaller things from the same screen, both real:
 the parametric model type, closing the route. It does not follow from the
 evidence, and a better explanation came from the person holding the iPad.
 
-**The likely cause: the script was published as an uploaded `.scad` file
-rather than pasted into MakerLab's code window.** The §A4 run that worked was
-a paste. The published page was made by uploading the file. Those produce
-different model pages: a pasted script is PMM's *source*, and the model's
-files are the generated result, while an uploaded `.scad` can end up in the
-model's own file list -- and Handy, which has no viewer for `.scad`, says
-exactly what it said. The banner names a **file type**, not a model type, and
-it appears while the customize panel underneath renders perfectly.
+**Second reading, also wrong:** that the `.scad` was published the wrong way --
+uploaded as a file rather than pasted -- and Handy was choking on a stray
+script in the model's file list. Two independent write-ups of the PMM workflow
+say the opposite: **uploading the `.scad` in place of a `.3mf` when creating a
+new listing is the documented way to publish a parametric model.** MakerWorld
+detects it and attaches the customizer. So the publish was correct.
 
-Ruled out: **libraries**. `makerworld/print-anything.scad` contains no
+That also answers what MakerLab's generator page is: `?pageType=generator` is a
+scratchpad for *using* a script, with a Download button and no way to save into
+a listing. There is nothing to find there.
+
+Ruled out along the way: **libraries**. `makerworld/print-anything.scad` has no
 `include` and no `use` -- no BOSL2, nothing bundled, only `import()` of the
-reader's own upload. A missing library would also fail as a render error in
-MakerLab, and MakerLab rendered it.
+reader's own upload. A missing library would fail as a render error in
+MakerLab, and MakerLab renders it.
 
-**Next run, and it is cheap:** rebuild the model in MakerLab by pasting the
-script text, publish from inside MakerLab rather than through the model upload
-page, and open that in Handy. If the banner is gone, §A4 stands and the route
-is alive; if it is still there, the refusal is real and this section can be
-closed the way it was first written.
+**Third reading, and the one that now fits:** a published parametric model's
+file *is* the `.scad`, Bambu Handy has no viewer for `.scad`, and it says so.
+If that is right it is a platform limit that applies to every parametric model
+on MakerWorld, not something wrong with this one, and nothing on our side
+changes it.
+
+**The measurement that settles it costs nothing and spends no upload:** open
+somebody else's popular parametric model in Handy on the iPad. If a
+third-party customizable model throws the same banner, the limit is universal
+and the idea is closed on the Handy end. If it opens and customizes, the
+problem is specific to ours and worth chasing. Do this before touching the
+listing again -- three theories have now been argued from one screenshot, and
+this is the first test that discriminates between them.
 
 **What may still stand, and is untested.** The customize step and the print
 step do not have to happen in the same app: generate in Safari, where §A4
