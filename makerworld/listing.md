@@ -57,6 +57,13 @@ the person looking for it -- the same exemption `web/guides.mjs` takes.
 > - **It does not work inside the Bambu Handy app.** Handy refuses this kind of
 >   page. Do the uploading in a web browser; Handy is only for the printing at
 >   the end.
+>
+>   **PROVISIONAL -- do not publish this line yet.** It is true of the model as
+>   first published, but §A4b says the likely cause is that the script was
+>   uploaded as a `.scad` file instead of pasted into MakerLab. Re-publish by
+>   pasting and check Handy again. If the banner is gone, delete this bullet and
+>   put the Handy route back in the instructions above; only keep it if the
+>   refusal survives a proper publish.
 > - **Very large files may not build.** If nothing appears after Generate, the
 >   file was too heavy. Try a simpler one.
 >

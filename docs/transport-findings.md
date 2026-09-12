@@ -658,7 +658,7 @@ not a delivery mechanism for this app's output -- which is a multi-plate 3mf
 with the profile and the exclusion zones already resolved, all of which an STL
 discards on the way in (see §A2d and `bed_exclude_area` in CLAUDE.md).
 
-### A4b -- Bambu Handy refuses the parametric model outright ❌ 2026-09-12
+### A4b -- Handy shows a file-type error, and the cause is probably how it was published ⏳ 2026-09-12
 
 Published the page from §A4 and opened it in Handy on an iPad. A banner, before
 any file was chosen:
@@ -679,17 +679,35 @@ Two smaller things from the same screen, both real:
 * The label is the raw variable name (`part_file`), not the spaced form
   MakerLab's own editor shows.
 
-**What this closes.** The route in §A4 is Safari-only. Handy was the whole
-point of it -- the reason to prefer a MakerWorld page over the §A2 upload loop
-was that the printing end already lives in Handy. Nothing here can fix a
-refusal on their side, and no version of the script changes the model's type.
+**First reading, and it was wrong to state it as settled:** that Handy refuses
+the parametric model type, closing the route. It does not follow from the
+evidence, and a better explanation came from the person holding the iPad.
+
+**The likely cause: the script was published as an uploaded `.scad` file
+rather than pasted into MakerLab's code window.** The §A4 run that worked was
+a paste. The published page was made by uploading the file. Those produce
+different model pages: a pasted script is PMM's *source*, and the model's
+files are the generated result, while an uploaded `.scad` can end up in the
+model's own file list -- and Handy, which has no viewer for `.scad`, says
+exactly what it said. The banner names a **file type**, not a model type, and
+it appears while the customize panel underneath renders perfectly.
+
+Ruled out: **libraries**. `makerworld/print-anything.scad` contains no
+`include` and no `use` -- no BOSL2, nothing bundled, only `import()` of the
+reader's own upload. A missing library would also fail as a render error in
+MakerLab, and MakerLab rendered it.
+
+**Next run, and it is cheap:** rebuild the model in MakerLab by pasting the
+script text, publish from inside MakerLab rather than through the model upload
+page, and open that in Handy. If the banner is gone, §A4 stands and the route
+is alive; if it is still there, the refusal is real and this section can be
+closed the way it was first written.
 
 **What may still stand, and is untested.** The customize step and the print
 step do not have to happen in the same app: generate in Safari, where §A4
 measured it working, and the result lands in the reader's own MakerWorld
 account as an ordinary model. Handy prints ordinary models -- that is the §A2
 loop's last step, already verified on 2026-08-23. If that holds, the page is
-still usable without a computer, just not inside Handy. Worth one run before
-the idea is written off; the failure mode to watch is whether a generated
-result is a model Handy will open at all, which is the same question that just
-came back no.
+still usable without a computer, just not inside Handy. This is the fallback
+if the re-publish above does not clear the banner -- not the first thing to
+try.
