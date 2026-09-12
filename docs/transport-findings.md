@@ -713,6 +713,15 @@ problem is specific to ours and worth chasing. Do this before touching the
 listing again -- three theories have now been argued from one screenshot, and
 this is the first test that discriminates between them.
 
+**An unset `default.stl` is not empty.** MakerWorld substitutes a placeholder
+of its own -- a flat Bambu logo -- so a script whose only geometry is
+`import(part_file)` opens on somebody else's branding, and that is what the
+listing's own picture shows too. It is very likely the 30 x 39.10 x 0.60 mm
+object in the Handy screenshot above, which had no other explanation.
+`makerworld/print-anything.scad` now opens on a cylinder of its own and swaps
+to the reader's file on a `use_uploaded_part` tick, so the placeholder is never
+reached.
+
 **What may still stand, and is untested.** The customize step and the print
 step do not have to happen in the same app: generate in Safari, where §A4
 measured it working, and the result lands in the reader's own MakerWorld

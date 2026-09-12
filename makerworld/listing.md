@@ -35,13 +35,15 @@ the person looking for it -- the same exemption `web/guides.mjs` takes.
 >
 > 1. Open this page in your browser, tap **Customize**, and upload your STL
 >    under **Your part**.
-> 2. Set the size. **Percent** keeps your file's own proportions. **Exact
+> 2. Tick **use uploaded part**. Until you do, you get a plain cylinder --
+>    that is the starting shape, not your file.
+> 3. Set the size. **Percent** keeps your file's own proportions. **Exact
 >    width** lets you type a measurement in millimetres and scales the rest to
 >    match.
-> 3. If your part arrives lying on the wrong face, use the **Turning** sliders.
+> 4. If your part arrives lying on the wrong face, use the **Turning** sliders.
 >    Watch the preview -- if turning pushes part of it below the plate, raise
 >    **Lift** until it sits on top.
-> 4. Tap **Generate**. The result is saved to your own MakerWorld account, and
+> 5. Tap **Generate**. The result is saved to your own MakerWorld account, and
 >    you print that from Bambu Handy as you would any other model.
 >
 > ### What it will not do
