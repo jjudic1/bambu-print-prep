@@ -23,27 +23,23 @@
 
 /* [Your part] */
 
-// Your own STL file. Large files take longer to build, and very large ones may
-// time out -- if nothing appears, try a simpler file.
+// Your own STL file. Very large files may not build.
 part_file = "default.stl";
 
 /* [Size] */
 
-// Percent keeps your file's own proportions. Exact width sets one measurement
-// and scales everything else to match.
+// Percent keeps your file's proportions. Exact width pins one measurement.
 size_mode = "Percent"; // [Percent, Exact width]
 
 // Used when size is set to Percent.
 scale_percent = 100; // [10:5:300]
 
-// Used when size is set to Exact width. Measured left to right across your
-// file, in millimetres, before any turning below.
+// For Exact width: millimetres left to right, measured before any turning.
 width_mm = 100; // [10:5:250]
 
 /* [Turning] */
 
-// Tip the part forward or back, in degrees. Use this if your file arrives
-// standing on the wrong face.
+// Tip forward or back, in degrees, if your file stands on the wrong face.
 turn_x = 0; // [0:15:345]
 
 // Tip the part left or right, in degrees.
@@ -54,9 +50,7 @@ turn_z = 0; // [0:15:345]
 
 /* [Height] */
 
-// Raise the part off the plate, in millimetres. Leave this at 0 unless turning
-// has pushed part of your model below the plate -- you will see it in the
-// preview if it has.
+// Raise off the plate, in millimetres, if turning sank it. Check the preview.
 lift_mm = 0; // [0:1:50]
 
 

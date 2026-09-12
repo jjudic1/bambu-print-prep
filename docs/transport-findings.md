@@ -657,3 +657,39 @@ So the route is real, but it is a way to print **one part that already fits**,
 not a delivery mechanism for this app's output -- which is a multi-plate 3mf
 with the profile and the exclusion zones already resolved, all of which an STL
 discards on the way in (see §A2d and `bed_exclude_area` in CLAUDE.md).
+
+### A4b -- Bambu Handy refuses the parametric model outright ❌ 2026-09-12
+
+Published the page from §A4 and opened it in Handy on an iPad. A banner, before
+any file was chosen:
+
+> This file type is not supported on mobile. Please use the PC client.
+
+The customize panel below it renders -- the four groups, the sliders, an
+upload control reading **Click to upload an image or file** -- so this is not
+the WebKit `accept` failure that was expected. Handy draws the form and then
+declines the model. It fires **on open**, not on picking a file.
+
+Two smaller things from the same screen, both real:
+
+* Handy shows only the **last line** of a multi-line parameter comment. A
+  two-line note on `part_file` arrived as the fragment "time out -- if nothing
+  appears, try a simpler file." Every description in
+  `makerworld/print-anything.scad` is one line now.
+* The label is the raw variable name (`part_file`), not the spaced form
+  MakerLab's own editor shows.
+
+**What this closes.** The route in §A4 is Safari-only. Handy was the whole
+point of it -- the reason to prefer a MakerWorld page over the §A2 upload loop
+was that the printing end already lives in Handy. Nothing here can fix a
+refusal on their side, and no version of the script changes the model's type.
+
+**What may still stand, and is untested.** The customize step and the print
+step do not have to happen in the same app: generate in Safari, where §A4
+measured it working, and the result lands in the reader's own MakerWorld
+account as an ordinary model. Handy prints ordinary models -- that is the §A2
+loop's last step, already verified on 2026-08-23. If that holds, the page is
+still usable without a computer, just not inside Handy. Worth one run before
+the idea is written off; the failure mode to watch is whether a generated
+result is a model Handy will open at all, which is the same question that just
+came back no.

@@ -12,12 +12,12 @@ the person looking for it -- the same exemption `web/guides.mjs` takes.
 
 ## Title
 
-> Print Anything - upload your own STL, print from your phone or tablet
+> Print Anything - upload your own STL, no computer needed
 
 ## Summary
 
-> No computer needed. Upload any STL, set the size, and print it straight from
-> Bambu Handy.
+> Upload any STL in your tablet's web browser, set the size, and get a file you
+> can print. No slicer, no laptop.
 
 ## Description
 
@@ -30,14 +30,19 @@ the person looking for it -- the same exemption `web/guides.mjs` takes.
 >
 > ### How to use it
 >
-> 1. Tap **Customize** and upload your STL under **Your part**.
+> **Use a web browser, not the Bambu Handy app.** Safari or Chrome on a tablet
+> is fine -- Handy cannot open this kind of page and will say so.
+>
+> 1. Open this page in your browser, tap **Customize**, and upload your STL
+>    under **Your part**.
 > 2. Set the size. **Percent** keeps your file's own proportions. **Exact
 >    width** lets you type a measurement in millimetres and scales the rest to
 >    match.
 > 3. If your part arrives lying on the wrong face, use the **Turning** sliders.
 >    Watch the preview -- if turning pushes part of it below the plate, raise
 >    **Lift** until it sits on top.
-> 4. Tap **Generate**, then print it from Bambu Handy.
+> 4. Tap **Generate**. The result is saved to your own MakerWorld account, and
+>    you print that from Bambu Handy as you would any other model.
 >
 > ### What it will not do
 >
@@ -49,6 +54,9 @@ the person looking for it -- the same exemption `web/guides.mjs` takes.
 > - **It cannot split a part that is too big for your bed.** One part, one
 >   plate. If your model does not fit, this page cannot help -- see below.
 > - **One STL at a time**, and it has to be an STL. Not a 3MF, not a STEP.
+> - **It does not work inside the Bambu Handy app.** Handy refuses this kind of
+>   page. Do the uploading in a web browser; Handy is only for the printing at
+>   the end.
 > - **Very large files may not build.** If nothing appears after Generate, the
 >   file was too heavy. Try a simpler one.
 >
@@ -85,9 +93,10 @@ rather than a thin one, and the last is the one that actually matters.
 3. **Find the ceiling.** Generate with a real export at full density -- 150k
    triangles or so. If it times out, either say so in the listing with a rough
    limit, or drop the "very large files" line for something specific.
-4. **Test it in Handy, not just Safari.** §A4 measured Safari against
-   MakerLab's editor. The published customize form inside Handy's in-app
-   browser is a different screen in a different browser, and it is the one
-   every reader will actually use. Publish private, open it in Handy, upload
-   from the iPad.
+4. **Confirm the browser-then-Handy split actually works.** Handy refuses the
+   page itself (§A4b), so the listing now tells readers to customize in a
+   browser and print the generated result from Handy. The second half of that
+   is untested: generate in Safari, then check the result is a model Handy will
+   open and print. If it is not, this page cannot be used without a computer at
+   all and the listing has to say so -- or come down.
 5. **Keep it private until 1-4 are done.**
