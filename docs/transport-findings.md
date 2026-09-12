@@ -605,3 +605,55 @@ Bambu Studio's own diagnosis, which is how both were found:
 
 With both closed, `--slice 0` writes `plate_1.gcode`, `plate_2.gcode` and
 `plate_3.gcode` and reports Success.
+
+## A4 -- the Parametric Model Maker takes a file from an iPad ✅ partly, 2026-09-12
+
+The idea under test: publish an OpenSCAD script on MakerWorld whose only input is
+an STL the reader uploads, so an iPad-only user can get an arbitrary part onto a
+plate through a MakerWorld page instead of through the upload loop in §A2.
+
+Three things had to be true. One is now measured, one is untouched, and one was
+never in doubt but is worth writing down because it is the reason the idea is
+narrower than it first sounds.
+
+### Measured: the upload field exists, and iOS can fill it ✅
+
+`spikes/pmm_upload_probe.scad` -- a bare `import("default.stl")` with a scale
+and a lift slider -- pasted into MakerLab's Parametric Model Maker.
+
+* A string variable whose value is `"default.stl"` **does** render as a real
+  **Upload local file** control, not a text box. This was the first thing that
+  could have killed the idea and it did not.
+* **Safari on an iPad picked an `.stl` out of Files and the upload went
+  through.** The part rendered in the preview and `scale_percent` moved it.
+
+This matters because the reverse was the expected failure: an `accept`
+attribute WebKit cannot resolve into a type greys out *every* file in the Files
+browser, which is the trap the app's own file input avoids by carrying no
+`accept` at all (§6, and `tests/test_local_input.py`). MakerWorld's form does
+not have it. Measured on the device, because it is invisible from a desktop.
+
+### Not measured: Bambu Handy's in-app browser, and a file of real size ⏳
+
+Two gaps, and neither is a detail:
+
+* The run above was **Safari**, and it was **MakerLab's editor** -- the
+  authoring screen, with a `Generate` button. The thing the idea depends on is
+  a *published* model's customize form, opened inside **Handy's webview**.
+  Different UI, different browser. The Safari result makes the webview likely,
+  not certain.
+* The file was **4 KB**. PMM has a practical render ceiling and an arbitrary
+  user mesh -- unsimplified, often not watertight -- is the worst case for it.
+  Nothing is known yet about what a 150k-triangle export does.
+
+### Never in doubt, and the real limit on the idea
+
+OpenSCAD cannot *measure* an imported mesh: no bounding box, no components, no
+footprint. So a page like this can scale and lift what it is handed, and it
+cannot orient it, split it, or fit it to a bed. It is also one `default.stl`
+and no 3mf. A part this project has split into four is not expressible.
+
+So the route is real, but it is a way to print **one part that already fits**,
+not a delivery mechanism for this app's output -- which is a multi-plate 3mf
+with the profile and the exclusion zones already resolved, all of which an STL
+discards on the way in (see §A2d and `bed_exclude_area` in CLAUDE.md).
