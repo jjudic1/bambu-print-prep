@@ -1,3 +1,7 @@
+// ABANDONED 2026-09-12 -- not published, do not publish. The customizer does not
+// run in Bambu Handy, which was the point. See docs/transport-findings.md §A4c.
+// Kept as the record of what was measured, not as work in progress.
+//
 // Print Anything -- bring your own STL.
 //
 // Published on MakerWorld as a Parametric Model Maker script. The reader

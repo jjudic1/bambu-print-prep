@@ -658,7 +658,7 @@ not a delivery mechanism for this app's output -- which is a multi-plate 3mf
 with the profile and the exclusion zones already resolved, all of which an STL
 discards on the way in (see §A2d and `bed_exclude_area` in CLAUDE.md).
 
-### A4b -- Handy shows a file-type error, and the cause is probably how it was published ⏳ 2026-09-12
+### A4b -- Handy will not run the customizer, and the idea is dropped ❌ 2026-09-12
 
 Published the page from §A4 and opened it in Handy on an iPad. A banner, before
 any file was chosen:
@@ -730,3 +730,29 @@ loop's last step, already verified on 2026-08-23. If that holds, the page is
 still usable without a computer, just not inside Handy. This is the fallback
 if the re-publish above does not clear the banner -- not the first thing to
 try.
+
+### A4c -- closed, 2026-09-12
+
+Abandoned after four rounds. The upload works in a desktop browser and in
+Safari on an iPad (§A4); it does not work in Bambu Handy, which is where the
+printing happens and was the entire reason to prefer this over the §A2 loop.
+
+Nothing in the script reaches the failure. The script declares *that* a
+parameter is a file; drawing the control, opening the picker and accepting the
+bytes are MakerWorld's UI inside Handy's webview. Three fixes were tried in the
+`.scad` and none of them could have helped -- that is the lesson worth keeping
+from this section, more than the result.
+
+**Never run, and it is the test that would have settled it in five minutes:**
+open somebody else's parametric model in Handy. A universal failure means a
+platform limit; a working one means something specific here. Four theories were
+argued from screenshots without ever establishing a control. If anyone picks
+this up again, start there.
+
+What stands regardless, and is why the route was never going to carry this
+project's output anyway: OpenSCAD cannot measure a mesh it imported, it takes
+one `default.stl` and no 3mf, and an STL discards the plates, the profile and
+the exclusion zones this app resolves. The most that was ever on offer was a
+way to print one part that already fits.
+
+`makerworld/` is kept as the record. Nothing there is published.

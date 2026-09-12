@@ -1,5 +1,11 @@
 # Print Anything -- the MakerWorld listing
 
+> **ABANDONED 2026-09-12 -- not published, do not publish. The customizer does not
+> run in Bambu Handy, which was the point. See docs/transport-findings.md §A4c.
+> Kept as the record of what was measured, not as work in progress.**
+
+
+
 Copy for the model page that publishes `print-anything.scad`. Kept here rather
 than only on MakerWorld for the same reason the guide pages are committed:
 copy that exists in one place nobody proof-reads goes stale and nobody notices.
