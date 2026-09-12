@@ -134,3 +134,22 @@ def test_the_port_carries_the_verified_copy():
                    "Private"):
         assert phrase in page, f"python lost: {phrase}"
         assert phrase in source, f"the port lost: {phrase}"
+
+
+def test_both_sides_point_at_the_same_maker_page():
+    """The profile link is a handle, and a handle is easy to mistype once and
+    never notice -- it is a page that loads either way, just not ours.
+
+    It also has to stay plain `https`. The page is read outside the app: in the
+    Files preview, in mail, and inside the sandboxed frame, and an
+    `x-safari-https:` address in any of those is a tap that does nothing, with
+    no error to say why.
+    """
+    source = PORT.read_text(encoding="utf-8")
+    page = handoff.render(model_name="x", file_name="x.3mf", printer="Bambu Lab P1S")
+    assert handoff.MAKER_PROFILE_URL == "https://makerworld.com/en/@tres_j_designs"
+    assert handoff.MAKER_PROFILE_URL in source
+    assert handoff.MAKER_PROFILE_URL in page
+    # The rendered page, not the source: the port *explains* the scheme in a
+    # comment, and the thing that must not carry it is the address itself.
+    assert "x-safari" not in page

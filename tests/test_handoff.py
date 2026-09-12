@@ -83,8 +83,19 @@ def test_it_says_the_clunkiness_is_not_the_user_s_fault(page):
 
 def test_it_links_only_to_a_url_that_was_actually_visited(page):
     # A guessed deep link that 404s is worse than a sentence naming the button.
+    # The delivery loop still gets the home page and nothing cleverer: the
+    # upload path was never recorded during the A2 run, so it stays a sentence.
+    #
+    # The second link is a different thing and is allowed for a different
+    # reason: it is our own MakerWorld page, not a guess at somebody's site
+    # structure, and it is off the delivery loop entirely -- a reader who never
+    # taps it still gets to the printer. The handle is pinned by
+    # test_web_handoff.py, because a mistyped one loads a page either way.
     links = re.findall(r'href="([^"]+)"', page)
-    assert links == ["https://makerworld.com"]
+    assert links == [
+        "https://makerworld.com",
+        "https://makerworld.com/en/@tres_j_designs",
+    ]
 
 
 # --- whose job is whose ------------------------------------------------------

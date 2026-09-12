@@ -21,6 +21,22 @@
 /** Home page, not a guessed upload path -- a 404 is worse than a sentence. */
 export const MAKERWORLD_URL = 'https://makerworld.com'
 
+/**
+ * Handoff3D's own page on MakerWorld -- the one outward link here that is not
+ * part of the delivery loop.
+ *
+ * Plain `https`, and deliberately not run through outward(): this page is read
+ * *outside* the app -- in the Files preview, in mail, and inside the sandboxed
+ * frame -- and `x-safari-https:` in any of those is a tap that does nothing at
+ * all, with no error. See CLAUDE.md on both traps.
+ */
+export const MAKER_PROFILE_URL = 'https://makerworld.com/en/@tres_j_designs'
+
+export const MAKER_PROFILE =
+  'Handoff3D is free. If you would like something to print next, there are '
+  + 'models on <a href="' + MAKER_PROFILE_URL + '" target="_blank" '
+  + 'rel="noopener">its MakerWorld page</a>.'
+
 export const HONEST_FRAMING =
   'This part is clunky, and it is not you. Bambu does not let other apps talk '
   + 'to your printer directly, so the model has to go up to your own private '
@@ -218,6 +234,7 @@ export function renderHandoff({
     + '<p class="duty">' + dashes(DUTY) + '</p>\n'
     + '<p class="duty">' + dashes(PUBLISHING) + '</p>\n'
     + '<p class="framing">' + dashes(HONEST_FRAMING) + '<br><br>\n'
+    + dashes(MAKER_PROFILE) + '<br><br>\n'
     + 'Keep this page. You will want it again next time &mdash; it is the '
     + 'same steps every time. <b>Prepared ' + (date || today())
     + '.</b></p>\n</main>\n</html>\n'

@@ -42,6 +42,17 @@ from pathlib import Path
 # Where the user goes. Home page, not a guessed upload path -- see module docs.
 MAKERWORLD_URL = "https://makerworld.com"
 
+# Handoff3D's own page on MakerWorld -- the one outward link here that is not
+# part of the delivery loop. Plain https: this page is read outside the app, in
+# the Files preview and in mail, where nothing clever about schemes survives.
+MAKER_PROFILE_URL = "https://makerworld.com/en/@tres_j_designs"
+
+MAKER_PROFILE = (
+    "Handoff3D is free. If you would like something to print next, there are "
+    'models on <a href="' + MAKER_PROFILE_URL + '" target="_blank" '
+    'rel="noopener">its MakerWorld page</a>.'
+)
+
 # §6.5: "This part is clunky because Bambu doesn't let apps talk to your printer
 # directly." Said once, plainly, so the user knows the awkwardness is not theirs.
 HONEST_FRAMING = (
@@ -250,7 +261,8 @@ def render(*, model_name: str, file_name: str, printer: str,
         '<p class="duty">' + _dashes(DUTY) + "</p>\n"
         '<p class="duty">' + _dashes(PUBLISHING) + "</p>\n"
         '<p class="framing">' + _dashes(HONEST_FRAMING) + "<br><br>\n"
-        "Keep this page. You will want it again next time &mdash; it is the "
+        + _dashes(MAKER_PROFILE) + "<br><br>\n"
+        + "Keep this page. You will want it again next time &mdash; it is the "
         "same steps every time. <b>Prepared " + date.today().isoformat()
         + ".</b></p>\n</main>\n</html>\n"
     )
