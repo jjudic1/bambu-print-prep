@@ -185,9 +185,16 @@ console.log('\n--- the choices the drawer offers -------------------------------
     PATTERNS.find((p) => p.key === 'standard').value, null)
   check('the first density and wall count defer to the profile',
     [DENSITIES[0].value, WALLS[0].value], [null, null])
-  check('every density is a percentage the slicer accepts',
-    DENSITIES.slice(1).every((d) => Number.isInteger(d.value) && d.value >= 0 && d.value <= 100),
+  // Both ends are deliberately short of the ones the slicer allows. 100% is
+  // hours and a spool for a part no stronger than 40%, and anything under 5%
+  // leaves the top surface nothing to bridge onto. Asserted rather than
+  // commented because "while I am in here" is exactly how a 0 or a 100 gets
+  // added back.
+  check('every density is a whole percentage inside the offered range',
+    DENSITIES.slice(1).every((d) => Number.isInteger(d.value) && d.value >= 5 && d.value <= 90),
     true)
+  check('the densities offered, in order',
+    DENSITIES.map((d) => d.value), [null, 5, 10, 15, 25, 50, 90])
   check('every wall count is a whole number of loops',
     WALLS.slice(1).every((w) => Number.isInteger(w.value) && w.value >= 1), true)
 

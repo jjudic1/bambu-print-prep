@@ -57,15 +57,28 @@ export const PATTERNS = [
   },
 ]
 
-/** How much of it there is. `null` leaves the printer's own figure alone. */
+/**
+ * How much of it there is. `null` leaves the printer's own figure alone.
+ *
+ * Neither end goes all the way. **100% is not offered**, and that is a
+ * decision rather than an oversight: a solid model is hours of extra time and
+ * a spool of extra plastic for a part that is usually no stronger than one at
+ * 40%, and it warps and curls where a sparse one does not. 90% is the top, and
+ * anybody who genuinely wants the last tenth has Bambu Studio.
+ *
+ * Nothing under 5% either. Below that the lines are far enough apart that the
+ * top surface has nothing to bridge onto and sags between them -- and 0% is
+ * worse than it sounds: it is not "hollow", it is a model with solid top and
+ * bottom skins and nothing holding the top one up.
+ */
 export const DENSITIES = [
   { value: null, label: 'Standard' },
-  { value: 0, label: '0% - hollow' },
+  { value: 5, label: '5% - as little as holds up' },
   { value: 10, label: '10% - light' },
   { value: 15, label: '15%' },
   { value: 25, label: '25%' },
   { value: 50, label: '50% - strong' },
-  { value: 100, label: '100% - solid' },
+  { value: 90, label: '90% - nearly solid' },
 ]
 
 /** How many loops the outside is drawn with. `null` leaves the profile alone. */
