@@ -105,6 +105,27 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   not "the A1 family", which is what this said until 2026-08-30: the A1 itself
   carries ABS on all four nozzles, and only those two do not. No 0.2 mm nozzle
   has TPU. It raises now, and the material picker offers what exists.
+- **A setting written into the container is not a setting the slicer uses.**
+  Bambu Studio reloads the system profiles named in `*_settings_id` and
+  re-applies only the keys listed in `different_settings_to_system` -- so an
+  override present in `project_settings.config` and absent from that list is
+  silently reverted, and the file says one thing while the slicer does another.
+  It ate `enable_support` once already (`_override_manifest` in
+  `prep/profiles.py`). The `Advanced` drawer on `/local` is the browser's
+  version of the same job: `web/src/local/advanced.js` writes the value *and*
+  the declaration, and `web/advanced-check.mjs` (run by
+  `tests/test_local_advanced.py`) fails if it ever writes only one of them.
+  It lives outside the writer on purpose, so `make3mf.js` stays a straight port
+  of `write3mf.py`.
+- **"Standard" in that drawer means "do not write the key at all".** The 0.2 mm
+  profiles ask for four walls and the A1's 0.6 for 25% -- values chosen for
+  those line widths by people who measured them -- so a blanket default of ours
+  would overrule every one of them for somebody who opened the drawer and
+  changed nothing. Supports are the one exception and are a plain on/off,
+  because all 202 baked blobs already say `enable_support: "1"` with
+  `support_type: "tree(auto)"`; the check harness fails if that stops being
+  true rather than letting the toggle start on a lie. Nothing in the drawer is
+  remembered between sessions, for the reason the nozzle is not.
 - **The baked profiles are two files and go stale together**: `printers.json` is
   the 13 KB index the pickers read, `printer-settings.json` the 4.8 MB of blobs,
   fetched on demand — static, it put 4 MB of JavaScript in front of first paint

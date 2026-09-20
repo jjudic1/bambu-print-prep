@@ -11,6 +11,10 @@ import { frameBed } from '../framing.js'
 import { makeProject3mf } from '../make3mf.js'
 import { MADE, ON_DEVICE, OPENED, READ, SAVED, STEPS, countStep } from '../metrics.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
+import {
+  DEFAULTS as ADVANCED, DENSITIES, PATTERNS, WALLS,
+  applyAdvanced, profileValues, summarise,
+} from './advanced.js'
 import { DEMO_NAME, TOUR, demoModel } from './demo.js'
 import { posedGeometry } from './flatten.js'
 import { MAKERWORLD_URL, renderHandoff } from './handoff.js'
@@ -184,6 +188,18 @@ export default function LocalApp() {
   const [printerId, setPrinterId] = useState(
     () => startingPrinter(printers, localStorage.getItem('printer')).id)
   const [material, setMaterial] = useState('PLA')
+
+  // The advanced drawer: gyroid, how much goes inside, supports, walls -- and
+  // the nozzle, which lives down here because it is a fact about the machine
+  // that almost nobody has changed. Not remembered between sessions, for the
+  // same reason printers.js does not remember a nozzle: a choice made for one
+  // print and then hidden behind a shut drawer is a silent wrong answer months
+  // later. `standard` is what this printer and material actually say, so the
+  // option called Standard can show its value instead of being a mystery.
+  const [advanced, setAdvanced] = useState(ADVANCED)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [standard, setStandard] = useState(null)
+
   const [colour, setColour] = useState(
     () => Number(localStorage.getItem('colour')) || COLOURS[0].hex)
 
@@ -235,6 +251,28 @@ export default function LocalApp() {
   useEffect(() => {
     if (!materials.includes(material)) setMaterial(materials[0])
   }, [materials, material])
+
+  // What the profile itself asks for, read once the drawer is open. The
+  // settings are already on their way by then -- warmSettings() started the
+  // moment the model was dropped in -- so this is a read of something in hand
+  // rather than a second fetch. A failure here only costs the labels their
+  // numbers; the same call in build() is where a real one has to be reported,
+  // because that is where it stops somebody getting a file.
+  useEffect(() => {
+    if (!advancedOpen) return undefined
+    let live = true
+    withSettings(printer)
+      .then((p) => {
+        if (live) setStandard(profileValues(p.materials[material]?.settings))
+      })
+      .catch(() => { if (live) setStandard(null) })
+    return () => { live = false }
+  }, [advancedOpen, printer, material])
+
+  // What the drawer says about itself while it is shut. Hidden state that
+  // changes the print is the bug a collapsed panel invites, so the summary
+  // line carries it out into the open.
+  const changedAdvanced = useMemo(() => summarise(advanced), [advanced])
 
   /**
    * How big the model is, unscaled, in the frame the sliders talk about.
@@ -663,7 +701,13 @@ export default function LocalApp() {
       // model was dropped in, so this is almost always already in hand. Taken
       // first so the one await here is before the scene is read rather than in
       // the middle of reading it.
-      const profile = await withSettings(printer)
+      // The advanced choices go on here rather than inside the writer, so the
+      // writer stays a straight port of prep/write3mf.py and the two cannot
+      // drift. applyAdvanced copies -- the settings are one shared object for
+      // the whole session -- and hands back the profile untouched when nothing
+      // has been changed from Standard.
+      const profile = applyAdvanced(
+        await withSettings(printer), material, advanced)
 
       const scene = sceneRef.current
 
@@ -1102,30 +1146,139 @@ export default function LocalApp() {
         </label>
 
         <label className="field">
-          <span>Nozzle</span>
-          <select
-            value={printer.nozzle_mm}
-            onChange={(e) => setPrinterId(
-              pick(printers, printer.model, Number(e.target.value)).id)}
-          >
-            {nozzles.map((n) => (
-              <option key={n} value={n}>
-                {n} mm{n === DEFAULT_NOZZLE_MM && ' \u2014 the one it came with'}
-              </option>
-            ))}
-          </select>
-          <div className="hint">
-            The tip fitted to your printer right now. Most are 0.4 mm and have
-            never been changed.
-          </div>
-        </label>
-
-        <label className="field">
           <span>Material</span>
           <select value={material} onChange={(e) => setMaterial(e.target.value)}>
             {materials.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </label>
+
+        {/* --- advanced ---------------------------------------------------- */}
+        {/* Shut to begin with, and shut again on the next visit. Everything in
+            here already has an answer chosen by the printer's own profile, so
+            somebody who never opens it gets exactly the file they got before --
+            which is also why the closed summary says what has been changed
+            rather than leaving it hidden. The words inside use the real names
+            on purpose: the person who opens this came looking for "gyroid".
+
+            A native <details> because it needs no JavaScript to work, and
+            because iOS renders and animates it for free. */}
+        <details
+          className="advanced"
+          open={advancedOpen}
+          onToggle={(e) => setAdvancedOpen(e.currentTarget.open)}
+        >
+          <summary>
+            Advanced
+            {changedAdvanced.length > 0 && (
+              <em>{changedAdvanced.join(' \u00b7 ')}</em>
+            )}
+          </summary>
+
+          {/* The nozzle lives here rather than beside the printer: it is one of
+              the few things on this page most people must not touch, and a
+              select sitting in the open invites a change that produces a file
+              for a tip that is not on the machine. See printers.js. */}
+          <label className="field">
+            <span>Nozzle</span>
+            <select
+              value={printer.nozzle_mm}
+              onChange={(e) => setPrinterId(
+                pick(printers, printer.model, Number(e.target.value)).id)}
+            >
+              {nozzles.map((n) => (
+                <option key={n} value={n}>
+                  {n} mm{n === DEFAULT_NOZZLE_MM && ' \u2014 the one it came with'}
+                </option>
+              ))}
+            </select>
+            <div className="hint">
+              The tip fitted to your printer right now. Most are 0.4 mm and have
+              never been changed.
+            </div>
+          </label>
+
+          <label className="field">
+            <span>Infill pattern</span>
+            <select
+              value={advanced.pattern}
+              onChange={(e) => setAdvanced(
+                (a) => ({ ...a, pattern: e.target.value }))}
+            >
+              {PATTERNS.map((choice) => (
+                <option key={choice.key} value={choice.key}>
+                  {choice.label}{choice.note ? ` \u2014 ${choice.note}` : ''}
+                </option>
+              ))}
+            </select>
+            <div className="hint">
+              Gyroid costs a little more time and holds up the same in every
+              direction, which is the one worth having on a shape with curves.
+            </div>
+          </label>
+
+          <label className="field">
+            <span>Infill</span>
+            <select
+              value={String(advanced.density)}
+              onChange={(e) => setAdvanced((a) => ({
+                ...a,
+                density: e.target.value === 'null' ? null : Number(e.target.value),
+              }))}
+            >
+              {DENSITIES.map((choice) => (
+                <option key={String(choice.value)} value={String(choice.value)}>
+                  {choice.value === null && standard
+                    ? `${choice.label} \u2014 ${standard.density}`
+                    : choice.label}
+                </option>
+              ))}
+            </select>
+            <div className="hint">
+              How much goes inside. Standard is whatever this printer's own
+              profile asks for, which is what you would get in Bambu Studio.
+            </div>
+          </label>
+
+          <label className="field">
+            <span>Walls</span>
+            <select
+              value={String(advanced.walls)}
+              onChange={(e) => setAdvanced((a) => ({
+                ...a,
+                walls: e.target.value === 'null' ? null : Number(e.target.value),
+              }))}
+            >
+              {WALLS.map((choice) => (
+                <option key={String(choice.value)} value={String(choice.value)}>
+                  {choice.value === null && standard
+                    ? `${choice.label} \u2014 ${standard.walls}`
+                    : choice.label}
+                </option>
+              ))}
+            </select>
+            <div className="hint">
+              How many times round the outside. More walls is the cheaper way to
+              make something stronger than more infill is.
+            </div>
+          </label>
+
+          <div className="field">
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={advanced.supports}
+                onChange={(e) => setAdvanced(
+                  (a) => ({ ...a, supports: e.target.checked }))}
+              />
+              <span>Supports where it overhangs</span>
+            </label>
+            <div className="hint">
+              Tree supports, and only where the shape needs them -- the kind
+              that comes off by hand afterwards. Turn them off for something
+              that stands up on its own and there is less to tidy up.
+            </div>
+          </div>
+        </details>
 
         {/* --- size -------------------------------------------------------- */}
         {selected ? (
