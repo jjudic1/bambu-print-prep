@@ -619,6 +619,7 @@ export const PAGES = [
         + '<tr><td>Flatten a curved bottom</td><td>Yes</td><td>Yes</td></tr>'
         + '<tr><td>Split across plates</td><td>Yes</td><td>Yes</td></tr>'
         + '<tr><td>Writes a Bambu project file</td><td>Yes</td><td>Yes</td></tr>'
+        + '<tr><td>Infill, walls and supports for the whole file</td><td>Yes</td><td>Yes</td></tr>'
         + '<tr><td>Supports painted on by hand</td><td>No</td><td>Yes</td></tr>'
         + '<tr><td>Per-object and painted settings</td><td>No</td><td>Yes</td></tr>'
         + '<tr><td>Multi-colour and AMS assignment</td><td>No</td><td>Yes</td></tr>'
@@ -648,8 +649,10 @@ export const PAGES = [
       ]],
       ['What it deliberately does not try to do', [
         '<p>It writes the standard settings for the machine and nozzle you '
-        + 'chose, correctly, and nothing beyond that. No supports placed by '
-        + 'hand, no painted-on settings, no tuning. Every object in the file is '
+        + 'chose, correctly, and very little beyond that: infill pattern and '
+        + 'density, how many walls, and tree supports on or off, applied to the '
+        + 'whole file. No supports placed by hand, no painted-on settings, no '
+        + 'per-object tuning. Every object in the file is '
         + 'assigned to one extruder, so <b>multi-colour and AMS colour '
         + 'assignment are not supported</b> -- an AMS will happily print the '
         + 'result, in whichever single filament you pick when you send it.</p>',

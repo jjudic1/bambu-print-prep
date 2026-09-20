@@ -266,6 +266,36 @@ select {
 }
 input[type=range] { width: 100%; accent-color: var(--accent); }
 
+/* The advanced drawer: gyroid, how much goes inside, walls, supports, and the
+   nozzle. A native <details>, so it opens with no JavaScript and iOS animates
+   it for free -- and shut is the state that matters, because everything in it
+   already has an answer from the printer's own profile.
+
+   The summary is styled like a .field label rather than like a button: it is
+   the same kind of thing as the three rows above it, and the marker is
+   replaced with a plain +/- because Safari's disclosure triangle cannot be
+   coloured and sits at the wrong baseline. Its <em> is what has been changed
+   from Standard, which is the whole reason a collapsed panel is safe here. */
+.advanced {
+  border: 1px solid var(--line); border-radius: 12px; padding: .75rem .8rem;
+}
+.advanced[open] { display: flex; flex-direction: column; gap: 1.05rem; }
+.advanced > summary {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: .5rem; cursor: pointer; list-style: none;
+  font-size: .78rem; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--dim);
+}
+.advanced > summary::-webkit-details-marker { display: none; }
+.advanced > summary::after {
+  content: '+'; color: var(--dim); font-size: 1rem; line-height: 1;
+}
+.advanced[open] > summary::after { content: '\2212'; }
+.advanced > summary em {
+  font-style: normal; text-transform: none; letter-spacing: 0;
+  color: var(--accent); flex: 1; text-align: right;
+}
+
 .ticks, .nudges, .options { display: flex; gap: .4rem; flex-wrap: wrap; }
 .tick, .nudges button, .option {
   background: #0d0f12; border: 1px solid var(--line); border-radius: 999px;
