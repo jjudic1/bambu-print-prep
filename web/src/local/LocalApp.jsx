@@ -1043,7 +1043,13 @@ export default function LocalApp() {
                   onClick={() => { setActivePlate(i); setSelectedId(null) }}
                 >
                   Plate {i + 1}
-                  <em>{count ? ` ${count}` : ' empty'}</em>
+                  {/* The count needs the word. "Plate 1" beside a bare "1"
+                      reads as one number typed twice -- measured on a real
+                      iPad, where it looked like a bug in the app. */}
+                  <em>
+                    {count ? ` \u00b7 ${count} part${count > 1 ? 's' : ''}`
+                           : ' \u00b7 empty'}
+                  </em>
                 </button>
               )
             })}
