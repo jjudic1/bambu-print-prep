@@ -279,7 +279,20 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .advanced {
   border: 1px solid var(--line); border-radius: 12px; padding: .75rem .8rem;
 }
-.advanced[open] { display: flex; flex-direction: column; gap: 1.05rem; }
+/* The rows sit in their own flex box rather than making the <details> one:
+   WebKit ignores display on <details>, so on an iPad the gap vanished and each
+   heading ran straight on from the hint above it. */
+.advanced-body {
+  display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1rem;
+}
+/* Inside the drawer the headings are the thing being scanned for, so they are
+   bright and bold rather than the dim small caps of the rows outside, and the
+   hints step down a size under them. */
+.advanced-body .field > span, .advanced-body .check span {
+  font-size: .95rem; font-weight: 700; letter-spacing: 0;
+  text-transform: none; color: var(--ink);
+}
+.advanced-body .hint { font-size: .82rem; line-height: 1.35; }
 .advanced > summary {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: .5rem; cursor: pointer; list-style: none;

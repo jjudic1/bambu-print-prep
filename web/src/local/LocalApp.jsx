@@ -1211,6 +1211,7 @@ export default function LocalApp() {
             )}
           </summary>
 
+          <div className="advanced-body">
           {/* The nozzle lives here rather than beside the printer: it is one of
               the few things on this page most people must not touch, and a
               select sitting in the open invites a change that produces a file
@@ -1229,8 +1230,7 @@ export default function LocalApp() {
               ))}
             </select>
             <div className="hint">
-              The tip fitted to your printer right now. Most are 0.4 mm and have
-              never been changed.
+              The tip on your printer now. Almost always 0.4&nbsp;mm.
             </div>
           </label>
 
@@ -1248,8 +1248,7 @@ export default function LocalApp() {
               ))}
             </select>
             <div className="hint">
-              Gyroid costs a little more time and holds up the same in every
-              direction, which is the one worth having on a shape with curves.
+              Gyroid is equally strong every way -- best for curvy shapes.
             </div>
           </label>
 
@@ -1271,8 +1270,7 @@ export default function LocalApp() {
               ))}
             </select>
             <div className="hint">
-              How much goes inside. Standard is whatever this printer's own
-              profile asks for, which is what you would get in Bambu Studio.
+              How solid the inside is. Standard matches Bambu Studio.
             </div>
           </label>
 
@@ -1294,8 +1292,7 @@ export default function LocalApp() {
               ))}
             </select>
             <div className="hint">
-              How many times round the outside. More walls is the cheaper way to
-              make something stronger than more infill is.
+              Extra walls add strength for less than extra infill.
             </div>
           </label>
 
@@ -1310,10 +1307,9 @@ export default function LocalApp() {
               <span>Supports where it overhangs</span>
             </label>
             <div className="hint">
-              Tree supports, and only where the shape needs them -- the kind
-              that comes off by hand afterwards. Turn them off for something
-              that stands up on its own and there is less to tidy up.
+              Tree supports, only where needed. They snap off by hand.
             </div>
+          </div>
           </div>
         </details>
         </div>
