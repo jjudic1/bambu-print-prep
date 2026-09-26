@@ -1248,7 +1248,7 @@ export default function LocalApp() {
               ))}
             </select>
             <div className="hint">
-              Gyroid is equally strong every way -- best for curvy shapes.
+              Gyroid gives the nozzle no crossings to catch on. Grid is faster.
             </div>
           </label>
 

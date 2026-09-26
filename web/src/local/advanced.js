@@ -34,11 +34,22 @@
  * a blanket "2 walls, 15%" default of ours would quietly overrule every one of
  * them for a user who opened the drawer and changed nothing else.
  *
- * Supports are the exception and are a plain on/off, because every one of the
+ * Supports are one exception and are a plain on/off, because every one of the
  * 202 baked blobs says `enable_support: "1"` with `support_type: "tree(auto)"`
  * -- we already turn them on for everybody. web/advanced-check.mjs fails if
  * that stops being true, rather than letting the toggle lie about where it
  * started.
+ *
+ * The pattern is the other, and the one place this app overrules every
+ * profile on purpose. All 202 say grid; we start on gyroid, because grid lays
+ * each layer as lines that cross, and the nozzle clips the raised crossings on
+ * its way over -- the knocks and snags that print fine on paper. Gyroid has no
+ * crossings. It costs some time, and Grid is still one tap away. Unlike the
+ * density and wall count this is not a figure somebody tuned for a line width:
+ * the profiles all say grid because grid is what Bambu ships, not because a
+ * 0.2 mm nozzle needs it. Both choices are written out, as supports are, and a
+ * key that matches the profile is simply not declared -- so Grid writes the
+ * byte-for-byte file this app wrote before gyroid became the default.
  *
  * Nothing here is remembered between sessions, for the reason printers.js does
  * not remember a nozzle: a choice made for one print, hidden behind a shut
@@ -48,13 +59,13 @@
  * can run it against the real profiles without a browser.
  */
 
-/** How the inside is laid out. Everything baked says "grid". */
+/**
+ * How the inside is laid out. Everything baked says "grid"; we start on
+ * gyroid (see "Standard means standard" above for why).
+ */
 export const PATTERNS = [
-  { key: 'standard', value: null, label: 'Standard', note: 'grid' },
-  {
-    key: 'gyroid', value: 'gyroid', label: 'Gyroid',
-    note: 'curved, and equally strong whichever way it is pushed',
-  },
+  { key: 'gyroid', value: 'gyroid', label: 'Gyroid', note: 'recommended' },
+  { key: 'grid', value: 'grid', label: 'Grid', note: 'faster' },
 ]
 
 /**
@@ -91,11 +102,11 @@ export const WALLS = [
 ]
 
 /**
- * Where the drawer opens: every choice at the profile's own answer, and
- * supports on, which is what every baked profile already asks for.
+ * Where the drawer opens: gyroid, the profile's own answer for how much and
+ * how many walls, and supports on, which is what every profile already asks.
  */
 export const DEFAULTS = Object.freeze({
-  pattern: 'standard', density: null, walls: null, supports: true,
+  pattern: 'gyroid', density: null, walls: null, supports: true,
 })
 
 /** The support settings we write, and the only kind of support offered.
@@ -124,8 +135,10 @@ export function patchFor(advanced = DEFAULTS) {
   const choice = { ...DEFAULTS, ...advanced }
   const patch = {}
 
+  // Written either way, like supports: gyroid is ours, so it has to be said,
+  // and grid matches the profile, so changedKeys() lets it drop out unsaid.
   const pattern = PATTERNS.find((p) => p.key === choice.pattern)
-  if (pattern?.value) patch.sparse_infill_pattern = pattern.value
+  if (pattern) patch.sparse_infill_pattern = pattern.value
   if (choice.density !== null && choice.density !== undefined) {
     patch.sparse_infill_density = `${choice.density}%`
   }
@@ -189,8 +202,9 @@ export function declare(existing, changed) {
  * into every later file they wrote, including after they put the drawer back to
  * Standard.
  *
- * Returns the profile untouched when nothing differs, so the default path is
- * byte-for-byte the file this app has always written.
+ * Returns the profile untouched when nothing differs -- which, since the
+ * default is gyroid, is Grid with everything else left alone: byte-for-byte
+ * the file this app wrote before.
  */
 export function applyAdvanced(profile, material, advanced = DEFAULTS) {
   const entry = profile?.materials?.[material]
@@ -211,7 +225,8 @@ export function applyAdvanced(profile, material, advanced = DEFAULTS) {
 }
 
 /**
- * The drawer's closed state, in words: what has been changed from Standard.
+ * The drawer's closed state, in words: what has been changed from where the
+ * drawer opens.
  *
  * A shut drawer hiding a 100% solid model is the same class of bug as a
  * remembered nozzle, so the summary line says so without being opened.

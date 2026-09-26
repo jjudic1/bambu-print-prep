@@ -74,11 +74,12 @@ console.log('--- the data the drawer rests on --------------------------------')
   const notTree = every.filter(([id, m]) => blobs[id][m].settings.support_type !== SUPPORT_TYPE)
   check('every profile already asks for tree supports', notTree, [])
 
-  // "Standard" for the pattern is labelled "grid" in the UI. It is uniform
-  // across the whole export, unlike density and wall count, which is exactly
-  // why those two defer and this one can be named.
+  // The pattern is uniform across the whole export, unlike density and wall
+  // count -- which is why those two defer to the profile and this one can be
+  // named: Grid is the profile's own answer everywhere, and Gyroid, our
+  // default, is a declared override everywhere.
   const notGrid = [...new Set(every.map(([id, m]) => blobs[id][m].settings.sparse_infill_pattern))]
-  check('the standard pattern is grid everywhere', notGrid, ['grid'])
+  check('every profile says grid', notGrid, ['grid'])
 
   // And the two that are *not* uniform, which is the whole argument for null
   // meaning "leave it alone" rather than a blanket default of ours.
@@ -88,16 +89,34 @@ console.log('--- the data the drawer rests on --------------------------------')
   check('profiles disagree about how many walls', walls, ['2', '4'])
 }
 
-console.log('\n--- standard changes nothing ------------------------------------')
+console.log('\n--- the defaults change the pattern and nothing else --------------')
 {
-  // The default path has to be the file this app has always written, or every
-  // existing user's next download quietly becomes a different print.
+  // Gyroid is the one deliberate override of ours. Everything else has to be
+  // the profile's own answer, or the drawer overrules a figure somebody tuned
+  // for that nozzle for a user who never opened it.
+  const wrong = []
+  for (const [id, material] of every) {
+    const settings = applyAdvanced(profileFor(id), material, DEFAULTS).materials[material].settings
+    const moved = Object.keys(settings)
+      .filter((k) => JSON.stringify(settings[k]) !== JSON.stringify(blobs[id][material].settings[k]))
+      .sort()
+    const declared = settings.different_settings_to_system[0].split(';')
+    if (JSON.stringify(moved) !== '["different_settings_to_system","sparse_infill_pattern"]'
+        || settings.sparse_infill_pattern !== 'gyroid'
+        || !declared.includes('sparse_infill_pattern')) wrong.push(`${id} ${material}`)
+  }
+  check('the defaults write gyroid, declared, and touch nothing else', wrong, [])
+
+  // And Grid with the rest left alone is the file from before gyroid was the
+  // default -- the same object, not an equal copy.
   const changed = []
   for (const [id, material] of every) {
     const profile = profileFor(id)
-    if (applyAdvanced(profile, material, DEFAULTS) !== profile) changed.push(`${id} ${material}`)
+    if (applyAdvanced(profile, material, { ...DEFAULTS, pattern: 'grid' }) !== profile) {
+      changed.push(`${id} ${material}`)
+    }
   }
-  check('the defaults leave every profile untouched, object and all', changed, [])
+  check('grid leaves every profile untouched, object and all', changed, [])
 
   check('undefined choices are the defaults', patchFor(undefined), patchFor(DEFAULTS))
   check('the defaults say nothing in the summary line', summarise(DEFAULTS), [])
@@ -179,10 +198,9 @@ console.log('\n--- supports ----------------------------------------------------
 
 console.log('\n--- the choices the drawer offers -------------------------------')
 {
-  check('the pattern choices are standard and gyroid',
-    PATTERNS.map((p) => p.key), ['standard', 'gyroid'])
-  check('standard writes no pattern at all',
-    PATTERNS.find((p) => p.key === 'standard').value, null)
+  check('the pattern choices are gyroid then grid',
+    PATTERNS.map((p) => p.key), ['gyroid', 'grid'])
+  check('the drawer opens on gyroid', DEFAULTS.pattern, 'gyroid')
   check('the first density and wall count defer to the profile',
     [DENSITIES[0].value, WALLS[0].value], [null, null])
   // Both ends are deliberately short of the ones the slicer allows. 100% is
@@ -199,8 +217,8 @@ console.log('\n--- the choices the drawer offers -------------------------------
     WALLS.slice(1).every((w) => Number.isInteger(w.value) && w.value >= 1), true)
 
   check('the summary names what was changed',
-    summarise({ pattern: 'gyroid', density: 50, walls: 4, supports: false }),
-    ['Gyroid', '50% inside', '4 walls', 'no supports'])
+    summarise({ pattern: 'grid', density: 50, walls: 4, supports: false }),
+    ['Grid', '50% inside', '4 walls', 'no supports'])
 
   check('what the profile says is readable for the Standard labels',
     profileValues(blobs['Bambu Lab P1S 0.4 nozzle'].PLA.settings),
