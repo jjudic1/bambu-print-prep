@@ -121,11 +121,17 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   profiles ask for four walls and the A1's 0.6 for 25% -- values chosen for
   those line widths by people who measured them -- so a blanket default of ours
   would overrule every one of them for somebody who opened the drawer and
-  changed nothing. Supports are the one exception and are a plain on/off,
+  changed nothing. Supports are one exception and are a plain on/off,
   because all 202 baked blobs already say `enable_support: "1"` with
   `support_type: "tree(auto)"`; the check harness fails if that stops being
-  true rather than letting the toggle start on a lie. Nothing in the drawer is
-  remembered between sessions, for the reason the nozzle is not.
+  true rather than letting the toggle start on a lie. **The pattern is the
+  other, and the one deliberate override of every profile**: all 202 say grid,
+  and the drawer opens on gyroid (2026-09-26, the user's call) because the
+  nozzle catches on grid's raised crossings. So every file now carries a
+  declared `sparse_infill_pattern` unless somebody picks Grid -- which, with
+  nothing else changed, is byte-for-byte the old file, and the harness checks
+  both halves. Nothing in the drawer is remembered between sessions, for the
+  reason the nozzle is not.
 - **The baked profiles are two files and go stale together**: `printers.json` is
   the 13 KB index the pickers read, `printer-settings.json` the 4.8 MB of blobs,
   fetched on demand — static, it put 4 MB of JavaScript in front of first paint
