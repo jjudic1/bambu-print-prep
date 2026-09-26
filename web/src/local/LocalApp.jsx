@@ -16,6 +16,7 @@ import {
   applyAdvanced, profileValues, summarise,
 } from './advanced.js'
 import { DEMO_NAME, TOUR, demoModel } from './demo.js'
+import { NEWS_LABEL, markNewsSeen, newsSeen } from './news.js'
 import { posedGeometry } from './flatten.js'
 import { MAKERWORLD_URL, renderHandoff } from './handoff.js'
 import { outward, standalone } from './outside.js'
@@ -199,6 +200,12 @@ export default function LocalApp() {
   const [advanced, setAdvanced] = useState(ADVANCED)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [standard, setStandard] = useState(null)
+  // The floating "New" tag on the drawer; see news.js.
+  const [showNews, setShowNews] = useState(() => !newsSeen())
+  const dismissNews = useCallback(() => {
+    markNewsSeen()
+    setShowNews(false)
+  }, [])
 
   const [colour, setColour] = useState(
     () => Number(localStorage.getItem('colour')) || COLOURS[0].hex)
@@ -1168,10 +1175,34 @@ export default function LocalApp() {
 
             A native <details> because it needs no JavaScript to work, and
             because iOS renders and animates it for free. */}
+        <div className="advanced-wrap">
+        {/* Sits on the drawer's top border, outside the <details>, so tapping
+            it can open the drawer without also toggling it shut again. Opening
+            the drawer any way at all counts as having read it. */}
+        {showNews && !advancedOpen && (
+          <div className="news" role="status">
+            <button
+              className="news-open"
+              onClick={() => { setAdvancedOpen(true); dismissNews() }}
+            >
+              <span className="news-spark" aria-hidden="true">{'\u2726'}</span>
+              {NEWS_LABEL}
+            </button>
+            <button
+              className="news-close" aria-label="Dismiss"
+              onClick={dismissNews}
+            >
+              {'\u00d7'}
+            </button>
+          </div>
+        )}
         <details
           className="advanced"
           open={advancedOpen}
-          onToggle={(e) => setAdvancedOpen(e.currentTarget.open)}
+          onToggle={(e) => {
+            setAdvancedOpen(e.currentTarget.open)
+            if (e.currentTarget.open && showNews) dismissNews()
+          }}
         >
           <summary>
             Advanced
@@ -1285,6 +1316,7 @@ export default function LocalApp() {
             </div>
           </div>
         </details>
+        </div>
 
         {/* --- size -------------------------------------------------------- */}
         {selected ? (
