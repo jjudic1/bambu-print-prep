@@ -41,20 +41,44 @@ export const OBJECT_PART = objectPart(1)
  * the stride between plates is **1.2x the bed**, which holds for both the
  * 256 mm machines (307) and the 180 mm one (216). 54 files agree on 1.2 exactly.
  *
- * The wrap column is **two**, and that one is not cosmetic. Bambu Studio
- * assigns objects to plates geometrically, by which plate region contains
- * them -- the plater_id in model_settings.config is not taken at its word. Lay
- * plate 3 out in a third column and its objects land in no plate at all and are
- * silently dropped; the file still opens, with an empty plate and missing
- * parts. Measured: three plates, five objects, wrap at 2 reproduces the intended
- * assignment exactly, wrap at 3 loses plate 3 and wrap at 1 loses plate 2.
+ * The wrap column is not cosmetic. Bambu Studio assigns objects to plates
+ * geometrically, by which plate region contains them -- the plater_id in
+ * model_settings.config is not taken at its word. Put a plate in the wrong
+ * column and its objects land on another plate or on none; the file still
+ * opens, with an empty plate and missing parts. Measured: three plates, five
+ * objects, wrap at 2 reproduces the intended assignment exactly, wrap at 3
+ * loses plate 3 and wrap at 1 loses plate 2.
+ *
+ * **And the wrap is not always two.** It was hard-coded to two off that
+ * three-plate measurement, which is right up to four plates and wrong from
+ * five: Bambu Studio widens the grid as plates are added (plateColumns). A
+ * nine-plate file wrapped at two had plate 3 sitting where Bambu expects the
+ * start of row two, so MakerWorld refused it -- "[Plate 3]: One of the plate
+ * is empty" -- on a job where every plate had something on it (2026-09-30).
  */
 export const PLATE_STRIDE = 1.2
-const PLATES_PER_ROW = 2
 
-export function plateOrigin(index, printer) {
-  const column = index % PLATES_PER_ROW
-  const row = Math.floor(index / PLATES_PER_ROW)
+/**
+ * How many plates Bambu Studio puts in a row, for a file with `count` plates.
+ *
+ * PartPlateList::compute_colum_count, reproduced: the square root, rounded to
+ * nearest and then bumped up if that fell short. That is the ceiling of the
+ * root for every count -- 2 across for 2-4 plates, 3 for 5-9, 4 for 10-16.
+ * Written out the way Bambu writes it anyway, because a match to its
+ * arithmetic is the thing that matters and a float sqrt of a perfect square is
+ * exact either way.
+ */
+export function plateColumns(count) {
+  const value = Math.sqrt(Math.max(1, count))
+  const rounded = Math.round(value)
+  return value > rounded ? rounded + 1 : rounded
+}
+
+export function plateOrigin(index, printer, count) {
+  if (!(count >= 1)) throw new Error('plateOrigin needs the number of plates in the file')
+  const perRow = plateColumns(count)
+  const column = index % perRow
+  const row = Math.floor(index / perRow)
   return [
     column * printer.bed_mm[0] * PLATE_STRIDE,
     -row * printer.bed_mm[1] * PLATE_STRIDE,
@@ -472,7 +496,7 @@ export function makeProject3mf({
   let part = 1
   const all = []
   for (const [index, plate] of layout.entries()) {
-    const [ox, oy] = plateOrigin(index, printer)
+    const [ox, oy] = plateOrigin(index, printer, layout.length)
     plate.objects = (plate.objects || []).map((object) => {
       // A plate is a region of world space, so an object's position is its
       // place on the plate plus wherever that plate sits.

@@ -599,6 +599,17 @@ no plate at all and are **silently dropped**; wrapping at 1 loses plate 2 the
 same way. The file still opens either way, with an empty plate and missing
 parts.
 
+**Correction, 2026-09-30: two is right for three plates, not for all of them.**
+Bambu Studio widens the grid as plates are added -- `compute_colum_count` in
+`PartPlateList`: the square root of the plate count, rounded up. 2 across for
+2-4 plates, 3 for 5-9, 4 for 10-16. The measurement above had three plates, so
+it could not tell "always two" from "two for three", and the writer took the
+first reading. A nine-plate job wrapped at two was refused on MakerWorld with
+*"[Plate 3]: One of the plate is empty or has no object fully inside it"* --
+plate 3 sat where Bambu expects the start of row two. `plateColumns` in
+`web/src/make3mf.js` reproduces Bambu's arithmetic, and `web/parts-check.mjs`
+pins the grid for 1-16 plates.
+
 Bambu Studio's own diagnosis, which is how both were found:
 
 > One of the plate is empty or has no object fully inside it.
