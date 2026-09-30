@@ -21,7 +21,10 @@ import { posedGeometry } from './flatten.js'
 import { MAKERWORLD_URL, renderHandoff } from './handoff.js'
 import { outward, standalone } from './outside.js'
 import { plateImages, readModel, spoken, toArrays } from './mesh.js'
-import { arrange, clash, footprint, keepOuts, splitParts } from './parts.js'
+import {
+  arrange, clash, footprint, keepOuts, keepScale, modelSize, splitParts,
+  withPartBack, withoutPart, withoutPlate,
+} from './parts.js'
 import {
   DEFAULT_NOZZLE_MM, models, nozzlesFor, pick, startingPrinter,
 } from './printers.js'
@@ -216,6 +219,8 @@ export default function LocalApp() {
   const [activePlate, setActivePlate] = useState(0)
   const [selectedId, setSelectedId] = useState(null)
   const [beforeSplit, setBeforeSplit] = useState(null)
+  // The last part taken off, and where it was, so a mis-tap can be put back.
+  const [removed, setRemoved] = useState(null)
   const [name, setName] = useState('')
 
   // The walk-through: whether it is running, what the model looked like when it
@@ -295,16 +300,9 @@ export default function LocalApp() {
    * file on every pointer move.
    */
   const shapeKey = parts.map((p) => p.id).join(',')
-  const baseSize = useMemo(() => {
-    if (!parts.length) return null
-    const m = new THREE.Matrix4().makeRotationFromQuaternion(
-      new THREE.Quaternion(...base))
-    const box = new THREE.Box3()
-    for (const part of parts) box.union(footprint(part.geometry, m).box)
-    const size = box.getSize(new THREE.Vector3())
-    return [size.x, size.y, size.z]
+  const baseSize = useMemo(() => modelSize(parts, base),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shapeKey, base])
+    [shapeKey, base])
 
   /** One scale factor per bed axis, whichever control is driving. */
   const factors = useMemo(() => {
@@ -435,7 +433,7 @@ export default function LocalApp() {
 
     setParts([freshPart(geometry, modelName, bx / 2, by / 2)])
     setPlateCount(1); setActivePlate(0); setSelectedId(null)
-    setBeforeSplit(null); setSeenPlates([0])
+    setBeforeSplit(null); setSeenPlates([0]); setRemoved(null)
     setName(modelName.replace(/\.[^.]+$/, ''))
     setBase(IDENTITY); setUniform(true); setSizeMm(null)
     const longest = Math.round(Math.max(size.x, size.y, size.z)) || 80
@@ -527,7 +525,7 @@ export default function LocalApp() {
       // Renumbered as a set so the labels match what is on screen. Biggest
       // first, because splitParts has already ordered them that way.
       const named = pieces.map((p, i) => ({ ...p, name: `Part ${i + 1}` }))
-      setBeforeSplit(parts)
+      setBeforeSplit(parts); setRemoved(null)
       layOut(named, `Split into ${named.length} parts, laid out`)
     } catch (e) {
       setError(e.message)
@@ -548,10 +546,70 @@ export default function LocalApp() {
 
   function undoSplit() {
     if (!beforeSplit) return
-    setParts(beforeSplit)
+    // Through swapParts, not setParts: a part removed since the split comes
+    // back inside the whole model, and without keeping the scale the model
+    // would come back smaller than it went.
+    swapParts(beforeSplit)
     setPlateCount(Math.max(1, ...beforeSplit.map((p) => p.plate + 1)))
     setActivePlate(0); setSelectedId(null); setBeforeSplit(null)
+    setRemoved(null)
     setNote('Put back together.')
+  }
+
+  // --- taking things away ---------------------------------------------------
+  //
+  // The size controls measure every part together, so a different set of parts
+  // is a different ruler. swapParts moves the size setting by the same ratio,
+  // and the parts that stayed stay exactly the size they were -- otherwise
+  // removing the biggest piece would blow the rest up to fill its old size.
+
+  function swapParts(next) {
+    const after = modelSize(next, base)
+    const kept = keepScale(baseSize, after, { longestMm, sizeMm })
+    setLongestMm(kept.longestMm)
+    setSizeMm(kept.sizeMm)
+    // The walk-through's size step compares against where it started; that
+    // has to move by the same ratio or removing a part would tick it.
+    if (tourStart && baseSize && after) {
+      const ratio = Math.max(...after) / (Math.max(...baseSize) || 1)
+      setTourStart((t) => t && { ...t, longestMm: t.longestMm * ratio })
+    }
+    setParts(next)
+  }
+
+  function removePart(id) {
+    const out = withoutPart(parts, id)
+    if (!out) return
+    swapParts(out.parts)
+    setRemoved(out.removed)
+    setSelectedId(null)
+    setNote(`Removed ${short(out.removed.part.name)}.`)
+  }
+
+  function putBack() {
+    const next = withPartBack(parts, removed, plateCount)
+    setRemoved(null)
+    if (!next) return
+    const part = next.find((p) => p.id === removed.part.id)
+    swapParts(next)
+    setActivePlate(part.plate)
+    setSelectedId(part.id)
+    setNote(`Put ${short(part.name)} back.`)
+  }
+
+  function removePlate(plate) {
+    const out = withoutPlate(parts, plate, plateCount)
+    if (!out) return
+    setParts(out.parts)
+    setPlateCount(out.plateCount)
+    setActivePlate(Math.max(0, plate - 1))
+    setSelectedId(null)
+    // Everything numbered after it has moved down one, including what the
+    // walk-through remembers looking at and where a removed part would go back.
+    const shift = (i) => (i > plate ? i - 1 : i)
+    setSeenPlates((seen) => [...new Set(seen.filter((i) => i !== plate).map(shift))])
+    setRemoved((r) => r && { ...r, part: { ...r.part, plate: shift(r.part.plate) } })
+    setNote(`Removed plate ${plate + 1}.`)
   }
 
   const onMove = useCallback((id, x, y) => {
@@ -1069,10 +1127,17 @@ export default function LocalApp() {
             </button>
           </div>
           {plateCount > 1 && !parts.some((p) => p.plate === activePlate) && (
-            <p className="reason">
-              This plate is empty. Bambu Studio refuses a file with an empty
-              plate, so it will be left out unless you put something on it.
-            </p>
+            <>
+              <p className="reason">
+                This plate is empty. Bambu Studio refuses a file with an empty
+                plate, so it will be left out unless you put something on it.
+              </p>
+              <div className="nudges">
+                <button className="remove" onClick={() => removePlate(activePlate)}>
+                  Remove plate {activePlate + 1}
+                </button>
+              </div>
+            </>
           )}
           {onKeepOut.length > 0 && (
             <p className="reason">
@@ -1128,6 +1193,22 @@ export default function LocalApp() {
               ))}
             </div>
           )}
+          {/* Only with a part picked, so it is always obvious which one goes,
+              and never the last one -- that is Start over. The put-back stays
+              until something else changes the set of parts, because on a touch
+              screen the mis-tap is the likely way to get here. */}
+          {(selected && parts.length > 1) || removed ? (
+            <div className="nudges">
+              {selected && parts.length > 1 && (
+                <button className="remove" onClick={() => removePart(selected.id)}>
+                  Remove {short(selected.name)}
+                </button>
+              )}
+              {removed && (
+                <button onClick={putBack}>Put back {short(removed.part.name)}</button>
+              )}
+            </div>
+          ) : null}
           <div className="nudges">
             <button onClick={onSplit} disabled={!!busy}>
               {busy === 'Splitting it up...' ? busy : 'Split into parts'}
