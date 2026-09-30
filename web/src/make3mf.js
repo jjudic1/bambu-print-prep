@@ -63,7 +63,9 @@ export const PLATE_STRIDE = 1.2
  *
  * PartPlateList::compute_colum_count, reproduced: the square root, rounded to
  * nearest and then bumped up if that fell short. That is the ceiling of the
- * root for every count -- 2 across for 2-4 plates, 3 for 5-9, 4 for 10-16.
+ * root for every count -- a square grid a size bigger each time it fills:
+ * 2x2 for 2-4 plates, 3x3 for 5-9, 4x4 for 10-16, 5x5 for 17-25, filled a
+ * row at a time. The user confirmed those grids in Bambu Studio itself.
  * Written out the way Bambu writes it anyway, because a match to its
  * arithmetic is the thing that matters and a float sqrt of a perfect square is
  * exact either way.

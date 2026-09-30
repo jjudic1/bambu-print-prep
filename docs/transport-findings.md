@@ -601,8 +601,9 @@ parts.
 
 **Correction, 2026-09-30: two is right for three plates, not for all of them.**
 Bambu Studio widens the grid as plates are added -- `compute_colum_count` in
-`PartPlateList`: the square root of the plate count, rounded up. 2 across for
-2-4 plates, 3 for 5-9, 4 for 10-16. The measurement above had three plates, so
+`PartPlateList`: the square root of the plate count, rounded up. A square
+grid, filled a row at a time: 2x2 for 2-4 plates, 3x3 for 5-9, 4x4 for 10-16,
+5x5 for 17-25 -- the grids the user sees in Bambu Studio (2026-09-30). The measurement above had three plates, so
 it could not tell "always two" from "two for three", and the writer took the
 first reading. A nine-plate job wrapped at two was refused on MakerWorld with
 *"[Plate 3]: One of the plate is empty or has no object fully inside it"* --

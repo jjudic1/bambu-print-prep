@@ -390,9 +390,12 @@ console.log('\n--- where each plate sits in the file ---------------------------
   // grid that widens as plates are added. Wrapping every file at two -- what
   // this did until 2026-09-30 -- put plate 3 of a nine-plate job where Bambu
   // expects the start of row two, and MakerWorld refused it as empty.
-  check('plates per row, for 1 to 16 plates',
-    Array.from({ length: 16 }, (_, i) => plateColumns(i + 1)),
-    [1, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4])
+  // A square grid that grows a size at a time -- 2x2 up to 4 plates, 3x3 up
+  // to 9, 4x4 up to 16, 5x5 up to 25 -- filled a row at a time, left to
+  // right. Seen that way in Bambu Studio by the user, 2026-09-30.
+  check('plates per row, for 1 to 25 plates',
+    Array.from({ length: 25 }, (_, i) => plateColumns(i + 1)),
+    [1, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5])
 
   const printer = { bed_mm: [256, 256] }
   const cell = (index, count) => {
@@ -409,6 +412,8 @@ console.log('\n--- where each plate sits in the file ---------------------------
   check('eight plates: the same grid, the last cell left open',
     Array.from({ length: 8 }, (_, i) => cell(i, 8)).at(-1), [1, 2])
   check('ten plates: four across', cell(3, 10), [3, 0])
+  check('twenty-five plates: five across, the last in the fifth row',
+    [cell(4, 25), cell(5, 25), cell(24, 25)], [[4, 0], [0, 1], [4, 4]])
 
   let threw = false
   try { plateOrigin(0, printer) } catch (e) { threw = e instanceof Error }
