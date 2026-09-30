@@ -47,4 +47,4 @@ const plates = [
 const zip = makeProject3mf({ printer, material: 'PLA', title: 'multi.stl', plates })
 writeFileSync(process.argv[2], zip)
 console.log(`wrote ${zip.length} bytes`)
-console.log('plate origins:', [0,1,2].map(i => plateOrigin(i, printer).map(Math.round)))
+console.log('plate origins:', [0,1,2].map(i => plateOrigin(i, printer, 3).map(Math.round)))

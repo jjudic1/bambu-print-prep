@@ -70,8 +70,13 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   same trap in reverse — check it by signed volume.
 - **Multi-plate has two silent traps**: every geometry part must declare the id
   it is referenced by, and plates are regions of world space at 1.2x the bed
-  wrapping after two columns. Get either wrong and parts are dropped from a file
-  that still opens. See `docs/transport-findings.md` §A2d.
+  in a square grid that grows with the plate count -- 2x2 for 2-4 plates, 3x3
+  for 5-9, 4x4 for 10-16, 5x5 for 17-25, filled a row at a time
+  (`plateColumns` in `make3mf.js`, Bambu Studio's own arithmetic, and the
+  grids the user sees in Bambu Studio). Get either wrong and parts are dropped from a file that still
+  opens. It was hard-coded to 2 for a month, off a three-plate measurement, and
+  a nine-plate job was refused on MakerWorld with "[Plate 3]: One of the plate
+  is empty" (2026-09-30). See `docs/transport-findings.md` §A2d.
 - **Part of the bed is not printable, and only on some machines.** A P1P, a P1S
   and every X1 keep an 18 x 28 mm corner at the front left to purge and wipe the
   nozzle on (`bed_exclude_area` in the profile); the A1 family and the H2s have

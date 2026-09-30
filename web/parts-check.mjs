@@ -24,6 +24,7 @@ import {
   withPartBack, withoutPart, withoutPlate,
 } from './src/local/parts.js'
 import { IDENTITY, sameOrientation, turn } from './src/orientation.js'
+import { PLATE_STRIDE, plateColumns, plateOrigin } from './src/make3mf.js'
 
 // --- the same maths LocalApp does, lifted out of React -----------------------
 
@@ -381,6 +382,42 @@ console.log('\n--- taking a part or a plate away -------------------------------
   check('the only plate is not removed', withoutPlate([], 0, 1), null)
   check('an empty last plate goes without moving anything',
     withoutPlate(spread, 3, 4)?.parts.map((p) => p.plate), [0, 0, 2])
+}
+
+console.log('\n--- where each plate sits in the file ----------------------------')
+{
+  // Bambu Studio decides which plate an object is on by where it stands, in a
+  // grid that widens as plates are added. Wrapping every file at two -- what
+  // this did until 2026-09-30 -- put plate 3 of a nine-plate job where Bambu
+  // expects the start of row two, and MakerWorld refused it as empty.
+  // A square grid that grows a size at a time -- 2x2 up to 4 plates, 3x3 up
+  // to 9, 4x4 up to 16, 5x5 up to 25 -- filled a row at a time, left to
+  // right. Seen that way in Bambu Studio by the user, 2026-09-30.
+  check('plates per row, for 1 to 25 plates',
+    Array.from({ length: 25 }, (_, i) => plateColumns(i + 1)),
+    [1, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5])
+
+  const printer = { bed_mm: [256, 256] }
+  const cell = (index, count) => {
+    const [x, y] = plateOrigin(index, printer, count)
+    return [Math.round(x / (256 * PLATE_STRIDE)), Math.round(-y / (256 * PLATE_STRIDE))]
+  }
+  // The one layout measured against Bambu Studio directly: three plates, two
+  // across, the third starting row two.
+  check('three plates: two across, the third on row two',
+    [0, 1, 2].map((i) => cell(i, 3)), [[0, 0], [1, 0], [0, 1]])
+  check('nine plates: three across, three rows -- plate 3 ends row one',
+    Array.from({ length: 9 }, (_, i) => cell(i, 9)),
+    [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2], [2, 2]])
+  check('eight plates: the same grid, the last cell left open',
+    Array.from({ length: 8 }, (_, i) => cell(i, 8)).at(-1), [1, 2])
+  check('ten plates: four across', cell(3, 10), [3, 0])
+  check('twenty-five plates: five across, the last in the fifth row',
+    [cell(4, 25), cell(5, 25), cell(24, 25)], [[4, 0], [0, 1], [4, 4]])
+
+  let threw = false
+  try { plateOrigin(0, printer) } catch (e) { threw = e instanceof Error }
+  check('the plate count cannot be left out', threw, true)
 }
 
 const fails = results.filter((r) => !r.ok)
