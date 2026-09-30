@@ -234,3 +234,83 @@ export function arrange(parts, printer, matrixFor, { gap = 6, margin = 8 } = {})
     tooBig,
   }
 }
+
+/**
+ * How big a set of parts is together, unscaled, in the model's frame.
+ *
+ * The size controls divide by this, which is why taking a part away is not
+ * just a filter: the set shrinks, the same "80 mm longest side" now means a
+ * bigger scale, and every part left behind grows without anyone asking.
+ * `keepScale` is the other half of that.
+ */
+export function modelSize(parts, base) {
+  if (!parts.length) return null
+  const m = new THREE.Matrix4().makeRotationFromQuaternion(
+    new THREE.Quaternion(...base))
+  const box = new THREE.Box3()
+  for (const part of parts) box.union(footprint(part.geometry, m).box)
+  const size = box.getSize(new THREE.Vector3())
+  return [size.x, size.y, size.z]
+}
+
+/**
+ * The size settings that keep the same scale on a different set of parts.
+ *
+ * The sliders store a size, not a scale, so a change to what is being measured
+ * has to move the size by the same ratio or the parts that stayed put change
+ * size instead. Unrounded on purpose: a rounded figure is a slightly different
+ * scale, and put-back-then-removed would creep.
+ */
+export function keepScale(before, after, { longestMm, sizeMm }) {
+  if (!before || !after) return { longestMm, sizeMm }
+  const longest = Math.max(...before) || 1
+  return {
+    longestMm: longestMm * (Math.max(...after) / longest),
+    sizeMm: sizeMm && sizeMm.map((v, i) => v * (after[i] / (before[i] || 1))),
+  }
+}
+
+/**
+ * Take one part off the job. Null when that would leave nothing: the last part
+ * is what Start over is for, and a model with no parts has no size to keep.
+ *
+ * Hands back where it was, so a mis-tap on a touch screen can be put back.
+ */
+export function withoutPart(parts, id) {
+  const index = parts.findIndex((p) => p.id === id)
+  if (index < 0 || parts.length < 2) return null
+  return {
+    parts: [...parts.slice(0, index), ...parts.slice(index + 1)],
+    removed: { part: parts[index], index },
+  }
+}
+
+/**
+ * Put a removed part back where it was in the list, and on its plate if that
+ * plate still exists -- on the last one if not. Refuses a part already there,
+ * which is what "Put it back together" would otherwise make of it.
+ */
+export function withPartBack(parts, removed, plateCount) {
+  if (!removed || parts.some((p) => p.id === removed.part.id)) return null
+  const part = { ...removed.part, plate: Math.min(removed.part.plate, plateCount - 1) }
+  const at = Math.min(removed.index, parts.length)
+  return [...parts.slice(0, at), part, ...parts.slice(at)]
+}
+
+/**
+ * Take an empty plate away. Null for a plate with anything on it, or for the
+ * only one -- there is always a plate 1.
+ *
+ * Every plate after it moves down one, parts and all, so the numbers on screen
+ * stay 1, 2, 3 with no gap. The file has no gaps either: the writer numbers
+ * plates by position, and an empty plate in the middle is the one thing
+ * Bambu Studio refuses outright.
+ */
+export function withoutPlate(parts, plate, plateCount) {
+  if (plateCount < 2 || plate < 0 || plate >= plateCount) return null
+  if (parts.some((p) => p.plate === plate)) return null
+  return {
+    parts: parts.map((p) => (p.plate > plate ? { ...p, plate: p.plate - 1 } : p)),
+    plateCount: plateCount - 1,
+  }
+}

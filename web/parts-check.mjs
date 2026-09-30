@@ -19,7 +19,10 @@
 
 import * as THREE from 'three'
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
-import { arrange, clash, footprint, keepOuts, splitParts } from './src/local/parts.js'
+import {
+  arrange, clash, footprint, keepOuts, keepScale, modelSize, splitParts,
+  withPartBack, withoutPart, withoutPlate,
+} from './src/local/parts.js'
 import { IDENTITY, sameOrientation, turn } from './src/orientation.js'
 
 // --- the same maths LocalApp does, lifted out of React -----------------------
@@ -311,6 +314,73 @@ console.log('\n--- what the writer would receive -------------------------------
   check('every part sits on the plate, none through it', sat.map((s) => s.minZ), [0, 0, 0])
   check('no part is mirrored by its pose -- signed volume stays positive',
     sat.map((s) => s.volume > 0), [true, true, true])
+}
+
+console.log('\n--- taking a part or a plate away --------------------------------')
+{
+  // Three boxes of different sizes, the biggest first. The size controls
+  // measure all of them together, so removing the biggest shrinks the ruler --
+  // and the other two must not grow to fill it.
+  const box = (x, y, z) => new THREE.BoxGeometry(x, y, z)
+  const trio = [
+    { id: 1, name: 'Big', geometry: box(100, 40, 30), plate: 0, spin: IDENTITY, yaw: 0 },
+    { id: 2, name: 'Mid', geometry: box(40, 30, 20), plate: 0, spin: IDENTITY, yaw: 0 },
+    { id: 3, name: 'Small', geometry: box(20, 20, 60), plate: 1, spin: IDENTITY, yaw: 0 },
+  ]
+  const base = turn(IDENTITY, [0, 0, 1], 90)
+
+  for (const [label, uniform, sizeMm] of [
+    ['one size for everything', true, null],
+    ['Across, Deep and Tall set apart', false, [30, 60, 45]],
+  ]) {
+    const before = modelSize(trio, base)
+    const longestMm = 150
+    const matrixBefore = matrixForOf(modelMatrixOf(base, factorsOf(before, uniform, sizeMm, longestMm)))
+
+    const out = withoutPart(trio, 1)
+    const after = modelSize(out.parts, base)
+    const kept = keepScale(before, after, { longestMm, sizeMm })
+    const matrixAfter = matrixForOf(modelMatrixOf(base, factorsOf(after, uniform, kept.sizeMm, kept.longestMm)))
+
+    check(`${label}: the parts left keep their size exactly`,
+      out.parts.map((p) => extents(p.geometry, matrixAfter(p))),
+      out.parts.map((p) => extents(p.geometry, matrixBefore(p))))
+    check(`${label}: and are not mirrored on the way`,
+      out.parts.map((p) => {
+        const g = p.geometry.clone(); g.applyMatrix4(matrixAfter(p)); return signedVolume(g) > 0
+      }), [true, true])
+
+    // And back again: the same scale, not a slightly different one.
+    const back = withPartBack(out.parts, out.removed, 2)
+    const again = keepScale(after, modelSize(back, base), kept)
+    check(`${label}: putting it back restores the size setting`,
+      [Math.round(again.longestMm * 1e6) / 1e6,
+       again.sizeMm && again.sizeMm.map((v) => Math.round(v * 1e6) / 1e6)],
+      [longestMm, sizeMm])
+  }
+
+  const out = withoutPart(trio, 2)
+  check('a removed part is gone and the rest keep their order',
+    out.parts.map((p) => p.id), [1, 3])
+  check('a removed part goes back where it was in the list',
+    withPartBack(out.parts, out.removed, 2).map((p) => p.id), [1, 2, 3])
+  check('a part goes back onto the last plate if its own is gone',
+    withPartBack(out.parts, { ...out.removed, part: { ...out.removed.part, plate: 4 } }, 2)
+      .find((p) => p.id === 2).plate, 1)
+  check('a part already there is not put back twice',
+    withPartBack(trio, out.removed, 2), null)
+  check('the last part cannot be removed', withoutPart([trio[0]], 1), null)
+  check('a part that is not there cannot be removed', withoutPart(trio, 99), null)
+
+  // Plates: [0, 0, 2] across three plates, plate 1 empty.
+  const spread = trio.map((p, i) => ({ ...p, plate: [0, 0, 2][i] }))
+  const gone = withoutPlate(spread, 1, 3)
+  check('removing an empty plate moves the later ones down',
+    [gone.parts.map((p) => p.plate), gone.plateCount], [[0, 0, 1], 2])
+  check('a plate with something on it is not removed', withoutPlate(spread, 0, 3), null)
+  check('the only plate is not removed', withoutPlate([], 0, 1), null)
+  check('an empty last plate goes without moving anything',
+    withoutPlate(spread, 3, 4)?.parts.map((p) => p.plate), [0, 0, 2])
 }
 
 const fails = results.filter((r) => !r.ok)

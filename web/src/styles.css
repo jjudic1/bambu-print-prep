@@ -351,6 +351,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   padding: .4rem .7rem; font-size: .82rem; cursor: pointer; color: var(--dim);
 }
 .tick.on, .option.on { border-color: var(--accent); color: var(--ink); }
+/* Taking something away: the one control here that loses work, so it is the
+   one that is not green. Muted rather than alarming -- it can be put back. */
+.nudges button.remove { color: #e8837c; border-color: #5a2f2c; }
+.nudges button.remove:hover { border-color: #e8837c; }
 .option {
   border-radius: 12px; display: flex; flex-direction: column; gap: .1rem;
   align-items: flex-start; flex: 1 1 5.5rem;
