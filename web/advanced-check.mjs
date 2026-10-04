@@ -29,7 +29,7 @@
 import { readFileSync } from 'node:fs'
 
 import {
-  DEFAULTS, DENSITIES, KEYS, PATTERNS, SUPPORT_TYPE, WALLS,
+  ALWAYS_DECLARED, DEFAULTS, DENSITIES, KEYS, PATTERNS, SUPPORT_TYPE, WALLS,
   applyAdvanced, changedKeys, declare, patchFor, profileValues, summarise,
 } from './src/local/advanced.js'
 
@@ -103,20 +103,25 @@ console.log('\n--- the defaults change the pattern and nothing else ------------
     const declared = settings.different_settings_to_system[0].split(';')
     if (JSON.stringify(moved) !== '["different_settings_to_system","sparse_infill_pattern"]'
         || settings.sparse_infill_pattern !== 'gyroid'
-        || !declared.includes('sparse_infill_pattern')) wrong.push(`${id} ${material}`)
+        || !declared.includes('sparse_infill_pattern')
+        || !declared.includes('support_type')) wrong.push(`${id} ${material}`)
   }
-  check('the defaults write gyroid, declared, and touch nothing else', wrong, [])
+  check('the defaults write gyroid, declared, declare support_type, and touch nothing else', wrong, [])
 
   // And Grid with the rest left alone is the file from before gyroid was the
-  // default -- the same object, not an equal copy.
+  // default, but for one thing: support_type is now declared. Every value is
+  // the blob's own; only the declaration list moves.
   const changed = []
   for (const [id, material] of every) {
-    const profile = profileFor(id)
-    if (applyAdvanced(profile, material, { ...DEFAULTS, pattern: 'grid' }) !== profile) {
-      changed.push(`${id} ${material}`)
-    }
+    const settings = applyAdvanced(profileFor(id), material, { ...DEFAULTS, pattern: 'grid' })
+      .materials[material].settings
+    const moved = Object.keys(settings)
+      .filter((k) => JSON.stringify(settings[k]) !== JSON.stringify(blobs[id][material].settings[k]))
+    const declared = settings.different_settings_to_system[0].split(';')
+    if (JSON.stringify(moved) !== '["different_settings_to_system"]'
+        || JSON.stringify(declared) !== '["enable_support","support_type"]') changed.push(`${id} ${material}`)
   }
-  check('grid leaves every profile untouched, object and all', changed, [])
+  check('grid with the rest left alone only declares support_type', changed, [])
 
   check('undefined choices are the defaults', patchFor(undefined), patchFor(DEFAULTS))
   check('the defaults say nothing in the summary line', summarise(DEFAULTS), [])
@@ -194,6 +199,24 @@ console.log('\n--- supports ----------------------------------------------------
     check(`supports ${supports ? 'on' : 'off'} stays declared`,
       settings.different_settings_to_system[0].split(';').includes('enable_support'), true)
   }
+
+  // The bug this caught: every blob says support_type "tree(auto)" and none
+  // declares it, so Bambu Studio reloads the system process's normal(auto) --
+  // measured with --export-3mf on 2026-10-04. With supports on, support_type
+  // is declared on every blob, whatever else is chosen; off, it is not written.
+  const undeclared = []
+  for (const [pid, material] of every) {
+    for (const choice of [DEFAULTS, { ...DEFAULTS, pattern: 'grid' }, { ...DEFAULTS, walls: 3 }]) {
+      const s = applyAdvanced(profileFor(pid), material, choice).materials[material].settings
+      if (s.support_type !== SUPPORT_TYPE
+          || !s.different_settings_to_system[0].split(';').includes('support_type')) {
+        undeclared.push(`${pid} ${material} ${choice.pattern} ${choice.walls}`)
+      }
+    }
+  }
+  check('supports on declare support_type on every blob', undeclared, [])
+  check('the supports keys are the ones always declared', ALWAYS_DECLARED,
+    ['enable_support', 'support_type'])
 }
 
 console.log('\n--- the choices the drawer offers -------------------------------')

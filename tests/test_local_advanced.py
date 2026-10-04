@@ -78,8 +78,22 @@ def test_an_override_is_declared_as_well_as_written(checks):
 
 
 def test_leaving_the_drawer_alone_changes_nothing(checks):
-    """Everyone who never opens it must keep getting the file they had."""
-    same = next((c for c in checks if "leave every profile untouched" in c["label"]),
+    """Grid and Standard keep every value the profile has.
+
+    The one difference from the file before the drawer: support_type is now
+    declared, because without the declaration Bambu Studio put tree(auto)
+    back to normal(auto).
+    """
+    same = next((c for c in checks if "only declares support_type" in c["label"]),
                 None)
     assert same is not None, "the harness stopped checking the default path"
     assert same["ok"], "\n".join(same["got"])
+
+
+def test_tree_supports_are_declared(checks):
+    """support_type tree(auto) undeclared came back normal(auto) from Bambu
+    Studio 02.08.02.61 (--export-3mf, 2026-10-04). Declared, it stays tree."""
+    tree = next((c for c in checks if "declare support_type on every blob" in c["label"]),
+                None)
+    assert tree is not None, "the harness stopped checking support_type"
+    assert tree["ok"], "\n".join(tree["got"])

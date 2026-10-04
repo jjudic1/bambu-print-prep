@@ -38,7 +38,10 @@
  * 202 baked blobs says `enable_support: "1"` with `support_type: "tree(auto)"`
  * -- we already turn them on for everybody. web/advanced-check.mjs fails if
  * that stops being true, rather than letting the toggle lie about where it
- * started.
+ * started. The supports keys are also the two that are always declared
+ * (ALWAYS_DECLARED below): the blobs declare enable_support but not
+ * support_type, and Bambu Studio put an undeclared tree(auto) back to the
+ * system profile's normal(auto).
  *
  * The pattern is the other, and the one place this app overrules every
  * profile on purpose. All 202 say grid; we start on gyroid, because grid lays
@@ -48,8 +51,8 @@
  * density and wall count this is not a figure somebody tuned for a line width:
  * the profiles all say grid because grid is what Bambu ships, not because a
  * 0.2 mm nozzle needs it. Both choices are written out, as supports are, and a
- * key that matches the profile is simply not declared -- so Grid writes the
- * byte-for-byte file this app wrote before gyroid became the default.
+ * pattern that matches the profile is simply not declared -- so Grid differs
+ * from the file this app wrote before gyroid only by declaring support_type.
  *
  * Nothing here is remembered between sessions, for the reason printers.js does
  * not remember a nozzle: a choice made for one print, hidden behind a shut
@@ -195,6 +198,21 @@ export function declare(existing, changed) {
 }
 
 /**
+ * Keys this file writes that are ours whatever the blob says, so they are
+ * declared whenever they are written -- even when the value matches the blob.
+ *
+ * Comparing against the blob is not comparing against what Bambu Studio
+ * reloads. Every baked blob says support_type "tree(auto)" but declares only
+ * enable_support (prep/profiles.py decided support_type needed no declaration
+ * by comparing it with its own merge of the profiles, which already said
+ * tree(auto)). Bambu Studio reloads the system process instead, which says
+ * normal(auto), and puts that back: measured 2026-10-04 with Bambu Studio
+ * 02.08.02.61 `--export-3mf`, a file written with tree(auto) came back
+ * normal(auto). Declaring it keeps tree(auto).
+ */
+export const ALWAYS_DECLARED = ['enable_support', 'support_type']
+
+/**
  * A printer profile with the advanced choices written into it.
  *
  * Copies rather than edits: the settings blob is a fetched JSON module held
@@ -202,9 +220,9 @@ export function declare(existing, changed) {
  * into every later file they wrote, including after they put the drawer back to
  * Standard.
  *
- * Returns the profile untouched when nothing differs -- which, since the
- * default is gyroid, is Grid with everything else left alone: byte-for-byte
- * the file this app wrote before.
+ * Returns the profile untouched when nothing differs and nothing is owed a
+ * declaration -- which no longer happens with supports on, see
+ * ALWAYS_DECLARED: every baked blob is missing support_type's.
  */
 export function applyAdvanced(profile, material, advanced = DEFAULTS) {
   const entry = profile?.materials?.[material]
@@ -212,11 +230,15 @@ export function applyAdvanced(profile, material, advanced = DEFAULTS) {
 
   const patch = patchFor(advanced)
   const changed = changedKeys(entry.settings, patch)
-  if (!changed.length) return profile
+  const declared = declare(entry.settings.different_settings_to_system, [])[0]
+    .split(';').filter(Boolean)
+  const owed = Object.keys(patch)
+    .filter((k) => ALWAYS_DECLARED.includes(k) && !declared.includes(k))
+  if (!changed.length && !owed.length) return profile
 
   const settings = { ...entry.settings, ...patch }
   settings.different_settings_to_system =
-    declare(entry.settings.different_settings_to_system, changed)
+    declare(entry.settings.different_settings_to_system, [...changed, ...owed])
 
   return {
     ...profile,
