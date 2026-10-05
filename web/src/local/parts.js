@@ -146,12 +146,20 @@ export function footprint(geometry, matrix) {
  * reported. Refusing to place it would leave the user with no way to see the
  * problem.
  *
- * The bed it fills is not always the whole rectangle. Rows start at the front
- * left, which on a P1S or an X1 is exactly where the purge and wiping corner
- * is, so the first part of every plate used to land in the one place the
- * printer will not print -- a file that opens, looks right, and is refused at
- * slice time. A row that runs into a keep-out steps past it, and starts a new
- * row if that leaves no room.
+ * Rows start at the BACK left and fill toward the front. The front of the bed
+ * is where the printer purges and wipes before it starts (the line along the
+ * front edge, and on a P1S or an X1 the corner at the front left that it will
+ * not print on at all), so a plate with a few parts on it keeps them out of
+ * that way, and only a full plate reaches the front.
+ *
+ * The bed it fills is still not always the whole rectangle. A row that runs
+ * into a keep-out steps past it, and starts a new row if that leaves no room:
+ * rows started at the front left once put the first part of every plate in
+ * that corner -- a file that opens, looks right, and is refused at slice time.
+ *
+ * The packing below works from the back: its y runs from the back edge toward
+ * the front (the keep-outs are turned round to match), and each placement is
+ * turned back into the bed's own y, which runs from the front.
  *
  * `matrixFor` is a function rather than one matrix because parts no longer share
  * a pose -- each can be tipped onto its own face -- and a part's footprint is
@@ -162,7 +170,10 @@ export function arrange(parts, printer, matrixFor, { gap = 6, margin = 8 } = {})
   const [bedX, bedY] = printer.bed_mm
   const usableX = bedX - margin * 2
   const usableY = bedY - margin * 2
-  const zones = keepOuts(printer)
+  // The keep-outs as the packing sees them: y from the back edge.
+  const zones = keepOuts(printer).map((z) => ({
+    x0: z.x0, y0: bedY - z.y1, x1: z.x1, y1: bedY - z.y0,
+  }))
 
   const measured = parts.map((part) => ({
     part, ...footprint(part.geometry, matrixFor(part)),
@@ -222,7 +233,7 @@ export function arrange(parts, printer, matrixFor, { gap = 6, margin = 8 } = {})
     placed.push({
       ...item, plate,
       x: cursorX + item.width / 2,
-      y: cursorY + item.depth / 2,
+      y: bedY - (cursorY + item.depth / 2),           // back to the bed's y
     })
     cursorX += item.width + gap
     shelfDepth = Math.max(shelfDepth, item.depth)

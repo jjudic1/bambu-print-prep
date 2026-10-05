@@ -271,18 +271,46 @@ console.log('\n--- the bed a printer will not print on -------------------------
   check('and every part is still placed, on one plate',
     [clear.placements.length, clear.plateCount, clear.tooBig.length], [3, 1, 0])
 
-  // The one on a machine that has none must not move: the keep-out is the only
-  // thing that changed, and a printer without one gets the layout it always had.
+  // Rows start at the back left: the same row the layout always made (x 58,
+  // 144, 195), now against the back edge instead of the front. Each part's
+  // back is 8 mm from the back of the 256 mm bed.
   const before = arrange(parts, a1, matrixFor).placements
-  check('a machine with no keep-out lays out exactly as it did',
+  check('a machine with no keep-out lays out from the back left',
     before.map((p) => [p.plate, Math.round(p.x), Math.round(p.y)]),
-    [[0, 58, 28], [0, 144, 23], [0, 195, 23]])   // measured before keep-outs existed
+    [[0, 58, 228], [0, 144, 233], [0, 195, 233]])
+  check('every part of the first row has its back on the back margin',
+    before.map((p) => {
+      const item = parts.find((q) => q.id === p.id)
+      const { depth } = footprint(item.geometry, matrixFor(item))
+      return Math.round((p.y + depth / 2) * 1000) / 1000
+    }),
+    [248, 248, 248])
 
-  // The same three parts on the same bed, only stepped past the corner. This
-  // is the bug, in numbers: the first row used to start at x = 8.
-  check('a keep-out moves the row right, and nothing else',
+  // The keep-out is at the front, so a row at the back never meets it: the
+  // same three parts land in the same places on a P1S as on an A1.
+  check('a keep-out at the front leaves a row at the back alone',
     clear.placements.map((p) => [p.plate, Math.round(p.x), Math.round(p.y)]),
-    before.map((p) => [p.plate, Math.round(p.x) + 16, Math.round(p.y)]))
+    before.map((p) => [p.plate, Math.round(p.x), Math.round(p.y)]))
+
+  // A plate full enough to reach the front still steps past the corner. 20 mm
+  // cubes 6 mm apart: nine to a row and nine rows from the back. The ninth
+  // row's front edge is 20 mm from the front, inside the 28 mm deep corner, so
+  // that row starts right of it and holds eight. 80 cubes fill the plate.
+  const cube = soup(new THREE.BoxGeometry(20, 20, 10))
+  const many = Array.from({ length: 80 }, (_, i) => ({ id: i + 1, geometry: cube, spin: IDENTITY }))
+  const flatFor = () => new THREE.Matrix4()
+  const full = arrange(many, p1s, flatFor)
+  const onCorner = full.placements.filter((p) =>
+    clash(keepOuts(p1s), p.x - 10, p.y - 10, 20, 20))
+  check('a full plate keeps clear of the front corner', onCorner.length, 0)
+  check('and the plate fills from the back: the first cube is at the back left',
+    [Math.round(full.placements[0].x), Math.round(full.placements[0].y)], [18, 238])
+  const front = Math.min(...full.placements.map((p) => p.y))
+  const frontRow = full.placements.filter((p) => p.y === front)
+  check('the front row starts right of the corner, not on it',
+    [Math.round(front), frontRow.length, Math.round(Math.min(...frontRow.map((p) => p.x)))], [30, 8, 34])
+  check('and every cube is still on one plate',
+    [full.placements.length, full.plateCount, full.tooBig.length], [80, 1, 0])
 
   // A part with nowhere to stand clear is reported rather than shuffled about
   // forever: a bed that is nearly all keep-out is not a bed.
