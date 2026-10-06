@@ -328,6 +328,20 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   split, the poses and the layout by signed volume as well as size — a
   mirror leaves the bounding box alone.
 
+- **An iPad out of memory does not throw -- it reloads the page**, which the
+  person reads as a crash. Reported 2026-10-06 ("crashes shortly after
+  uploading the 3rd file", a 77-piece kit), and measured: nothing came back
+  between files. Three traps, all fixed in `PlateViewer.jsx` / `mesh.js`:
+  `group.clear()` leaves geometry on the GPU (every tap and drag frame rebuilds
+  the parts, so each left a whole model behind -- `release()` disposes);
+  `renderer.dispose()` does not close the WebGL context and iOS keeps only a
+  handful (`forceContextLoss()`); and OrbitControls removes its document
+  keydown listener via the canvas's root node, which a plain `useEffect`
+  cleanup sees *after* React detached the tree -- so the listener stayed and
+  held the last model. The scene is a `useLayoutEffect` for that reason.
+  `node web/memory-check.mjs` (after `npm run build --prefix web`) walks open /
+  split / tap / make / start over across several files and fails if memory,
+  GPU buffers or contexts grow. It needs a browser, so it is not in pytest.
 - **The landing screen has a model of its own** (`web/src/local/demo.js`), and
   the button that loads it starts a seven-step walk-through in the panel. It is
   built on the device out of three primitives -- nothing is fetched -- and it is

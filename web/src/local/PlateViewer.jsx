@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
@@ -31,6 +31,25 @@ import { clash, footprint } from './parts.js'
  */
 
 const UP = new THREE.Vector3(0, 0, 1)
+
+/**
+ * Empty a group and hand what it held back to the GPU.
+ *
+ * `group.clear()` only unhooks the children. Their geometry stays uploaded
+ * until somebody calls dispose(), and the parts are rebuilt on every tap and
+ * every frame of a drag -- so each one used to leave a whole copy of the model
+ * in GPU memory. On an iPad that ran out by about the third file, and Safari
+ * answers running out by reloading the page (contact form, 2026-10-06).
+ * `web/memory-check.mjs` is what measures it.
+ */
+function release(group) {
+  group.traverse((node) => {
+    if (node === group) return
+    node.geometry?.dispose()
+    for (const m of [node.material].flat()) m?.dispose()
+  })
+  group.clear()
+}
 const BED = 0x1b1e24
 const GRID = 0x2f343d
 const GRID_10 = 0x262b33
@@ -53,7 +72,14 @@ export default function PlateViewer({
   const keepOutKey = JSON.stringify(keepOut)
 
   // --- scene, once ----------------------------------------------------------
-  useEffect(() => {
+  //
+  // A layout effect, so the cleanup runs while the canvas is still in the page.
+  // OrbitControls hangs a keydown listener on the canvas's root node and takes
+  // it off the same way, and by the time a plain effect's cleanup runs React
+  // has already detached the tree -- the root node is then a stray <div>, the
+  // listener stays on the document, and it keeps the whole of the last model
+  // alive. One more model per file, until an iPad gives up.
+  useLayoutEffect(() => {
     const el = mount.current
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x101215)
@@ -191,7 +217,11 @@ export default function PlateViewer({
       renderer.domElement.removeEventListener('pointerup', onUp)
       renderer.domElement.removeEventListener('pointercancel', onUp)
       controls.dispose()
+      release(world); release(models)
       renderer.dispose()
+      // dispose() frees what three.js made, not the context itself, and iOS
+      // keeps only a handful of those -- one more for every model opened.
+      renderer.forceContextLoss()
       el.removeChild(renderer.domElement)
     }
   }, [])
@@ -200,7 +230,7 @@ export default function PlateViewer({
   useEffect(() => {
     const { world } = state.current
     if (!world) return
-    world.clear()
+    release(world)
     const [bx, by] = bed
 
     const plate = new THREE.Mesh(
@@ -259,7 +289,7 @@ export default function PlateViewer({
     const { models } = state.current
     if (!models) return
 
-    models.clear()
+    release(models)
     const [bx, by] = bed
     let anyTooBig = false
 

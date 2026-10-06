@@ -101,13 +101,12 @@ function kit(pieces, level) {
 
 const COUNTERS = () => {
   const live = new Map()            // buffer -> bytes
-  const stats = { contexts: 0, lost: 0, textures: 0 }
+  const stats = { contexts: 0, lost: 0 }
   window.__mem = { live, stats }
   for (const Ctx of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
     if (!Ctx) continue
     const P = Ctx.prototype
     const create = P.createBuffer, del = P.deleteBuffer, data = P.bufferData
-    const tex = P.createTexture, deltex = P.deleteTexture
     P.createBuffer = function () { const b = create.call(this); live.set(b, 0); return b }
     P.deleteBuffer = function (b) { live.delete(b); return del.call(this, b) }
     P.bufferData = function (target, src, ...rest) {
@@ -116,8 +115,6 @@ const COUNTERS = () => {
       if (bound) live.set(bound, typeof src === 'number' ? src : src?.byteLength ?? 0)
       return data.call(this, target, src, ...rest)
     }
-    P.createTexture = function () { stats.textures++; return tex.call(this) }
-    P.deleteTexture = function (t) { stats.textures--; return deltex.call(this, t) }
   }
   const getContext = HTMLCanvasElement.prototype.getContext
   HTMLCanvasElement.prototype.getContext = function (kind, ...rest) {
@@ -186,8 +183,7 @@ async function main() {
     const rows = []
     const show = (label, s) => console.log(
       `${label.padEnd(26)} gpu ${MB(s.gpu).padStart(7)} MB  buffers ${String(s.buffers).padStart(5)}`
-      + `  heap ${MB(s.heap).padStart(7)} MB  contexts ${s.contexts} (released ${s.lost})`
-      + `  textures ${s.textures}`)
+      + `  heap ${MB(s.heap).padStart(7)} MB  contexts ${s.contexts} (released ${s.lost})`)
     show('landing', await sample())
 
     for (let i = 0; i < files.length; i++) {
