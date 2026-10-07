@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { plateOrigin } from '../make3mf.js'
+import { modelPose } from './pose.js'
 
 /**
  * Splitting a model into parts, and arranging parts across plates.
@@ -376,11 +377,13 @@ export function arrange(parts, printer, matrixFor, { gap = 6, margin = 8 } = {})
  * just a filter: the set shrinks, the same "80 mm longest side" now means a
  * bigger scale, and every part left behind grows without anyone asking.
  * `keepScale` is the other half of that.
+ *
+ * Measured with the model's stretch (`shape`, see pose.js) and its turn, but
+ * not its overall size -- that overall size is what the slider sets.
  */
-export function modelSize(parts, base) {
+export function modelSize(parts, base, shape = null) {
   if (!parts.length) return null
-  const m = new THREE.Matrix4().makeRotationFromQuaternion(
-    new THREE.Quaternion(...base))
+  const m = modelPose(base, shape)
   const box = new THREE.Box3()
   for (const part of parts) box.union(footprint(part.geometry, m).box)
   const size = box.getSize(new THREE.Vector3())
