@@ -21,7 +21,7 @@
  * tap and every drag redraws the parts.
  *
  *   npm run build --prefix web
- *   node web/memory-check.mjs                  # 4 files, 25 pieces each
+ *   node web/memory-check.mjs                  # 4 files, 25 pieces each (use 3 or more)
  *   node web/memory-check.mjs --files 6 --pieces 40 --detail 6
  *
  * Exits 1 if the last file costs noticeably more than the first.
@@ -217,12 +217,17 @@ async function main() {
     }
 
     // Each file is the same size, so after "start over" the app should be back
-    // where it was. Allow some slack for caches; a leak grows by a whole model.
-    const first = rows[0], last = rows[rows.length - 1]
+    // where it was. Measured from file 2, not file 1: React keeps the previous
+    // render's props on a spare fiber, which holds one old model -- once, not
+    // once per file -- and with big files the first start-over can land before
+    // that settles. A leak grows by a whole model *every* file, so file 2 to
+    // file N still sees it.
+    const from = rows.length > 2 ? 1 : 0
+    const first = rows[from], last = rows[rows.length - 1]
     const gpuGrowth = last.gpu - first.gpu
     const heapGrowth = last.heap - first.heap
     const openContexts = last.contexts - last.lost
-    console.log(`\nfrom file 1 to file ${rows.length}: gpu +${MB(gpuGrowth)} MB, `
+    console.log(`\nfrom file ${from + 1} to file ${rows.length}: gpu +${MB(gpuGrowth)} MB, `
       + `heap +${MB(heapGrowth)} MB, contexts never released: ${openContexts}`)
     const problems = []
     if (gpuGrowth > 8 * 1048576) problems.push('GPU memory is not given back between files')
