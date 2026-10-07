@@ -320,12 +320,17 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   environment variables, and it needs Web Analytics switched on in the Vercel
   dashboard by hand — a 404 from every query means that checkbox, not a broken
   endpoint.
-- **`/local` orients per part but sizes as one model.** `base` is the whole
-  model's pose *and* the frame Across/Deep/Tall are measured in; each part
-  carries its own `spin`/`yaw` on top. Measure size in any other frame and
-  the sliders scale the wrong axis the moment anything is tipped.
-  `web/parts-check.mjs` (run by `tests/test_local_parts.py`) checks the
-  split, the poses and the layout by signed volume as well as size — a
+- **`/local` orients per part, and a stretch belongs to the shape.** `base`
+  is the whole model's pose; each part carries its own `spin`/`yaw` on top.
+  Across/Deep/Tall are *set* along the bed as the thing sits now, but *kept*
+  in the shape's own frame -- the model's `shape`, or a part's own -- so a side
+  set to 20 mm stays 20 mm when it is tipped round to face another way. They
+  used to be applied along the bed after the turn, so tipping a stretched
+  model handed the 20 mm to whichever side then faced up and the readout
+  changed (2026-10-07). `web/src/local/pose.js` holds the whole chain and
+  `stretchAlong`; the app and `web/parts-check.mjs` (run by
+  `tests/test_local_parts.py`) both call it, so the checks run the app's own
+  arithmetic, not a copy. Check poses by signed volume as well as size -- a
   mirror leaves the bounding box alone.
 
 - **An iPad out of memory does not throw -- it reloads the page**, which the

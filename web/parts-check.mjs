@@ -24,35 +24,22 @@ import {
   withPartBack, withoutPart, withoutPlate,
 } from './src/local/parts.js'
 import { IDENTITY, sameOrientation, turn } from './src/orientation.js'
+import {
+  NO_STRETCH, modelMatrix as modelTransform, modelPose, partMatrix, stretchAlong, stretched,
+} from './src/local/pose.js'
 import { PLATE_STRIDE, plateColumns, plateOrigin } from './src/make3mf.js'
 
-// --- the same maths LocalApp does, lifted out of React -----------------------
+// --- LocalApp's maths: pose.js, the same module the app calls -----------------
+//
+// These used to be copies of what LocalApp did, lifted out of React -- which
+// meant a change to the app could pass here untested. Now they are the real
+// thing with the names the checks below were written against.
 
-const baseSizeOf = (parts, base) => {
-  const m = new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion(...base))
-  const box = new THREE.Box3()
-  for (const p of parts) box.union(footprint(p.geometry, m).box)
-  const s = box.getSize(new THREE.Vector3())
-  return [s.x, s.y, s.z]
-}
-const factorsOf = (baseSize, uniform, sizeMm, longestMm) => {
-  if (!uniform && sizeMm) return sizeMm.map((v, i) => v / (baseSize[i] || 1))
-  return Array(3).fill(longestMm / (Math.max(...baseSize) || 1))
-}
-const modelMatrixOf = (base, factors) =>
-  new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion(...base))
-    .premultiply(new THREE.Matrix4().makeScale(...factors))
-const matrixForOf = (modelMatrix) => (part) => {
-  const m = modelMatrix.clone()
-  if (part.scale && part.scale !== 1) {
-    m.premultiply(new THREE.Matrix4().makeScale(part.scale, part.scale, part.scale))
-  }
-  if (!sameOrientation(part.spin, IDENTITY)) {
-    m.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion(...part.spin)))
-  }
-  if (part.yaw) m.premultiply(new THREE.Matrix4().makeRotationZ(THREE.MathUtils.degToRad(part.yaw)))
-  return m
-}
+const baseSizeOf = (parts, base, shape = null) => modelSize(parts, base, shape)
+// The overall size factor the main slider sets: longest side over the size.
+const factorsOf = (baseSize, longestMm) => longestMm / (Math.max(...baseSize) || 1)
+const modelMatrixOf = (base, k, shape = null) => modelTransform(base, shape, k)
+const matrixForOf = (model) => (part) => partMatrix(model, part)
 const extents = (geometry, m) => {
   const c = geometry.clone(); c.applyMatrix4(m); c.computeBoundingBox()
   const v = c.boundingBox.getSize(new THREE.Vector3())
@@ -178,19 +165,24 @@ console.log('\n--- size frame: the bug this fixes ------------------------------
   const bs = baseSizeOf(one, base)
   check('base size is measured after the tip', bs.map(Math.round), [100, 20, 40])
 
-  const ask = [100, 40, 20]
-  const f = factorsOf(bs, false, ask, 0)
-  const m = modelMatrixOf(base, f)
+  // Deep to 40 and Tall to 20 on the tipped model, one slider at a time, the
+  // way stretchModel does it: each a stretch along that bed axis as it sits.
+  let shape = NO_STRETCH
+  for (const [axis, want] of [[1, 40], [2, 20]]) {
+    const now = baseSizeOf(one, base, shape)[axis]
+    shape = stretchAlong(shape, modelPose(base, null), axis, want / now)
+  }
+  const m = modelMatrixOf(base, 1, shape)
   check('sliders ask 100 x 40 x 20 on a tipped model, and get it',
     extents(one[0].geometry, m), [100, 40, 20])
   check('the readout agrees with the sliders exactly',
-    bs.map((v, i) => Math.round(v * f[i])), ask)
+    baseSizeOf(one, base, shape).map(Math.round), [100, 40, 20])
 }
 
 console.log('\n--- per-part turning --------------------------------------------')
 {
   const bs = baseSizeOf(parts, IDENTITY)
-  const f = factorsOf(bs, true, null, Math.max(...bs))   // original size
+  const f = factorsOf(bs, Math.max(...bs))   // original size
   const model = modelMatrixOf(IDENTITY, f)
 
   const tall = parts.find((p) => extents(p.geometry, model)[2] === 90)
@@ -213,7 +205,7 @@ console.log('\n--- per-part turning --------------------------------------------
 console.log('\n--- per-part resize ---------------------------------------------')
 {
   const bs = baseSizeOf(parts, IDENTITY)
-  const f = factorsOf(bs, true, null, Math.max(...bs))
+  const f = factorsOf(bs, Math.max(...bs))
   const model = modelMatrixOf(IDENTITY, f)
   const matrixFor = matrixForOf(model)
 
@@ -246,7 +238,7 @@ console.log("\n--- arrange uses each part's own footprint ----------------------
 {
   const printer = { bed_mm: [180, 180] }          // A1 mini: the case this is for
   const bs = baseSizeOf(parts, IDENTITY)
-  const f = factorsOf(bs, true, null, Math.max(...bs))
+  const f = factorsOf(bs, Math.max(...bs))
   const model = modelMatrixOf(IDENTITY, f)
   const matrixFor = matrixForOf(model)
 
@@ -367,7 +359,7 @@ console.log('\n--- the bed a printer will not print on -------------------------
     [false, true])
 
   const bs = baseSizeOf(parts, IDENTITY)
-  const f = factorsOf(bs, true, null, Math.max(...bs))
+  const f = factorsOf(bs, Math.max(...bs))
   const model = modelMatrixOf(IDENTITY, f)
   const matrixFor = matrixForOf(model)
 
@@ -449,10 +441,72 @@ console.log('\n--- the bed a printer will not print on -------------------------
     [stuck.placements.length, stuck.tooBig.length], [3, 3])
 }
 
+console.log('\n--- a stretch stays with the side it was set on --------------------')
+{
+  // Reported 2026-10-07: set a side to 20 mm, tip the model, and the 20 mm
+  // moved to whichever side now faced that way -- the stretch was applied
+  // along the bed after the turn. It belongs to the shape: tip it, and the
+  // side set to 20 mm is the side that is 20 mm, wherever it now points.
+  const block = parts.find((p) => extents(p.geometry, new THREE.Matrix4())[0] === 100)
+  const one = [block]                                   // 100 x 40 x 20
+  const tall = (shape, base) => {
+    const now = baseSizeOf(one, base, shape)[2]
+    return stretchAlong(shape, modelPose(base, null), 2, 10 / now)
+  }
+
+  // The whole model: Tall from 20 to 10, then Tip forward (about across).
+  const flat = tall(NO_STRETCH, IDENTITY)
+  check('the model: Tall set to 10 mm', baseSizeOf(one, IDENTITY, flat).map(Math.round), [100, 40, 10])
+  const tipped = turn(IDENTITY, [1, 0, 0], 90)
+  check('tipped forward, the 10 mm side now faces deep -- it went with the shape',
+    baseSizeOf(one, tipped, flat).map(Math.round), [100, 10, 40])
+  check('and nothing else changed size: the same three numbers, turned',
+    baseSizeOf(one, tipped, flat).map(Math.round).sort((a, b) => a - b), [10, 40, 100])
+  check('rolled instead, it faces across',
+    baseSizeOf(one, turn(IDENTITY, [0, 1, 0], 90), flat).map(Math.round), [10, 40, 100])
+  check('tipped back again it is exactly what was set',
+    baseSizeOf(one, turn(tipped, [1, 0, 0], -90), flat).map(Math.round), [100, 40, 10])
+  check('a stretched model is never mirrored',
+    signedVolume((() => {
+      const g = block.geometry.clone(); g.applyMatrix4(modelMatrixOf(tipped, 1, flat)); return g
+    })()) > 0, true)
+
+  // One part on its own: the same, with the part's own shape.
+  const model = modelMatrixOf(IDENTITY, 1)
+  const matrixFor = matrixForOf(model)
+  const setSide = (part, axis, value) => {
+    const now = extents(part.geometry, matrixFor(part))[axis]
+    return { ...part, shape: stretchAlong(part.shape, matrixFor({ ...part, shape: null }), axis, value / now) }
+  }
+  const wide = setSide(block, 0, 50)
+  check('a part: Across set to 50 mm, the other two left alone',
+    extents(wide.geometry, matrixFor(wide)), [50, 40, 20])
+  check('and no other part changes', parts.filter((p) => p !== block)
+    .map((p) => extents(p.geometry, matrixFor(p))),
+    parts.filter((p) => p !== block).map((p) => extents(p.geometry, model)))
+  const rolled = { ...wide, spin: turn(IDENTITY, [0, 1, 0], 90) }
+  check('rolled, its 50 mm side stands up: tall is 50',
+    extents(rolled.geometry, matrixFor(rolled)), [20, 40, 50])
+  check('a stretched, rolled part is never mirrored',
+    signedVolume((() => {
+      const g = rolled.geometry.clone(); g.applyMatrix4(matrixFor(rolled)); return g
+    })()) > 0, true)
+
+  // Set on a part already turned: the side facing across now is the one set.
+  const askew = { ...block, spin: turn(IDENTITY, [0, 1, 0], 90), yaw: 30 }
+  const pulled = setSide(askew, 0, 70)
+  check('a part already turned and spun: Across lands at exactly what was asked',
+    Math.round(extents(pulled.geometry, matrixFor(pulled))[0] * 1000) / 1000, 70)
+  check('and its Tall is untouched by it',
+    extents(pulled.geometry, matrixFor(pulled))[2], extents(askew.geometry, matrixFor(askew))[2])
+  check('setting it back where it was leaves no stretch behind',
+    stretched(setSide(setSide(block, 0, 50), 0, 100).shape), false)
+}
+
 console.log('\n--- what the writer would receive -------------------------------')
 {
   const bs = baseSizeOf(parts, IDENTITY)
-  const f = factorsOf(bs, true, null, 120)
+  const f = factorsOf(bs, 120)
   const model = modelMatrixOf(IDENTITY, f)
   const matrixFor = matrixForOf(model)
   const posed = parts.map((p, i) => (i === 0
@@ -487,18 +541,23 @@ console.log('\n--- taking a part or a plate away -------------------------------
   ]
   const base = turn(IDENTITY, [0, 0, 1], 90)
 
-  for (const [label, uniform, sizeMm] of [
-    ['one size for everything', true, null],
-    ['Across, Deep and Tall set apart', false, [30, 60, 45]],
+  // A stretch is part of the shape now, so "set apart" is the same sum with a
+  // stretched model: Deep half again, Tall to two thirds.
+  const pulled = stretchAlong(stretchAlong(NO_STRETCH, modelPose(base, null), 1, 1.5),
+    modelPose(base, null), 2, 2 / 3)
+  for (const [label, shape] of [
+    ['one size for everything', null],
+    ['Across, Deep and Tall set apart', pulled],
   ]) {
-    const before = modelSize(trio, base)
+    const sizeMm = null
+    const before = modelSize(trio, base, shape)
     const longestMm = 150
-    const matrixBefore = matrixForOf(modelMatrixOf(base, factorsOf(before, uniform, sizeMm, longestMm)))
+    const matrixBefore = matrixForOf(modelMatrixOf(base, factorsOf(before, longestMm), shape))
 
     const out = withoutPart(trio, 1)
-    const after = modelSize(out.parts, base)
+    const after = modelSize(out.parts, base, shape)
     const kept = keepScale(before, after, { longestMm, sizeMm })
-    const matrixAfter = matrixForOf(modelMatrixOf(base, factorsOf(after, uniform, kept.sizeMm, kept.longestMm)))
+    const matrixAfter = matrixForOf(modelMatrixOf(base, factorsOf(after, kept.longestMm), shape))
 
     check(`${label}: the parts left keep their size exactly`,
       out.parts.map((p) => extents(p.geometry, matrixAfter(p))),
@@ -510,7 +569,7 @@ console.log('\n--- taking a part or a plate away -------------------------------
 
     // And back again: the same scale, not a slightly different one.
     const back = withPartBack(out.parts, out.removed, 2)
-    const again = keepScale(after, modelSize(back, base), kept)
+    const again = keepScale(after, modelSize(back, base, shape), kept)
     check(`${label}: putting it back restores the size setting`,
       [Math.round(again.longestMm * 1e6) / 1e6,
        again.sizeMm && again.sizeMm.map((v) => Math.round(v * 1e6) / 1e6)],

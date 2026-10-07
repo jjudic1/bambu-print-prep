@@ -27,6 +27,9 @@ import {
   withPartBack, withoutPart, withoutPlate,
 } from './parts.js'
 import {
+  NO_STRETCH, modelMatrix as modelTransform, modelPose, partMatrix, stretchAlong, stretched,
+} from './pose.js'
+import {
   DEFAULT_NOZZLE_MM, models, nozzlesFor, pick, startingPrinter,
 } from './printers.js'
 import {
@@ -47,6 +50,10 @@ import {
  *               "Across / Deep / Tall" mean the bed's own directions.
  *   spin, yaw   per part, on top of that: which face this one piece lands on,
  *               and how far it is spun once it is there.
+ *
+ * A stretch -- Across, Deep and Tall set apart -- is set along the bed's
+ * directions but kept in the shape's own frame, the model's or one part's, so
+ * it turns with the thing it was set on. pose.js has the whole chain.
  *
  * Size stays a property of the model rather than of each part, because "make it
  * 80 mm" said of an assembly that has been cut up means 80 mm of assembly. A
@@ -142,7 +149,7 @@ const mmFine = (v) => `${v < 20 ? snap(v) : Math.round(v)} mm`
 
 const short = (s) => (s.length > 18 ? `${s.slice(0, 17)}…` : s)
 const straight = (part) => sameOrientation(part.spin, IDENTITY) && !part.yaw
-const resized = (part) => Math.abs((part.scale ?? 1) - 1) > 1e-6
+const resized = (part) => Math.abs((part.scale ?? 1) - 1) > 1e-6 || stretched(part.shape)
 const flattened = (part) => (part.cutMm ?? 0) > 0
 const untouched = (part) => straight(part) && !resized(part) && !flattened(part)
   && part.colour == null
@@ -184,6 +191,7 @@ let nextId = 1
 const freshPart = (geometry, name, x, y) => ({
   id: nextId++, geometry, name, plate: 0, x, y, spin: IDENTITY, yaw: 0,
   scale: 1, colour: null,       // null: follows the model's colour
+  shape: null,                  // its own stretch, Across/Deep/Tall: pose.js
   cutMm: 0,                     // how much of the bottom to take off
 })
 
@@ -237,7 +245,9 @@ export default function LocalApp() {
   const [base, setBase] = useState(IDENTITY)
   const [longestMm, setLongestMm] = useState(80)
   const [uniform, setUniform] = useState(true)
-  const [sizeMm, setSizeMm] = useState(null)
+  // The model's stretch, set with Keep its shape unticked. Kept in the model's
+  // own frame so it turns with it -- see pose.js.
+  const [shape, setShape] = useState(NO_STRETCH)
 
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
@@ -301,29 +311,23 @@ export default function LocalApp() {
    * file on every pointer move.
    */
   const shapeKey = parts.map((p) => p.id).join(',')
-  const baseSize = useMemo(() => modelSize(parts, base),
+  const baseSize = useMemo(() => modelSize(parts, base, shape),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shapeKey, base])
+    [shapeKey, base, shape])
 
-  /** One scale factor per bed axis, whichever control is driving. */
-  const factors = useMemo(() => {
-    if (!baseSize) return [1, 1, 1]
-    if (!uniform && sizeMm) return sizeMm.map((v, i) => v / (baseSize[i] || 1))
-    return Array(3).fill(longestMm / (Math.max(...baseSize) || 1))
-  }, [baseSize, uniform, sizeMm, longestMm])
+  /** The model's overall size, as one factor: what the main slider sets. */
+  const k = useMemo(
+    () => (baseSize ? longestMm / (Math.max(...baseSize) || 1) : 1),
+    [baseSize, longestMm])
 
   /**
-   * The model's own transform: face it down, then scale in that frame.
+   * The model's own transform: its stretch, then its turn, then its size.
    *
-   * A non-uniform scale and a rotation do not commute, so the order is not free
-   * to change -- the scale has to happen in the frame whose axes the labels
-   * name.
+   * The stretch comes first so it belongs to the shape: tipping the model
+   * carries a side set to 20 mm round with it, rather than handing the 20 mm
+   * to whichever side now faces that way. pose.js has the whole chain.
    */
-  const modelMatrix = useMemo(() => {
-    const m = new THREE.Matrix4().makeRotationFromQuaternion(
-      new THREE.Quaternion(...base))
-    return m.premultiply(new THREE.Matrix4().makeScale(...factors))
-  }, [base, factors])
+  const modelMatrix = useMemo(() => modelTransform(base, shape, k), [base, shape, k])
 
   /**
    * Where one part actually ends up: the model's pose, then that part's own.
@@ -331,27 +335,7 @@ export default function LocalApp() {
    * Handed to the viewer and to the writer both, so what is drawn and what is
    * written cannot drift apart.
    */
-  const matrixFor = useCallback((part) => {
-    const m = modelMatrix.clone()
-    // A part's own resize is deliberately uniform, which is why it can sit
-    // here rather than inside the model's frame: a uniform scale commutes with
-    // rotation, so it means the same thing whichever face the part is on.
-    // Per-axis stretching stays a model-level control, because Across/Deep/Tall
-    // are directions on the bed and a part tipped on its side has its own idea
-    // of which way is across.
-    if (part.scale && part.scale !== 1) {
-      m.premultiply(new THREE.Matrix4().makeScale(part.scale, part.scale, part.scale))
-    }
-    if (!sameOrientation(part.spin, IDENTITY)) {
-      m.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(
-        new THREE.Quaternion(...part.spin)))
-    }
-    if (part.yaw) {
-      m.premultiply(new THREE.Matrix4().makeRotationZ(
-        THREE.MathUtils.degToRad(part.yaw)))
-    }
-    return m
-  }, [modelMatrix])
+  const matrixFor = useCallback((part) => partMatrix(modelMatrix, part), [modelMatrix])
 
   /**
    * A part's own size on the bed, in millimetres, in its own pose.
@@ -415,8 +399,8 @@ export default function LocalApp() {
   // base frame, so this is exact rather than a re-measurement -- and with the
   // axes unlocked it hands the slider values straight back, which is the point.
   const measured = useMemo(
-    () => (baseSize ? baseSize.map((v, i) => v * factors[i]) : null),
-    [baseSize, factors])
+    () => (baseSize ? baseSize.map((v) => v * k) : null),
+    [baseSize, k])
 
   /**
    * Put a model on the plate, whichever way it arrived.
@@ -436,7 +420,7 @@ export default function LocalApp() {
     setPlateCount(1); setActivePlate(0); setSelectedId(null)
     setBeforeSplit(null); setSeenPlates([0]); setRemoved(null)
     setName(modelName.replace(/\.[^.]+$/, ''))
-    setBase(IDENTITY); setUniform(true); setSizeMm(null)
+    setBase(IDENTITY); setUniform(true); setShape(NO_STRETCH)
     const longest = Math.round(Math.max(size.x, size.y, size.z)) || 80
     setLongestMm(longest)
     return longest
@@ -561,8 +545,8 @@ export default function LocalApp() {
       setBeforeSplit(parts); setRemoved(null)
       // The file's own spots only mean anything at the file's own size and pose.
       const untouched = sameOrientation(base, IDENTITY)
-        && factors.every((f) => Math.abs(f - 1) < 0.002)
-        && named.every((p) => (p.scale ?? 1) === 1 && !p.yaw
+        && Math.abs(k - 1) < 0.002 && !stretched(shape)
+        && named.every((p) => (p.scale ?? 1) === 1 && !p.yaw && !stretched(p.shape)
                               && sameOrientation(p.spin, IDENTITY))
       layOut(named, `Split into ${named.length} parts, laid out`, { keepHomes: untouched })
     } catch (e) {
@@ -602,10 +586,9 @@ export default function LocalApp() {
   // removing the biggest piece would blow the rest up to fill its old size.
 
   function swapParts(next) {
-    const after = modelSize(next, base)
-    const kept = keepScale(baseSize, after, { longestMm, sizeMm })
+    const after = modelSize(next, base, shape)
+    const kept = keepScale(baseSize, after, { longestMm, sizeMm: null })
     setLongestMm(kept.longestMm)
-    setSizeMm(kept.sizeMm)
     // The walk-through's size step compares against where it started; that
     // has to move by the same ratio or removing a part would tick it.
     if (tourStart && baseSize && after) {
@@ -737,6 +720,36 @@ export default function LocalApp() {
     if (!(unit > 0)) return
     setParts((list) => list.map((p) => (
       p.id === part.id ? { ...p, scale: longest / unit } : p)))
+  }
+
+  /**
+   * Set one of a part's sides, as it sits now, and leave the other two alone.
+   *
+   * The stretch goes into the part's own shape (pose.js), so it is the side
+   * that is 20 mm, not the bed's direction: tip the part afterwards and the
+   * 20 mm turns with it.
+   */
+  function stretchPart(part, axis, value) {
+    const now = sizeOfPart(part)[axis]
+    if (!(now > 0) || !(value > 0)) return
+    const outside = matrixFor({ ...part, shape: null })
+    setParts((list) => list.map((p) => (
+      p.id === part.id
+        ? { ...p, shape: stretchAlong(part.shape, outside, axis, value / now) } : p)))
+  }
+
+  /**
+   * The same for the whole model: Across, Deep or Tall, the others untouched.
+   *
+   * The overall size factor is held where it is, which means the main slider's
+   * "longest side" moves to wherever the stretch has put it.
+   */
+  function stretchModel(axis, value) {
+    if (!measured || !(measured[axis] > 0) || !(value > 0)) return
+    const next = stretchAlong(shape, modelPose(base, null), axis, value / measured[axis])
+    const after = modelSize(parts, base, next)
+    setShape(next)
+    setLongestMm(k * Math.max(...after))
   }
 
   const yawValue = selected
@@ -924,15 +937,11 @@ export default function LocalApp() {
     } finally { setBusy('') }
   }
 
+  // Unticking changes nothing on its own: the sliders read the size the model
+  // already is, and ticking it again keeps whatever stretch was set -- "keep
+  // its shape" from then on means the shape it has now.
   function unlockAxes(next) {
     setUniform(next)
-    if (!next) {
-      // Hand over the size it is now, so unticking the box changes nothing on
-      // its own and the sliders start where the model already is.
-      setSizeMm((measured || [50, 50, 50]).map((v) => Math.max(1, Math.round(v))))
-      return
-    }
-    if (sizeMm) setLongestMm(Math.max(1, Math.round(Math.max(...sizeMm))))
   }
 
   if (!parts.length) {
@@ -1435,10 +1444,9 @@ export default function LocalApp() {
 
         {/* --- size -------------------------------------------------------- */}
         {selected ? (
-          /* One part on its own. Uniform only -- Across/Deep/Tall are the
-             bed's directions, and a part tipped onto its side has its own idea
-             of which way is across, so per-axis stretching stays with the
-             model. */
+          /* One part on its own, with the same choice the whole model has:
+             one slider, or Across/Deep/Tall set apart. A side set here stays
+             with the part when it is tipped -- stretchPart and pose.js. */
           <div className="field">
             <span>
               How big<em>{` ${short(selected.name)}`}</em>
@@ -1451,17 +1459,41 @@ export default function LocalApp() {
                   <div className="hint">
                     {`${mm(size[0])} x ${mm(size[1])} x ${mm(size[2])}`}
                   </div>
-                  <input
-                    type="range" min="5" max={ceiling}
-                    value={Math.min(Math.round(longest), ceiling)}
-                    onChange={(e) => resizePart(selected, Number(e.target.value))}
-                  />
+                  {selected.freeAxes ? (
+                    <div className="axes">
+                      {['Across', 'Deep', 'Tall'].map((label, i) => (
+                        <label key={label} className="axis">
+                          <span>{label}<em>{Math.round(size[i])} mm</em></span>
+                          <input
+                            type="range" min="1" max={ceiling}
+                            value={Math.min(Math.round(size[i]), ceiling)}
+                            onChange={(e) => stretchPart(selected, i, Number(e.target.value))}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <input
+                      type="range" min="5" max={ceiling}
+                      value={Math.min(Math.round(longest), ceiling)}
+                      onChange={(e) => resizePart(selected, Number(e.target.value))}
+                    />
+                  )}
                 </>
               )
             })()}
+            <label className="check">
+              <input
+                type="checkbox" checked={!selected.freeAxes}
+                onChange={(e) => setParts((list) => list.map((p) => (
+                  p.id === selected.id ? { ...p, freeAxes: !e.target.checked } : p)))}
+              />
+              <span>Keep its shape</span>
+            </label>
             {resized(selected) && (
               <button className="link" onClick={() => setParts((list) => list.map(
-                (p) => (p.id === selected.id ? { ...p, scale: 1 } : p)))}>
+                (p) => (p.id === selected.id
+                  ? { ...p, scale: 1, shape: null, freeAxes: false } : p)))}>
                 Back to its share of the model
               </button>
             )}
@@ -1500,8 +1532,8 @@ export default function LocalApp() {
                 <button
                   className="tick"
                   onClick={() => {
-                    setUniform(true); setSizeMm(null)
-                    setLongestMm(Math.round(Math.max(...(baseSize || [80]))))
+                    setUniform(true); setShape(NO_STRETCH)
+                    setLongestMm(Math.round(Math.max(...(modelSize(parts, base) || [80]))))
                   }}
                 >
                   Original size
@@ -1512,15 +1544,11 @@ export default function LocalApp() {
             <div className="axes">
               {['Across', 'Deep', 'Tall'].map((label, i) => (
                 <label key={label} className="axis">
-                  <span>{label}<em>{Math.round(sizeMm?.[i] ?? 0)} mm</em></span>
+                  <span>{label}<em>{Math.round(measured?.[i] ?? 0)} mm</em></span>
                   <input
                     type="range" min="1" max={ceiling}
-                    value={Math.min(Math.round(sizeMm?.[i] ?? 0), ceiling)}
-                    onChange={(e) => setSizeMm((v) => {
-                      const next = [...(v || [0, 0, 0])]
-                      next[i] = Number(e.target.value)
-                      return next
-                    })}
+                    value={Math.min(Math.round(measured?.[i] ?? 0), ceiling)}
+                    onChange={(e) => stretchModel(i, Number(e.target.value))}
                   />
                 </label>
               ))}
@@ -1536,8 +1564,8 @@ export default function LocalApp() {
           </label>
           {!uniform && (
             <p className="reason">
-              Across, deep and tall are the bed&rsquo;s own directions, so they
-              follow the model when you turn it over.
+              Each size stays with the side you set it on, so turning the
+              model over carries it round with it.
             </p>
           )}
           {parts.length > 1 && (
