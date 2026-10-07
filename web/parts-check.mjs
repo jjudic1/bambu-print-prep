@@ -20,7 +20,7 @@
 import * as THREE from 'three'
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
 import {
-  arrange, clash, footprint, keepOuts, keepScale, modelSize, splitParts,
+  MAX_PARTS, arrange, arrangeInGroups, clash, fromProject, footprint, keepOuts, keepScale, modelSize, splitParts,
   withPartBack, withoutPart, withoutPlate,
 } from './src/local/parts.js'
 import { IDENTITY, sameOrientation, turn } from './src/orientation.js'
@@ -121,6 +121,39 @@ const split = splitParts(whole)
 check('an assembly of three blocks comes apart into three', split.length, 3)
 check('one solid piece has nothing to split',
   splitParts(soup(new THREE.BoxGeometry(10, 10, 10))), null)
+
+// A real kit is a lot of pieces: Titan 3D's Titan Fighter comes apart into 77,
+// and the old cap of 64 turned it away (2026-10-07). The cap is for crumbs --
+// an export in thousands of loose bits -- not for kits.
+const cubes = (n) => soup(...Array.from({ length: n }, (_, i) =>
+  new THREE.BoxGeometry(5, 5, 5).translate((i % 20) * 10, Math.floor(i / 20) * 10, 0)))
+check('a 100-piece kit splits into 100', splitParts(cubes(100)).length, 100)
+
+// A sealed pocket is an inward-facing surface sharing no vertex with the
+// outside, so connected components alone call it a piece -- inside out, and
+// taken out of the part it belongs in. Titan Fighter's front body halves have
+// two each, and 73 objects came apart into 77. Mirroring a box turns its
+// winding inward, which is exactly what a pocket's surface is.
+const pocket = () => new THREE.BoxGeometry(4, 4, 4).scale(-1, 1, 1)
+const hollow = soup(new THREE.BoxGeometry(20, 20, 20), pocket(),
+  new THREE.BoxGeometry(10, 10, 10).translate(40, 0, 0))
+const keptIn = splitParts(hollow)
+check('a sealed pocket stays inside its part: two pieces, not three', keptIn.length, 2)
+check('and the part keeps its hollow -- 8000 less the 64 mm3 pocket',
+  Math.round(signedVolume(keptIn[0])), 8000 - 64)
+check('a part with only a pocket in it is one piece, not two',
+  splitParts(soup(new THREE.BoxGeometry(20, 20, 20), pocket())), null)
+// Inside out and inside nothing: an export with its faces turned, not a
+// pocket. Left as a piece of its own rather than attached to a stranger.
+const stray = soup(new THREE.BoxGeometry(20, 20, 20),
+  new THREE.BoxGeometry(4, 4, 4).scale(-1, 1, 1).translate(40, 0, 0))
+check('an inside-out piece outside everything stays its own piece',
+  splitParts(stray).length, 2)
+check('the cap is far enough above a big kit to take it', MAX_PARTS >= 200, true)
+let refused = null
+try { splitParts(cubes(MAX_PARTS + 1)) } catch (e) { refused = e.message }
+check('past the cap it is refused, with the count said out loud',
+  refused !== null && refused.includes(String(MAX_PARTS + 1)), true)
 check('the pieces are the three blocks, whole',
   split.map((g) => Math.round(Math.abs(signedVolume(g)))).sort((a, b) => b - a),
   [81000, 80000, 54000])
@@ -236,6 +269,84 @@ console.log("\n--- arrange uses each part's own footprint ----------------------
   const big = arrange(huge, printer, matrixFor)
   check('a part bigger than the bed is placed anyway and reported',
     [big.placements.length, big.tooBig.length], [1, 1])
+  // ...on one plate. The cursor moved on to a fresh plate after it and that
+  // plate used to be counted: the screen showed it, empty, and the writer
+  // dropped it, so the plate count on screen and in the file disagreed.
+  check('and a too-big part last does not leave an empty plate behind it',
+    big.plateCount, 1)
+}
+
+console.log('\n--- a project file keeps its own plates ---------------------------')
+{
+  // A Bambu Studio project is somebody's layout: parts grouped on plates by
+  // colour, or by what goes together. Titan Fighter is 73 objects on 16 plates
+  // (2026-10-07). Two plates here: a big block alone, and two small ones.
+  // As the baked profiles have them: the P1S with its purge corner.
+  const p1s = { bed_mm: [256, 256], height_mm: 250,
+    exclude_areas: [[[0, 0], [18, 0], [18, 28], [0, 28]]] }
+  const a1mini = { bed_mm: [180, 180], height_mm: 180, exclude_areas: [] }
+  const flatFor = () => new THREE.Matrix4()
+  const stride = 256 * 1.2
+  // World positions as the project has them: plate 1 at the origin, plate 2
+  // one stride to the right (two plates sit side by side).
+  const whole = soup(
+    new THREE.BoxGeometry(150, 150, 20).translate(128, 128, 10),
+    new THREE.BoxGeometry(30, 30, 10).translate(stride + 60, 200, 5),
+    new THREE.BoxGeometry(30, 30, 10).translate(stride + 200, 60, 5))
+  const per = 12      // triangles in a box
+  const project = {
+    plateCount: 2, bed: [256, 256],
+    objects: [
+      { name: 'Body', plate: 0, start: 0, count: per },
+      { name: 'Bolt', plate: 1, start: per, count: per },
+      { name: 'Bolt', plate: 1, start: 2 * per, count: per },
+    ],
+  }
+  const pieces = splitParts(whole).map((geometry, i) => {
+    const known = fromProject(geometry, project)
+    return { id: i + 1, geometry, spin: IDENTITY, group: known.group, home: known.home, name: known.name }
+  })
+  check('each piece finds its own name and plate in the file',
+    pieces.map((p) => [p.name, p.group]).sort(), [['Body', 0], ['Bolt', 1], ['Bolt', 1]])
+  check('and where it stood on that plate',
+    pieces.map((p) => [Math.round(p.home.x), Math.round(p.home.y)]).sort((a, b) => a[0] - b[0] || a[1] - b[1]),
+    [[60, 200], [128, 128], [200, 60]])
+
+  const same = arrangeInGroups(pieces, p1s, flatFor, { keepHomes: true })
+  check('on the bed it was made for, every plate is kept as it was',
+    [same.plateCount, same.kept, same.tooBig.length], [2, 2, 0])
+  check('and every part is exactly where the file had it',
+    same.placements.every((q) => {
+      const p = pieces.find((r) => r.id === q.id)
+      return q.plate === p.group && q.x === p.home.x && q.y === p.home.y
+    }), true)
+
+  // The two bolts would pack onto plate 1 beside the body if packing were
+  // free to; kept as groups, they never share a plate with it.
+  const packed = arrangeInGroups(pieces, p1s, flatFor)
+  const plateOf = (name) => [...new Set(packed.placements
+    .filter((q) => pieces.find((p) => p.id === q.id).name === name).map((q) => q.plate))]
+  check('Arrange packs each of the file\'s plates on its own, never mixing them',
+    [plateOf('Body'), plateOf('Bolt'), packed.kept], [[0], [1], 0])
+
+  // A smaller bed: nothing can stay where it was, but the groups still hold.
+  const small = arrangeInGroups(pieces, a1mini, flatFor, { keepHomes: true })
+  check('on a smaller bed the plates are packed again, still apart',
+    [small.kept, small.plateCount, small.tooBig.length], [0, 2, 0])
+
+  // A part dropped onto the purge corner by its file is not kept there.
+  const cornered = pieces.map((p) => (p.name === 'Body' ? p
+    : { ...p, home: { ...p.home, x: p.home.x < 100 ? 20 : p.home.x, y: p.home.y > 100 ? 20 : p.home.y } }))
+  const moved = arrangeInGroups(cornered, p1s, flatFor, { keepHomes: true })
+  check('a plate whose file layout stands on the corner is packed again',
+    [moved.kept, moved.placements.filter((q) => clash(keepOuts(p1s), q.x - 15, q.y - 15, 30, 30)).length],
+    [1, 0])
+
+  // A model that is not a project lays out exactly as before.
+  const plain = pieces.map(({ group, home, ...p }) => p)
+  check('no groups is plain arrange',
+    JSON.stringify(arrangeInGroups(plain, p1s, flatFor).placements),
+    JSON.stringify(arrange(plain, p1s, flatFor).placements))
 }
 
 console.log('\n--- the bed a printer will not print on --------------------------')
@@ -311,6 +422,24 @@ console.log('\n--- the bed a printer will not print on -------------------------
     [Math.round(front), frontRow.length, Math.round(Math.min(...frontRow.map((p) => p.x)))], [30, 8, 34])
   check('and every cube is still on one plate',
     [full.placements.length, full.plateCount, full.tooBig.length], [80, 1, 0])
+
+  // Wider than the room beside the corner, but shallow. Rows start at the
+  // back, so the corner is the last thing a row reaches, and a part this wide
+  // simply stands at the back, clear of it. The check asking
+  // "is there anywhere clear?" once looked for room *beyond* the corner -- off
+  // the front of the bed -- and refused every part over 224 mm across on a P1S.
+  // Measured on the 225 x 70 mm body halves of a real kit (Titan Fighter).
+  const slab = soup(new THREE.BoxGeometry(225, 70, 200))
+  const halves = [1, 2].map((id) => ({ id, geometry: slab, spin: IDENTITY }))
+  const wide = arrange(halves, p1s, flatFor)
+  check('a 225 mm part fits a 256 mm P1S bed beside the corner',
+    [wide.tooBig.length, wide.plateCount], [0, 1])
+  check('and neither stands on the corner',
+    wide.placements.filter((p) => clash(keepOuts(p1s), p.x - 112.5, p.y - 35, 225, 70)).length, 0)
+  // Too wide and too deep to clear the corner anywhere: still refused.
+  const block = soup(new THREE.BoxGeometry(230, 230, 20))
+  check('a part that cannot clear the corner anywhere is still reported',
+    arrange([{ id: 1, geometry: block, spin: IDENTITY }], p1s, flatFor).tooBig.length, 1)
 
   // A part with nowhere to stand clear is reported rather than shuffled about
   // forever: a bed that is nearly all keep-out is not a bed.

@@ -342,6 +342,32 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   `node web/memory-check.mjs` (after `npm run build --prefix web`) walks open /
   split / tap / make / start over across several files and fails if memory,
   GPU buffers or contexts grow. It needs a browser, so it is not in pytest.
+- **A real kit is the test for `Split into parts`, and found three bugs at
+  once** (Titan 3D's Titan Fighter, 2026-10-07: a Bambu Studio project of 73
+  objects on 16 plates). The split was capped at 64 and refused it -- the cap
+  (`MAX_PARTS`, now 300) guards against crumb exports, not kits. Two sealed
+  pockets in each front body half came out as four inside-out "parts", which
+  would have printed as lumps while the halves printed solid -- connected
+  components cannot see a cavity, so `keepCavitiesInside` hands every
+  negative-volume shell back to the solid a ray says contains it. And
+  `arrange`'s "is there anywhere clear?" test still assumed the purge corner
+  sat at the start of the rows after rows moved to the back, so on a P1S
+  every part over 224 mm across was called too big for a 256 mm bed. Check a
+  written file by signed volume and plate region, not by the note on screen:
+  all three of these read as a working app.
+- **A Bambu Studio project's plates are kept through a split.** They are
+  somebody's decisions -- parts grouped by colour or by what prints together.
+  `read3mf` carries the names, plates and bed out of `model_settings.config`
+  and `project_settings.config` as `userData.project`, with the triangle range
+  of every build item; `splitParts` tags each piece with its lowest triangle
+  (`userData.from`); `fromProject` traces it back. `arrangeInGroups` never
+  mixes plates, and on a bed the file's size, with nothing resized or turned,
+  leaves every plate exactly as the file had it -- Titan Fighter comes out on
+  its own 16 plates, 0.00 mm moved. A spot is only kept for an object that
+  came out as one piece: an object that falls apart is what Split is for.
+  Also: `arrange` counted the plate after a trailing too-big part, so the
+  screen showed an empty plate the writer dropped (28 on screen, 17 in the
+  file on an A1 mini).
 - **The landing screen has a model of its own** (`web/src/local/demo.js`), and
   the button that loads it starts a seven-step walk-through in the panel. It is
   built on the device out of three primitives -- nothing is fetched -- and it is
