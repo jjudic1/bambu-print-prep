@@ -342,6 +342,19 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   `node web/memory-check.mjs` (after `npm run build --prefix web`) walks open /
   split / tap / make / start over across several files and fails if memory,
   GPU buffers or contexts grow. It needs a browser, so it is not in pytest.
+- **A real kit is the test for `Split into parts`, and found three bugs at
+  once** (Titan 3D's Titan Fighter, 2026-10-07: a Bambu Studio project of 73
+  objects on 16 plates). The split was capped at 64 and refused it -- the cap
+  (`MAX_PARTS`, now 300) guards against crumb exports, not kits. Two sealed
+  pockets in each front body half came out as four inside-out "parts", which
+  would have printed as lumps while the halves printed solid -- connected
+  components cannot see a cavity, so `keepCavitiesInside` hands every
+  negative-volume shell back to the solid a ray says contains it. And
+  `arrange`'s "is there anywhere clear?" test still assumed the purge corner
+  sat at the start of the rows after rows moved to the back, so on a P1S
+  every part over 224 mm across was called too big for a 256 mm bed. Check a
+  written file by signed volume and plate region, not by the note on screen:
+  all three of these read as a working app.
 - **The landing screen has a model of its own** (`web/src/local/demo.js`), and
   the button that loads it starts a seven-step walk-through in the panel. It is
   built on the device out of three primitives -- nothing is fetched -- and it is

@@ -20,7 +20,7 @@
 import * as THREE from 'three'
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
 import {
-  arrange, clash, footprint, keepOuts, keepScale, modelSize, splitParts,
+  MAX_PARTS, arrange, clash, footprint, keepOuts, keepScale, modelSize, splitParts,
   withPartBack, withoutPart, withoutPlate,
 } from './src/local/parts.js'
 import { IDENTITY, sameOrientation, turn } from './src/orientation.js'
@@ -121,6 +121,39 @@ const split = splitParts(whole)
 check('an assembly of three blocks comes apart into three', split.length, 3)
 check('one solid piece has nothing to split',
   splitParts(soup(new THREE.BoxGeometry(10, 10, 10))), null)
+
+// A real kit is a lot of pieces: Titan 3D's Titan Fighter comes apart into 77,
+// and the old cap of 64 turned it away (2026-10-07). The cap is for crumbs --
+// an export in thousands of loose bits -- not for kits.
+const cubes = (n) => soup(...Array.from({ length: n }, (_, i) =>
+  new THREE.BoxGeometry(5, 5, 5).translate((i % 20) * 10, Math.floor(i / 20) * 10, 0)))
+check('a 100-piece kit splits into 100', splitParts(cubes(100)).length, 100)
+
+// A sealed pocket is an inward-facing surface sharing no vertex with the
+// outside, so connected components alone call it a piece -- inside out, and
+// taken out of the part it belongs in. Titan Fighter's front body halves have
+// two each, and 73 objects came apart into 77. Mirroring a box turns its
+// winding inward, which is exactly what a pocket's surface is.
+const pocket = () => new THREE.BoxGeometry(4, 4, 4).scale(-1, 1, 1)
+const hollow = soup(new THREE.BoxGeometry(20, 20, 20), pocket(),
+  new THREE.BoxGeometry(10, 10, 10).translate(40, 0, 0))
+const keptIn = splitParts(hollow)
+check('a sealed pocket stays inside its part: two pieces, not three', keptIn.length, 2)
+check('and the part keeps its hollow -- 8000 less the 64 mm3 pocket',
+  Math.round(signedVolume(keptIn[0])), 8000 - 64)
+check('a part with only a pocket in it is one piece, not two',
+  splitParts(soup(new THREE.BoxGeometry(20, 20, 20), pocket())), null)
+// Inside out and inside nothing: an export with its faces turned, not a
+// pocket. Left as a piece of its own rather than attached to a stranger.
+const stray = soup(new THREE.BoxGeometry(20, 20, 20),
+  new THREE.BoxGeometry(4, 4, 4).scale(-1, 1, 1).translate(40, 0, 0))
+check('an inside-out piece outside everything stays its own piece',
+  splitParts(stray).length, 2)
+check('the cap is far enough above a big kit to take it', MAX_PARTS >= 200, true)
+let refused = null
+try { splitParts(cubes(MAX_PARTS + 1)) } catch (e) { refused = e.message }
+check('past the cap it is refused, with the count said out loud',
+  refused !== null && refused.includes(String(MAX_PARTS + 1)), true)
 check('the pieces are the three blocks, whole',
   split.map((g) => Math.round(Math.abs(signedVolume(g)))).sort((a, b) => b - a),
   [81000, 80000, 54000])
@@ -311,6 +344,24 @@ console.log('\n--- the bed a printer will not print on -------------------------
     [Math.round(front), frontRow.length, Math.round(Math.min(...frontRow.map((p) => p.x)))], [30, 8, 34])
   check('and every cube is still on one plate',
     [full.placements.length, full.plateCount, full.tooBig.length], [80, 1, 0])
+
+  // Wider than the room beside the corner, but shallow. Rows start at the
+  // back, so the corner is the last thing a row reaches, and a part this wide
+  // simply stands at the back, clear of it. The check asking
+  // "is there anywhere clear?" once looked for room *beyond* the corner -- off
+  // the front of the bed -- and refused every part over 224 mm across on a P1S.
+  // Measured on the 225 x 70 mm body halves of a real kit (Titan Fighter).
+  const slab = soup(new THREE.BoxGeometry(225, 70, 200))
+  const halves = [1, 2].map((id) => ({ id, geometry: slab, spin: IDENTITY }))
+  const wide = arrange(halves, p1s, flatFor)
+  check('a 225 mm part fits a 256 mm P1S bed beside the corner',
+    [wide.tooBig.length, wide.plateCount], [0, 1])
+  check('and neither stands on the corner',
+    wide.placements.filter((p) => clash(keepOuts(p1s), p.x - 112.5, p.y - 35, 225, 70)).length, 0)
+  // Too wide and too deep to clear the corner anywhere: still refused.
+  const block = soup(new THREE.BoxGeometry(230, 230, 20))
+  check('a part that cannot clear the corner anywhere is still reported',
+    arrange([{ id: 1, geometry: block, spin: IDENTITY }], p1s, flatFor).tooBig.length, 1)
 
   // A part with nowhere to stand clear is reported rather than shuffled about
   // forever: a bed that is nearly all keep-out is not a bed.
