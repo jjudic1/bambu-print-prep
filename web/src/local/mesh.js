@@ -187,6 +187,9 @@ export function plateImages(scene, camera) {
     pick: plate,
   }
   renderer.dispose()
+  // A new context for every plate of every file made, and dispose() does not
+  // close it -- see release() in PlateViewer.jsx for what that cost on an iPad.
+  renderer.forceContextLoss()
   return images
 }
 
