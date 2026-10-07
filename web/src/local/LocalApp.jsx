@@ -22,7 +22,8 @@ import { MAKERWORLD_URL, renderHandoff } from './handoff.js'
 import { outward, standalone } from './outside.js'
 import { plateImages, readModel, spoken, toArrays } from './mesh.js'
 import {
-  arrange, clash, footprint, keepOuts, keepScale, modelSize, splitParts,
+  arrangeInGroups, clash, footprint, fromProject, keepOuts, keepScale,
+  modelSize, splitParts,
   withPartBack, withoutPart, withoutPlate,
 } from './parts.js'
 import {
@@ -495,16 +496,26 @@ export default function LocalApp() {
    * split never leaves a heap of pieces stacked on one spot -- which is what it
    * used to do, and which looked exactly like the split having failed.
    */
-  function layOut(list, lead) {
-    const { placements, plateCount: needed, tooBig } =
-      arrange(list, printer, matrixFor)
+  function layOut(list, lead, { keepHomes = false } = {}) {
+    const { placements, plateCount: needed, tooBig, kept } =
+      arrangeInGroups(list, printer, matrixFor, { keepHomes })
     const byId = new Map(placements.map((p) => [p.id, p]))
     setParts(list.map((p) => ({ ...p, ...byId.get(p.id) })))
     setPlateCount(needed)
     setActivePlate(0)
     setSelectedId(null)
 
-    const where = `${lead || 'Laid out'} across ${needed} plate${needed > 1 ? 's' : ''}.`
+    // A project's plates are kept as groups (see arrangeInGroups), and that is
+    // worth saying: it is why a plate may be half empty when everything would
+    // have packed tighter.
+    const groups = new Set(list.map((p) => p.group ?? null))
+    const grouped = [...groups].filter((g) => g !== null).length > 1
+    const plates = `${needed} plate${needed > 1 ? 's' : ''}`
+    const where = !grouped
+      ? `${lead || 'Laid out'} across ${plates}.`
+      : kept === groups.size && needed === kept
+        ? `${lead || 'Laid out'} just as the file had them, on its ${plates}.`
+        : `${lead || 'Laid out'} across ${plates}, keeping the file's plates together.`
     setNote(tooBig.length
       ? `${where} ${tooBig.length} part${tooBig.length > 1 ? 's are' : ' is'} too big for the bed on its own - make it smaller, or turn it onto a different face.`
       : `${where} Tap a part to turn just that one, or drag it about.`)
@@ -516,17 +527,44 @@ export default function LocalApp() {
       for (const part of parts) {
         const split = splitParts(part.geometry)
         if (!split) { pieces.push(part); continue }
-        for (const geometry of split) pieces.push({ ...part, id: nextId++, geometry })
+        // A Bambu Studio project knows each piece's name and plate. Kept, so
+        // a designer's plates -- grouped by colour, or by what goes together --
+        // survive the split (Titan Fighter, 2026-10-07).
+        const project = part.geometry.userData.project
+        const traced = split.map((geometry) => fromProject(geometry, project))
+        // A spot in the file is only the designer's layout for an object that
+        // came out as one piece. An object that fell apart -- an assembly, or
+        // a whole model saved as one object -- is what Split is for, so its
+        // pieces are laid out fresh, still on their own plate's group.
+        const perObject = new Map()
+        for (const t of traced) if (t) perObject.set(t.object, (perObject.get(t.object) || 0) + 1)
+        split.forEach((geometry, i) => {
+          const known = traced[i]
+          pieces.push({
+            ...part, id: nextId++, geometry,
+            ...(known && {
+              group: known.group,
+              home: perObject.get(known.object) === 1 ? known.home : null,
+              fileName: known.name,
+            }),
+          })
+        })
       }
       if (pieces.length === parts.length) {
         setNote('That model is one connected piece - there is nothing to split.')
         return
       }
       // Renumbered as a set so the labels match what is on screen. Biggest
-      // first, because splitParts has already ordered them that way.
-      const named = pieces.map((p, i) => ({ ...p, name: `Part ${i + 1}` }))
+      // first, because splitParts has already ordered them that way. A name
+      // from the file wins: "SB ~ STAND BOTTOM" is what the instructions call it.
+      const named = pieces.map((p, i) => ({ ...p, name: p.fileName || `Part ${i + 1}` }))
       setBeforeSplit(parts); setRemoved(null)
-      layOut(named, `Split into ${named.length} parts, laid out`)
+      // The file's own spots only mean anything at the file's own size and pose.
+      const untouched = sameOrientation(base, IDENTITY)
+        && factors.every((f) => Math.abs(f - 1) < 0.002)
+        && named.every((p) => (p.scale ?? 1) === 1 && !p.yaw
+                              && sameOrientation(p.spin, IDENTITY))
+      layOut(named, `Split into ${named.length} parts, laid out`, { keepHomes: untouched })
     } catch (e) {
       setError(e.message)
     } finally { setBusy('') }

@@ -20,7 +20,7 @@
 import * as THREE from 'three'
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
 import {
-  MAX_PARTS, arrange, clash, footprint, keepOuts, keepScale, modelSize, splitParts,
+  MAX_PARTS, arrange, arrangeInGroups, clash, fromProject, footprint, keepOuts, keepScale, modelSize, splitParts,
   withPartBack, withoutPart, withoutPlate,
 } from './src/local/parts.js'
 import { IDENTITY, sameOrientation, turn } from './src/orientation.js'
@@ -269,6 +269,84 @@ console.log("\n--- arrange uses each part's own footprint ----------------------
   const big = arrange(huge, printer, matrixFor)
   check('a part bigger than the bed is placed anyway and reported',
     [big.placements.length, big.tooBig.length], [1, 1])
+  // ...on one plate. The cursor moved on to a fresh plate after it and that
+  // plate used to be counted: the screen showed it, empty, and the writer
+  // dropped it, so the plate count on screen and in the file disagreed.
+  check('and a too-big part last does not leave an empty plate behind it',
+    big.plateCount, 1)
+}
+
+console.log('\n--- a project file keeps its own plates ---------------------------')
+{
+  // A Bambu Studio project is somebody's layout: parts grouped on plates by
+  // colour, or by what goes together. Titan Fighter is 73 objects on 16 plates
+  // (2026-10-07). Two plates here: a big block alone, and two small ones.
+  // As the baked profiles have them: the P1S with its purge corner.
+  const p1s = { bed_mm: [256, 256], height_mm: 250,
+    exclude_areas: [[[0, 0], [18, 0], [18, 28], [0, 28]]] }
+  const a1mini = { bed_mm: [180, 180], height_mm: 180, exclude_areas: [] }
+  const flatFor = () => new THREE.Matrix4()
+  const stride = 256 * 1.2
+  // World positions as the project has them: plate 1 at the origin, plate 2
+  // one stride to the right (two plates sit side by side).
+  const whole = soup(
+    new THREE.BoxGeometry(150, 150, 20).translate(128, 128, 10),
+    new THREE.BoxGeometry(30, 30, 10).translate(stride + 60, 200, 5),
+    new THREE.BoxGeometry(30, 30, 10).translate(stride + 200, 60, 5))
+  const per = 12      // triangles in a box
+  const project = {
+    plateCount: 2, bed: [256, 256],
+    objects: [
+      { name: 'Body', plate: 0, start: 0, count: per },
+      { name: 'Bolt', plate: 1, start: per, count: per },
+      { name: 'Bolt', plate: 1, start: 2 * per, count: per },
+    ],
+  }
+  const pieces = splitParts(whole).map((geometry, i) => {
+    const known = fromProject(geometry, project)
+    return { id: i + 1, geometry, spin: IDENTITY, group: known.group, home: known.home, name: known.name }
+  })
+  check('each piece finds its own name and plate in the file',
+    pieces.map((p) => [p.name, p.group]).sort(), [['Body', 0], ['Bolt', 1], ['Bolt', 1]])
+  check('and where it stood on that plate',
+    pieces.map((p) => [Math.round(p.home.x), Math.round(p.home.y)]).sort((a, b) => a[0] - b[0] || a[1] - b[1]),
+    [[60, 200], [128, 128], [200, 60]])
+
+  const same = arrangeInGroups(pieces, p1s, flatFor, { keepHomes: true })
+  check('on the bed it was made for, every plate is kept as it was',
+    [same.plateCount, same.kept, same.tooBig.length], [2, 2, 0])
+  check('and every part is exactly where the file had it',
+    same.placements.every((q) => {
+      const p = pieces.find((r) => r.id === q.id)
+      return q.plate === p.group && q.x === p.home.x && q.y === p.home.y
+    }), true)
+
+  // The two bolts would pack onto plate 1 beside the body if packing were
+  // free to; kept as groups, they never share a plate with it.
+  const packed = arrangeInGroups(pieces, p1s, flatFor)
+  const plateOf = (name) => [...new Set(packed.placements
+    .filter((q) => pieces.find((p) => p.id === q.id).name === name).map((q) => q.plate))]
+  check('Arrange packs each of the file\'s plates on its own, never mixing them',
+    [plateOf('Body'), plateOf('Bolt'), packed.kept], [[0], [1], 0])
+
+  // A smaller bed: nothing can stay where it was, but the groups still hold.
+  const small = arrangeInGroups(pieces, a1mini, flatFor, { keepHomes: true })
+  check('on a smaller bed the plates are packed again, still apart',
+    [small.kept, small.plateCount, small.tooBig.length], [0, 2, 0])
+
+  // A part dropped onto the purge corner by its file is not kept there.
+  const cornered = pieces.map((p) => (p.name === 'Body' ? p
+    : { ...p, home: { ...p.home, x: p.home.x < 100 ? 20 : p.home.x, y: p.home.y > 100 ? 20 : p.home.y } }))
+  const moved = arrangeInGroups(cornered, p1s, flatFor, { keepHomes: true })
+  check('a plate whose file layout stands on the corner is packed again',
+    [moved.kept, moved.placements.filter((q) => clash(keepOuts(p1s), q.x - 15, q.y - 15, 30, 30)).length],
+    [1, 0])
+
+  // A model that is not a project lays out exactly as before.
+  const plain = pieces.map(({ group, home, ...p }) => p)
+  check('no groups is plain arrange',
+    JSON.stringify(arrangeInGroups(plain, p1s, flatFor).placements),
+    JSON.stringify(arrange(plain, p1s, flatFor).placements))
 }
 
 console.log('\n--- the bed a printer will not print on --------------------------')

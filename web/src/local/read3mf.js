@@ -150,9 +150,14 @@ export function read3mf(buffer) {
     for (const index of object.indices) indices.push(base + index)
   }
 
+  // Which triangles came from which build item, so a split can say where each
+  // piece came from. Ranges, in the order the triangles are written below.
+  const items = []
   const root = parts.get(rootName)
   for (const item of root.build) {
+    const start = indices.length / 3
     collect(rootName, item.objectid, item.matrix)
+    items.push({ objectid: item.objectid, start, count: indices.length / 3 - start })
   }
 
   // A file with no build section is unusual but not wrong; take every object
@@ -170,5 +175,75 @@ export function read3mf(buffer) {
     new THREE.Float32BufferAttribute(positions, 3))
   if (indices.length) geometry.setIndex(indices)
   geometry.computeVertexNormals()
+  const project = bambuProject(files, decode, items)
+  if (project) geometry.userData.project = project
   return geometry
+}
+
+/**
+ * What a Bambu Studio project says about its objects: their names, which plate
+ * each one is on, and the bed the plates were laid out for.
+ *
+ * A project is somebody's layout -- often a designer's, with the parts grouped
+ * on plates by colour or by what goes with what -- and splitting it should not
+ * throw that away (2026-10-07: Titan 3D's Titan Fighter, 73 objects on 16
+ * plates). Null for anything else: a plain 3MF has no plates to keep.
+ *
+ * `objects` holds one entry per build item, with the range of triangles it
+ * became in the geometry, so a piece can be traced back by any triangle in it.
+ */
+function bambuProject(files, decode, items) {
+  const settings = 'Metadata/model_settings.config'
+  if (!files[settings]) return null
+  const doc = new DOMParser().parseFromString(decode(settings), 'application/xml')
+  if (doc.querySelector('parsererror')) return null
+
+  const meta = (node, key) => [...node.children].find((c) =>
+    c.tagName === 'metadata' && c.getAttribute('key') === key)?.getAttribute('value')
+
+  const names = new Map()
+  for (const node of doc.getElementsByTagName('object')) {
+    names.set(node.getAttribute('id'), meta(node, 'name') || '')
+  }
+  const plateOf = new Map()
+  const plates = [...doc.getElementsByTagName('plate')]
+  plates.forEach((plate, index) => {
+    for (const instance of plate.getElementsByTagName('model_instance')) {
+      const id = meta(instance, 'object_id')
+      if (id) plateOf.set(id, index)
+    }
+  })
+  if (!plateOf.size) return null
+
+  return {
+    plateCount: plates.length,
+    bed: projectBed(files, decode),
+    objects: items.map(({ objectid, start, count }) => ({
+      name: (names.get(objectid) || '').replace(/\.(stl|obj|3mf|step|stp)$/i, ''),
+      plate: plateOf.has(objectid) ? plateOf.get(objectid) : null,
+      start, count,
+    })),
+  }
+}
+
+/**
+ * The bed size the project was laid out on, from its printable area -- null if
+ * the file does not say. Plates are regions of world space spaced by the bed,
+ * so this is what turns a position in the file into a place on a plate.
+ */
+function projectBed(files, decode) {
+  const name = 'Metadata/project_settings.config'
+  if (!files[name]) return null
+  let config
+  try {
+    config = JSON.parse(decode(name))
+  } catch (e) {
+    if (e instanceof SyntaxError) return null    // an older, non-JSON config
+    throw e
+  }
+  const area = config?.printable_area
+  if (!Array.isArray(area) || !area.length) return null
+  const points = area.map((p) => String(p).split('x').map(Number))
+  if (points.some((p) => p.length !== 2 || p.some((n) => !Number.isFinite(n)))) return null
+  return [Math.max(...points.map((p) => p[0])), Math.max(...points.map((p) => p[1]))]
 }

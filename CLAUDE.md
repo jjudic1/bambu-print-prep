@@ -355,6 +355,19 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   every part over 224 mm across was called too big for a 256 mm bed. Check a
   written file by signed volume and plate region, not by the note on screen:
   all three of these read as a working app.
+- **A Bambu Studio project's plates are kept through a split.** They are
+  somebody's decisions -- parts grouped by colour or by what prints together.
+  `read3mf` carries the names, plates and bed out of `model_settings.config`
+  and `project_settings.config` as `userData.project`, with the triangle range
+  of every build item; `splitParts` tags each piece with its lowest triangle
+  (`userData.from`); `fromProject` traces it back. `arrangeInGroups` never
+  mixes plates, and on a bed the file's size, with nothing resized or turned,
+  leaves every plate exactly as the file had it -- Titan Fighter comes out on
+  its own 16 plates, 0.00 mm moved. A spot is only kept for an object that
+  came out as one piece: an object that falls apart is what Split is for.
+  Also: `arrange` counted the plate after a trailing too-big part, so the
+  screen showed an empty plate the writer dropped (28 on screen, 17 in the
+  file on an A1 mini).
 - **The landing screen has a model of its own** (`web/src/local/demo.js`), and
   the button that loads it starts a seven-step walk-through in the panel. It is
   built on the device out of three primitives -- nothing is fetched -- and it is

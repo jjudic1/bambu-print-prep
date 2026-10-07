@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 
+import { plateOrigin } from '../make3mf.js'
+
 /**
  * Splitting a model into parts, and arranging parts across plates.
  *
@@ -98,6 +100,13 @@ export function splitParts(geometry, { maxParts = MAX_PARTS } = {}) {
     part.setIndex(indices)
     part.computeVertexNormals()
     part.computeBoundingBox()
+    // Where the piece came from: its lowest triangle in the geometry it was
+    // split out of. A project file says which object owns which triangles
+    // (read3mf's `userData.project`), and this is how a piece finds its name
+    // and its plate again.
+    let first = Infinity
+    for (const t of triangles) if (t < first) first = t
+    part.userData.from = first
     return part
   })
 }
@@ -351,7 +360,11 @@ export function arrange(parts, printer, matrixFor, { gap = 6, margin = 8 } = {})
 
   return {
     placements: placed.map(({ part, plate: p, x, y }) => ({ id: part.id, plate: p, x, y })),
-    plateCount: plate + 1,
+    // Counted from where parts went, not from the cursor: a too-big part moves
+    // the cursor on to a fresh plate, and when it was the last part that plate
+    // stays empty. The viewer showed it; the writer drops it, since Bambu
+    // refuses an empty plate -- so the screen said 28 plates for a file of 17.
+    plateCount: Math.max(0, ...placed.map((q) => q.plate)) + 1,
     tooBig,
   }
 }
@@ -372,6 +385,87 @@ export function modelSize(parts, base) {
   for (const part of parts) box.union(footprint(part.geometry, m).box)
   const size = box.getSize(new THREE.Vector3())
   return [size.x, size.y, size.z]
+}
+
+/**
+ * Where a split piece came from, in a Bambu Studio project: its object's name,
+ * the plate it was on, and where on that plate it stood.
+ *
+ * `project` is read3mf's `userData.project`; null when the model was not a
+ * project, or the piece cannot be traced (it came out of a part split before).
+ * `home` is the centre of the piece on its plate, in plate millimetres -- the
+ * same `x`/`y` a part carries here -- and only meaningful on a bed the size of
+ * `project.bed`. `object` says which of the file's objects it was: a piece is
+ * only where its designer put it if its object came out as that one piece.
+ */
+export function fromProject(geometry, project) {
+  const from = geometry.userData?.from
+  if (!project || from === undefined) return null
+  const index = project.objects.findIndex((o) => from >= o.start && from < o.start + o.count)
+  const object = project.objects[index]
+  if (!object || object.plate === null) return null
+
+  let home = null
+  if (project.bed) {
+    geometry.computeBoundingBox()
+    const centre = geometry.boundingBox.getCenter(new THREE.Vector3())
+    const [ox, oy] = plateOrigin(object.plate, { bed_mm: project.bed }, project.plateCount)
+    home = { x: centre.x - ox, y: centre.y - oy, bed: project.bed }
+  }
+  return { name: object.name, group: object.plate, home, object: index }
+}
+
+/**
+ * Lay parts out a plate-group at a time, keeping a file's own plates.
+ *
+ * A project's plates are somebody's decisions -- parts grouped by colour, or by
+ * what is printed together -- so parts carrying a `group` are never mixed with
+ * another group's. Groups go in their own order, each starting a fresh plate.
+ *
+ * With `keepHomes`, a group whose every part still fits where the file had it
+ * (same size of bed, on the bed, off the keep-outs, under the height) stays
+ * exactly where it was: one plate, the designer's layout. Any other group is
+ * packed by `arrange`, onto as many plates as it needs -- which on a smaller
+ * bed than the file's may be more than one. Parts with no group are packed
+ * together after the rest. Nothing with a group at all is plain `arrange`.
+ */
+export function arrangeInGroups(parts, printer, matrixFor, { keepHomes = false } = {}) {
+  if (!parts.some((p) => p.group !== undefined && p.group !== null)) {
+    return { ...arrange(parts, printer, matrixFor), kept: 0 }
+  }
+  const [bedX, bedY] = printer.bed_mm
+  const zones = keepOuts(printer)
+  const atHome = (part) => {
+    const home = part.home
+    if (!home || Math.abs(home.bed[0] - bedX) > 0.5 || Math.abs(home.bed[1] - bedY) > 0.5) return false
+    const { width, depth, height } = footprint(part.geometry, matrixFor(part))
+    const x0 = home.x - width / 2
+    const y0 = home.y - depth / 2
+    return x0 >= 0 && y0 >= 0 && x0 + width <= bedX && y0 + depth <= bedY
+      && height <= (printer.height_mm ?? Infinity)
+      && !clash(zones, x0, y0, width, depth)
+  }
+
+  const keys = [...new Set(parts.map((p) => p.group ?? null))]
+    .sort((a, b) => (a === null) - (b === null) || a - b)
+  const placements = []
+  const tooBig = []
+  let plate = 0
+  let kept = 0
+  for (const key of keys) {
+    const members = parts.filter((p) => (p.group ?? null) === key)
+    if (keepHomes && key !== null && members.every(atHome)) {
+      for (const p of members) placements.push({ id: p.id, plate, x: p.home.x, y: p.home.y })
+      plate += 1
+      kept += 1
+      continue
+    }
+    const packed = arrange(members, printer, matrixFor)
+    for (const q of packed.placements) placements.push({ ...q, plate: q.plate + plate })
+    tooBig.push(...packed.tooBig)
+    plate += packed.plateCount
+  }
+  return { placements, plateCount: plate, tooBig, kept }
 }
 
 /**
