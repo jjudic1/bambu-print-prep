@@ -9,6 +9,7 @@ import Disclaimer from '../disclaimer.jsx'
 import { printers, warmSettings, withSettings } from '../data/profiles.js'
 import { frameBed } from '../framing.js'
 import { makeProject3mf } from '../make3mf.js'
+import { QUALITY, adaptiveProfile, slicingParams } from './variableLayers.js'
 import { MADE, ON_DEVICE, OPENED, READ, SAVED, STEPS, countStep } from '../metrics.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import {
@@ -871,6 +872,17 @@ export default function LocalApp() {
       }
       if (!plates.length) throw new Error('There is nothing on any plate yet.')
 
+      // Variable layer height: each object's own table, from its own surface, as
+      // Bambu Studio's Adaptive button makes it at Quality 0.5 (variableLayers.js).
+      if (advanced.variableLayers) {
+        const slicing = slicingParams(profile.materials[material].settings)
+        for (const plate of plates) {
+          for (const object of plate.objects) {
+            object.layerProfile = adaptiveProfile(object.vertices, object.triangles, slicing, QUALITY)
+          }
+        }
+      }
+
       const zip = makeProject3mf({
         printer: profile, material, title: `${name}.stl`, plates,
       })
@@ -1436,6 +1448,23 @@ export default function LocalApp() {
             </label>
             <div className="hint">
               Tree supports, only where needed. They snap off by hand.
+            </div>
+          </div>
+
+          <div className="field">
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={advanced.variableLayers}
+                onChange={(e) => setAdvanced(
+                  (a) => ({ ...a, variableLayers: e.target.checked }))}
+              />
+              <span>Variable layer height</span>
+            </label>
+            <div className="hint">
+              Thinner layers where a curve is nearly flat, thicker where the sides run
+              straight up: smoother domes, quicker prints. Bambu Studio's Adaptive at
+              quality 0.5.
             </div>
           </div>
           </div>

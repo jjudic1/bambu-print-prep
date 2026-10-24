@@ -110,6 +110,9 @@ export const WALLS = [
  */
 export const DEFAULTS = Object.freeze({
   pattern: 'gyroid', density: null, walls: null, supports: true,
+  // Variable layer height (variableLayers.js): off, as Bambu Studio starts. It is not
+  // a setting in the blob, so patchFor() never sees it; the writer carries a table.
+  variableLayers: false,
 })
 
 /** The support settings we write, and the only kind of support offered.
@@ -266,5 +269,6 @@ export function summarise(advanced = DEFAULTS) {
     said.push(`${choice.walls} walls`)
   }
   if (!choice.supports) said.push('no supports')
+  if (choice.variableLayers) said.push('variable layers')
   return said
 }

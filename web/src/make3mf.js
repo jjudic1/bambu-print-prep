@@ -24,6 +24,8 @@
 
 import { zipSync, zlibSync } from 'fflate'
 
+import { layerHeightsFile } from './local/variableLayers.js'
+
 const enc = new TextEncoder()
 const bytes = (s) => enc.encode(s)
 
@@ -536,6 +538,12 @@ export function makeProject3mf({
     files[objectPart(object.part)] =
       bytes(objectModelXml(object.vertices, object.triangles, object.meshId))
   }
+
+  // Variable layer height (web/src/local/variableLayers.js): one table per object
+  // that carries one, numbered as the model lists the objects. Absent unless asked
+  // for, so every other file is byte for byte what it was.
+  const layerTables = layerHeightsFile(all.map((o) => o.layerProfile || null))
+  if (layerTables) files['Metadata/layer_heights_profile.txt'] = bytes(layerTables)
 
   // One set of pictures per plate, numbered to match plater_id. The small one
   // exists only for plate 1, which is what the cover-thumbnail relationships
