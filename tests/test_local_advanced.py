@@ -78,13 +78,13 @@ def test_an_override_is_declared_as_well_as_written(checks):
 
 
 def test_leaving_the_drawer_alone_changes_nothing(checks):
-    """Grid and Standard keep every value the profile has.
+    """Grid, Classic and Standard keep every value the profile has.
 
     The one difference from the file before the drawer: support_type is now
     declared, because without the declaration Bambu Studio put tree(auto)
     back to normal(auto).
     """
-    same = next((c for c in checks if "only declares support_type" in c["label"]),
+    same = next((c for c in checks if "only declare support_type" in c["label"]),
                 None)
     assert same is not None, "the harness stopped checking the default path"
     assert same["ok"], "\n".join(same["got"])

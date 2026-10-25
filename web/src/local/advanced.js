@@ -27,8 +27,8 @@
  *
  * ## Standard means standard
  *
- * Three of the four choices can be left alone, and `null` is what that means:
- * do not write the key at all, so the printer's profile decides. This is not
+ * Two of the choices can be left alone, and `null` is what that means: do not
+ * write the key at all, so the printer's profile decides. This is not
  * shyness. The 0.2 mm nozzle profiles ask for four walls and the A1's 0.6 for
  * 25% -- values chosen for those line widths by people who measured them -- and
  * a blanket "2 walls, 15%" default of ours would quietly overrule every one of
@@ -43,10 +43,10 @@
  * support_type, and Bambu Studio put an undeclared tree(auto) back to the
  * system profile's normal(auto).
  *
- * The pattern is the other, and the one place this app overrules every
- * profile on purpose. All 202 say grid; we start on gyroid, because grid lays
- * each layer as lines that cross, and the nozzle clips the raised crossings on
- * its way over -- the knocks and snags that print fine on paper. Gyroid has no
+ * The pattern is one of two places this app overrules every profile on
+ * purpose. All 202 say grid; we start on gyroid, because grid lays each layer
+ * as lines that cross, and the nozzle clips the raised crossings on its way
+ * over -- the knocks and snags that print fine on paper. Gyroid has no
  * crossings. It costs some time, and Grid is still one tap away. Unlike the
  * density and wall count this is not a figure somebody tuned for a line width:
  * the profiles all say grid because grid is what Bambu ships, not because a
@@ -54,7 +54,19 @@
  * pattern that matches the profile is simply not declared -- so Grid differs
  * from the file this app wrote before gyroid only by declaring support_type.
  *
- * Variable layer height is the fourth, and the only one that is not a key in
+ * The wall generator is the second override of every profile, measured the
+ * same way before it was turned on. All 202 blobs say `classic`; we start on
+ * `arachne`, which varies the width of a wall rather than leaving a gap too
+ * narrow for another line of plastic. That gap is what a thin wall, a lettered
+ * nameplate or a shallow draft angle comes out of a classic slice with -- and
+ * those are the models that arrive here. Bambu Studio keeps it and slices with
+ * it: `; wall_generator = arachne` in the G-code header of a file this app
+ * wrote, measured on a P1S 0.4 on 2026-10-25, declared and undeclared both.
+ * It is declared anyway, because `changedKeys()` declares anything that
+ * differs from the profile and the declared set only ever grows. Classic is
+ * one tap away, and picking it writes the file this app wrote before.
+ *
+ * Variable layer height is the last, and the only one that is not a key in
  * the blob at all -- it is a table the writer appends, so its "off" is the file
  * this app wrote before the feature existed, byte for byte. It starts on. Bambu
  * Studio starts it off, but Bambu Studio's user is somebody who knows the button
@@ -77,6 +89,18 @@
 export const PATTERNS = [
   { key: 'gyroid', value: 'gyroid', label: 'Gyroid', note: 'recommended' },
   { key: 'grid', value: 'grid', label: 'Grid', note: 'faster' },
+]
+
+/**
+ * How the walls themselves are drawn. All 202 blobs say `classic`; we start on
+ * `arachne` (see "Standard means standard" above for why).
+ *
+ * Bambu Studio's own names, deliberately -- somebody who opens this drawer and
+ * then opens Bambu Studio has to be able to find the same two words there.
+ */
+export const GENERATORS = [
+  { key: 'arachne', value: 'arachne', label: 'Arachne', note: 'recommended' },
+  { key: 'classic', value: 'classic', label: 'Classic', note: 'what Bambu ships' },
 ]
 
 /**
@@ -113,12 +137,13 @@ export const WALLS = [
 ]
 
 /**
- * Where the drawer opens: gyroid, the profile's own answer for how much and
- * how many walls, supports on, which is what every profile already asks, and
- * variable layer height on.
+ * Where the drawer opens: gyroid and arachne, the profile's own answer for how
+ * much and how many walls, supports on, which is what every profile already
+ * asks, and variable layer height on.
  */
 export const DEFAULTS = Object.freeze({
-  pattern: 'gyroid', density: null, walls: null, supports: true,
+  pattern: 'gyroid', generator: 'arachne', density: null, walls: null,
+  supports: true,
   // Variable layer height (variableLayers.js): on, which is the other place this
   // drawer overrules the profiles on purpose -- Bambu Studio starts it off, but a
   // curved model in even layers is what people come here with. It is not a setting
@@ -139,7 +164,7 @@ export const SUPPORT_TYPE = 'tree(auto)'
 /** Every settings key this file will ever write. */
 export const KEYS = [
   'enable_support', 'sparse_infill_density', 'sparse_infill_pattern',
-  'support_type', 'wall_loops',
+  'support_type', 'wall_generator', 'wall_loops',
 ]
 
 /**
@@ -157,6 +182,10 @@ export function patchFor(advanced = DEFAULTS) {
   // and grid matches the profile, so changedKeys() lets it drop out unsaid.
   const pattern = PATTERNS.find((p) => p.key === choice.pattern)
   if (pattern) patch.sparse_infill_pattern = pattern.value
+  // The same, for the same reason: arachne is ours, classic matches every
+  // profile and drops out unsaid.
+  const generator = GENERATORS.find((g) => g.key === choice.generator)
+  if (generator) patch.wall_generator = generator.value
   if (choice.density !== null && choice.density !== undefined) {
     patch.sparse_infill_density = `${choice.density}%`
   }
@@ -177,6 +206,7 @@ export function profileValues(settings) {
   if (!settings) return null
   return {
     pattern: settings.sparse_infill_pattern,
+    generator: settings.wall_generator,
     density: settings.sparse_infill_density,
     walls: settings.wall_loops,
     supports: settings.enable_support === '1',
@@ -273,6 +303,10 @@ export function summarise(advanced = DEFAULTS) {
   const said = []
   if (choice.pattern !== DEFAULTS.pattern) {
     said.push(PATTERNS.find((p) => p.key === choice.pattern)?.label || choice.pattern)
+  }
+  if (choice.generator !== DEFAULTS.generator) {
+    said.push(`${GENERATORS.find((g) => g.key === choice.generator)?.label
+      || choice.generator} walls`)
   }
   if (choice.density !== null && choice.density !== undefined) {
     said.push(`${choice.density}% inside`)
