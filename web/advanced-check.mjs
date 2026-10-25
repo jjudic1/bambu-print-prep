@@ -239,9 +239,17 @@ console.log('\n--- the choices the drawer offers -------------------------------
   check('every wall count is a whole number of loops',
     WALLS.slice(1).every((w) => Number.isInteger(w.value) && w.value >= 1), true)
 
+  // On, unlike Bambu Studio's own Adaptive button, and unlike the three
+  // choices above it is not a key in the blob -- switching it off writes the
+  // file this app wrote before the feature existed. Asserted because a flipped
+  // default here is invisible: both files open and both print.
+  check('the drawer opens with variable layer height on', DEFAULTS.variableLayers, true)
+
   check('the summary names what was changed',
     summarise({ pattern: 'grid', density: 50, walls: 4, supports: false }),
     ['Grid', '50% inside', '4 walls', 'no supports'])
+  check('turning variable layer height off is named too',
+    summarise({ ...DEFAULTS, variableLayers: false }), ['even layers'])
 
   check('what the profile says is readable for the Standard labels',
     profileValues(blobs['Bambu Lab P1S 0.4 nozzle'].PLA.settings),

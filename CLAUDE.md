@@ -135,8 +135,14 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   nozzle catches on grid's raised crossings. So every file now carries a
   declared `sparse_infill_pattern` unless somebody picks Grid -- which, with
   nothing else changed, is byte-for-byte the old file, and the harness checks
-  both halves. Nothing in the drawer is remembered between sessions, for the
-  reason the nozzle is not.
+  both halves. **Variable layer height is the fourth choice and the only one
+  that is not a profile key at all** -- `web/src/local/variableLayers.js` builds
+  the table `make3mf.js` appends, so its "off" is the file this app wrote before
+  the feature existed. It opens **on** (2026-10-24, the user's call), unlike
+  Bambu Studio's own Adaptive button, and `summarise()` names it when it is
+  switched off, the way it names supports -- a default-on choice that says
+  nothing when turned off is a shut drawer hiding a changed file. Nothing in the
+  drawer is remembered between sessions, for the reason the nozzle is not.
 - **The baked profiles are two files and go stale together**: `printers.json` is
   the 13 KB index the pickers read, `printer-settings.json` the 4.8 MB of blobs,
   fetched on demand — static, it put 4 MB of JavaScript in front of first paint
