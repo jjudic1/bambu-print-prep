@@ -29,7 +29,8 @@
 import { readFileSync } from 'node:fs'
 
 import {
-  ALWAYS_DECLARED, DEFAULTS, DENSITIES, KEYS, PATTERNS, SUPPORT_TYPE, WALLS,
+  ALWAYS_DECLARED, DEFAULTS, DENSITIES, GENERATORS, KEYS, PATTERNS,
+  SUPPORT_TYPE, WALLS,
   applyAdvanced, changedKeys, declare, patchFor, profileValues, summarise,
 } from './src/local/advanced.js'
 
@@ -81,6 +82,12 @@ console.log('--- the data the drawer rests on --------------------------------')
   const notGrid = [...new Set(every.map(([id, m]) => blobs[id][m].settings.sparse_infill_pattern))]
   check('every profile says grid', notGrid, ['grid'])
 
+  // The same argument for the wall generator: uniform across the export, so
+  // Classic is the profile's own answer everywhere and Arachne, our default,
+  // is a declared override everywhere.
+  const generators = [...new Set(every.map(([id, m]) => blobs[id][m].settings.wall_generator))]
+  check('every profile says classic', generators, ['classic'])
+
   // And the two that are *not* uniform, which is the whole argument for null
   // meaning "leave it alone" rather than a blanket default of ours.
   const densities = [...new Set(every.map(([id, m]) => blobs[id][m].settings.sparse_infill_density))].sort()
@@ -89,11 +96,11 @@ console.log('--- the data the drawer rests on --------------------------------')
   check('profiles disagree about how many walls', walls, ['2', '4'])
 }
 
-console.log('\n--- the defaults change the pattern and nothing else --------------')
+console.log('\n--- the defaults change two keys and nothing else -----------------')
 {
-  // Gyroid is the one deliberate override of ours. Everything else has to be
-  // the profile's own answer, or the drawer overrules a figure somebody tuned
-  // for that nozzle for a user who never opened it.
+  // Gyroid and arachne are the two deliberate overrides of ours. Everything
+  // else has to be the profile's own answer, or the drawer overrules a figure
+  // somebody tuned for that nozzle for a user who never opened it.
   const wrong = []
   for (const [id, material] of every) {
     const settings = applyAdvanced(profileFor(id), material, DEFAULTS).materials[material].settings
@@ -101,19 +108,23 @@ console.log('\n--- the defaults change the pattern and nothing else ------------
       .filter((k) => JSON.stringify(settings[k]) !== JSON.stringify(blobs[id][material].settings[k]))
       .sort()
     const declared = settings.different_settings_to_system[0].split(';')
-    if (JSON.stringify(moved) !== '["different_settings_to_system","sparse_infill_pattern"]'
+    if (JSON.stringify(moved) !== '["different_settings_to_system","sparse_infill_pattern","wall_generator"]'
         || settings.sparse_infill_pattern !== 'gyroid'
+        || settings.wall_generator !== 'arachne'
         || !declared.includes('sparse_infill_pattern')
+        || !declared.includes('wall_generator')
         || !declared.includes('support_type')) wrong.push(`${id} ${material}`)
   }
-  check('the defaults write gyroid, declared, declare support_type, and touch nothing else', wrong, [])
+  check('the defaults write gyroid and arachne, both declared, declare support_type, and touch nothing else',
+    wrong, [])
 
-  // And Grid with the rest left alone is the file from before gyroid was the
-  // default, but for one thing: support_type is now declared. Every value is
-  // the blob's own; only the declaration list moves.
+  // And Grid and Classic with the rest left alone is the file from before
+  // either was the default, but for one thing: support_type is now declared.
+  // Every value is the blob's own; only the declaration list moves.
   const changed = []
   for (const [id, material] of every) {
-    const settings = applyAdvanced(profileFor(id), material, { ...DEFAULTS, pattern: 'grid' })
+    const settings = applyAdvanced(profileFor(id), material,
+      { ...DEFAULTS, pattern: 'grid', generator: 'classic' })
       .materials[material].settings
     const moved = Object.keys(settings)
       .filter((k) => JSON.stringify(settings[k]) !== JSON.stringify(blobs[id][material].settings[k]))
@@ -121,7 +132,7 @@ console.log('\n--- the defaults change the pattern and nothing else ------------
     if (JSON.stringify(moved) !== '["different_settings_to_system"]'
         || JSON.stringify(declared) !== '["enable_support","support_type"]') changed.push(`${id} ${material}`)
   }
-  check('grid with the rest left alone only declares support_type', changed, [])
+  check('grid and classic with the rest left alone only declare support_type', changed, [])
 
   check('undefined choices are the defaults', patchFor(undefined), patchFor(DEFAULTS))
   check('the defaults say nothing in the summary line', summarise(DEFAULTS), [])
@@ -130,24 +141,28 @@ console.log('\n--- the defaults change the pattern and nothing else ------------
 console.log('\n--- an override is written twice --------------------------------')
 {
   const id = 'Bambu Lab P1S 0.4 nozzle'
-  const choice = { pattern: 'gyroid', density: 30, walls: 3, supports: false }
+  const choice = {
+    pattern: 'gyroid', generator: 'arachne', density: 30, walls: 3, supports: false,
+  }
   const before = JSON.stringify(blobs[id].PLA.settings)
   const after = applyAdvanced(profileFor(id), 'PLA', choice)
   const settings = after.materials.PLA.settings
 
   check('the values are in the blob', {
     pattern: settings.sparse_infill_pattern,
+    generator: settings.wall_generator,
     density: settings.sparse_infill_density,
     walls: settings.wall_loops,
     supports: settings.enable_support,
   }, {
-    pattern: 'gyroid', density: '30%', walls: '3', supports: '0',
+    pattern: 'gyroid', generator: 'arachne', density: '30%', walls: '3', supports: '0',
   })
 
   // The half that has no symptom: undeclared keys are reverted on load.
   check('every changed key is declared where Bambu Studio reads declarations',
     settings.different_settings_to_system[0].split(';').sort(),
-    ['enable_support', 'sparse_infill_density', 'sparse_infill_pattern', 'wall_loops'])
+    ['enable_support', 'sparse_infill_density', 'sparse_infill_pattern',
+     'wall_generator', 'wall_loops'])
 
   check('the declaration keeps its positional shape',
     settings.different_settings_to_system.length,
@@ -169,7 +184,7 @@ console.log('\n--- an override is written twice --------------------------------
   }).sort()
   check('nothing else in the blob moved', untouched,
     ['different_settings_to_system', 'enable_support', 'sparse_infill_density',
-     'sparse_infill_pattern', 'wall_loops'])
+     'sparse_infill_pattern', 'wall_generator', 'wall_loops'])
 }
 
 console.log('\n--- supports ----------------------------------------------------')
@@ -224,6 +239,15 @@ console.log('\n--- the choices the drawer offers -------------------------------
   check('the pattern choices are gyroid then grid',
     PATTERNS.map((p) => p.key), ['gyroid', 'grid'])
   check('the drawer opens on gyroid', DEFAULTS.pattern, 'gyroid')
+  // Arachne and classic are Bambu Studio's own spellings, and the slicer takes
+  // them as written: a file this app wrote with wall_generator=arachne slices
+  // with "; wall_generator = arachne" in its G-code header (P1S 0.4,
+  // 2026-10-25). A near miss here would be silently ignored by the slicer.
+  check('the wall generator choices are arachne then classic',
+    GENERATORS.map((g) => g.key), ['arachne', 'classic'])
+  check('the generator values are what the slicer reads',
+    GENERATORS.map((g) => g.value), ['arachne', 'classic'])
+  check('the drawer opens on arachne', DEFAULTS.generator, 'arachne')
   check('the first density and wall count defer to the profile',
     [DENSITIES[0].value, WALLS[0].value], [null, null])
   // Both ends are deliberately short of the ones the slicer allows. 100% is
@@ -246,14 +270,18 @@ console.log('\n--- the choices the drawer offers -------------------------------
   check('the drawer opens with variable layer height on', DEFAULTS.variableLayers, true)
 
   check('the summary names what was changed',
-    summarise({ pattern: 'grid', density: 50, walls: 4, supports: false }),
-    ['Grid', '50% inside', '4 walls', 'no supports'])
+    summarise({
+      pattern: 'grid', generator: 'classic', density: 50, walls: 4, supports: false,
+    }),
+    ['Grid', 'Classic walls', '50% inside', '4 walls', 'no supports'])
   check('turning variable layer height off is named too',
     summarise({ ...DEFAULTS, variableLayers: false }), ['even layers'])
 
   check('what the profile says is readable for the Standard labels',
     profileValues(blobs['Bambu Lab P1S 0.4 nozzle'].PLA.settings),
-    { pattern: 'grid', density: '15%', walls: '2', supports: true })
+    {
+      pattern: 'grid', generator: 'classic', density: '15%', walls: '2', supports: true,
+    })
 
   check('a key already declared is never dropped',
     declare(['enable_support', '', ''], ['wall_loops']),

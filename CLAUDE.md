@@ -129,13 +129,19 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   changed nothing. Supports are one exception and are a plain on/off,
   because all 202 baked blobs already say `enable_support: "1"` with
   `support_type: "tree(auto)"`; the check harness fails if that stops being
-  true rather than letting the toggle start on a lie. **The pattern is the
-  other, and the one deliberate override of every profile**: all 202 say grid,
+  true rather than letting the toggle start on a lie. **The pattern is one of
+  two deliberate overrides of every profile**: all 202 say grid,
   and the drawer opens on gyroid (2026-09-26, the user's call) because the
   nozzle catches on grid's raised crossings. So every file now carries a
   declared `sparse_infill_pattern` unless somebody picks Grid -- which, with
   nothing else changed, is byte-for-byte the old file, and the harness checks
-  both halves. **Variable layer height is the fourth choice and the only one
+  both halves. **The wall generator is the second override**: all 202 say
+  `classic` and the drawer opens on `arachne` (2026-10-25), which varies a
+  wall's width rather than leaving a gap too narrow for another line -- thin
+  walls and raised lettering. Measured, not assumed: a file this app wrote
+  slices with `; wall_generator = arachne` in its G-code header on a P1S 0.4,
+  declared or not, and picking Classic writes the file from before.
+  **Variable layer height is the last choice and the only one
   that is not a profile key at all** -- `web/src/local/variableLayers.js` builds
   the table `make3mf.js` appends, so its "off" is the file this app wrote before
   the feature existed. It opens **on** (2026-10-24, the user's call), unlike

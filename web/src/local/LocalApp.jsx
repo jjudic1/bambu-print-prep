@@ -13,7 +13,7 @@ import { QUALITY, adaptiveProfile, slicingParams } from './variableLayers.js'
 import { MADE, ON_DEVICE, OPENED, READ, SAVED, STEPS, countStep } from '../metrics.js'
 import { IDENTITY, sameOrientation, turn } from '../orientation.js'
 import {
-  DEFAULTS as ADVANCED, DENSITIES, PATTERNS, WALLS,
+  DEFAULTS as ADVANCED, DENSITIES, GENERATORS, PATTERNS, WALLS,
   applyAdvanced, profileValues, summarise,
 } from './advanced.js'
 import { DEMO_NAME, TOUR, demoModel } from './demo.js'
@@ -1433,6 +1433,26 @@ export default function LocalApp() {
             </select>
             <div className="hint">
               Extra walls add strength for less than extra infill.
+            </div>
+          </label>
+
+          <label className="field">
+            <span>Wall generator</span>
+            <select
+              value={advanced.generator}
+              onChange={(e) => setAdvanced(
+                (a) => ({ ...a, generator: e.target.value }))}
+            >
+              {GENERATORS.map((choice) => (
+                <option key={choice.key} value={choice.key}>
+                  {choice.label}{choice.note ? ` \u2014 ${choice.note}` : ''}
+                </option>
+              ))}
+            </select>
+            <div className="hint">
+              Arachne varies the width of a wall to fill a gap too narrow for
+              another line, so thin walls and raised lettering come out solid.
+              Classic draws every wall the same width.
             </div>
           </label>
 
