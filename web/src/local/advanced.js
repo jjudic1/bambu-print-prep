@@ -54,6 +54,14 @@
  * pattern that matches the profile is simply not declared -- so Grid differs
  * from the file this app wrote before gyroid only by declaring support_type.
  *
+ * Variable layer height is the fourth, and the only one that is not a key in
+ * the blob at all -- it is a table the writer appends, so its "off" is the file
+ * this app wrote before the feature existed, byte for byte. It starts on. Bambu
+ * Studio starts it off, but Bambu Studio's user is somebody who knows the button
+ * is there; the model that arrives here is a figure or a dome, and the stair
+ * steps across the top of one are the first thing anybody notices about a print.
+ * It is off in two taps for the straight-walled parts that do not want it.
+ *
  * Nothing here is remembered between sessions, for the reason printers.js does
  * not remember a nozzle: a choice made for one print, hidden behind a shut
  * drawer, is a silent wrong answer months later.
@@ -106,13 +114,17 @@ export const WALLS = [
 
 /**
  * Where the drawer opens: gyroid, the profile's own answer for how much and
- * how many walls, and supports on, which is what every profile already asks.
+ * how many walls, supports on, which is what every profile already asks, and
+ * variable layer height on.
  */
 export const DEFAULTS = Object.freeze({
   pattern: 'gyroid', density: null, walls: null, supports: true,
-  // Variable layer height (variableLayers.js): off, as Bambu Studio starts. It is not
-  // a setting in the blob, so patchFor() never sees it; the writer carries a table.
-  variableLayers: false,
+  // Variable layer height (variableLayers.js): on, which is the other place this
+  // drawer overrules the profiles on purpose -- Bambu Studio starts it off, but a
+  // curved model in even layers is what people come here with. It is not a setting
+  // in the blob, so patchFor() never sees it; the writer carries a table instead,
+  // so switching it off writes byte-for-byte the file we wrote before it existed.
+  variableLayers: true,
 })
 
 /** The support settings we write, and the only kind of support offered.
@@ -269,6 +281,6 @@ export function summarise(advanced = DEFAULTS) {
     said.push(`${choice.walls} walls`)
   }
   if (!choice.supports) said.push('no supports')
-  if (choice.variableLayers) said.push('variable layers')
+  if (!choice.variableLayers) said.push('even layers')
   return said
 }
