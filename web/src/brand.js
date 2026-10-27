@@ -23,3 +23,10 @@ export const TAGLINE = '3D print… no computer necessary'
  * they are built without the bundle. Becomes the App Store link at launch.
  */
 export const PENCIL_URL = 'https://penciltopart-site.vercel.app/'
+
+/**
+ * Pencil to Part's App Store page. Empty until launch, and while it is empty the
+ * Pencil to Part cards (src/local/PencilPromo.jsx) carry the launch-list form.
+ * Set it at launch and they become a link to the App Store instead.
+ */
+export const PENCIL_APP_STORE_URL = ''

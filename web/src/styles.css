@@ -676,12 +676,31 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   border-top: 1px solid var(--line); padding-top: .9rem;
 }
 
-/* Pencil to Part, coming soon: a card rather than a dim hint, because it is the
-   one thing on this screen that is news, but quieter than Choose a model. */
-.landing .soon {
-  max-width: 28rem; margin: 1.2rem auto .4rem; padding: .8rem 1rem;
-  border: 1px solid var(--line); border-radius: 12px;
-  color: var(--dim); font-size: .9rem; text-align: center;
+/* Pencil to Part (src/local/PencilPromo.jsx): a card with the launch-list form,
+   on the landing screen beside the test model and in the panel after a save.
+   Accent border so it reads as news, but no fill: Choose a model stays the
+   loudest thing on the landing screen. */
+.pencil {
+  border: 1px solid var(--accent); border-radius: 12px; padding: .85rem 1rem;
+  font-size: .9rem; color: var(--dim); display: flex; flex-direction: column; gap: .5rem;
 }
-.landing .soon b { color: var(--ink); }
-.landing .soon a { color: var(--accent); font-weight: 700; }
+.landing .pencil { max-width: 28rem; margin: .9rem auto .4rem; text-align: left; }
+.pencil p { margin: 0; }
+.pencil a { color: var(--accent); font-weight: 700; }
+.pencil-title { color: var(--ink); font-weight: 700; font-size: .98rem; }
+.pencil-soon { font-size: .72rem; font-weight: 700; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 999px; padding: .05rem .5rem;
+  margin-left: .35rem; vertical-align: .1em; white-space: nowrap; }
+.pencil-form { display: flex; gap: .45rem; }
+.pencil-form input[type=email] { flex: 1; min-width: 0; padding: .6rem .75rem;
+  border-radius: 9px; border: 1px solid var(--line); background: transparent; }
+.pencil-form input[type=email]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pencil-form button { padding: .6rem .95rem; border: 0; border-radius: 9px; cursor: pointer;
+  background: var(--accent); color: #06120b; font-weight: 700; white-space: nowrap; }
+.pencil-form button:disabled { opacity: .6; }
+.pencil-trap { position: absolute; left: -9999px; width: 1px; height: 1px; }
+.pencil-ok { color: var(--accent); font-weight: 700; }
+.pencil-problem { color: var(--ink); }
+.pencil-fine { font-size: .78rem; }
+.pencil-go { display: block; text-align: center; padding: .6rem; border-radius: 9px;
+  background: var(--accent); color: #06120b !important; text-decoration: none; }
