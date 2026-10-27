@@ -300,6 +300,11 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   app's ESM -- and `tests/test_contact.py` fails when the copies drift. Resend's
   shared sender only delivers to the address the Resend account itself was
   opened with; anywhere else needs a verified domain and `CONTACT_FROM`.
+- **`api/notify.js` is Pencil to Part's launch list, not a Handoff3D feature.**
+  It lives here because this project holds the Resend key, which is stored
+  sensitive and cannot be copied to `penciltopart-site`; that site's form posts
+  across to it (CORS open to that one origin). Each sign-up is one mail to the
+  support inbox, subject `[Pencil to Part] Launch list: <address>`.
 - **`api/insights.js` is a Vercel function; `api/*.py` must never become one.**
   Vercel turns every file in a top-level `api/` directory into a function, and
   the FastAPI app lives in that same directory. `.vercelignore` excludes the

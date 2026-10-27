@@ -5,8 +5,8 @@
 #    function. That directory is also the FastAPI app -- api/main.py and
 #    friends -- and Vercel would try to build each of those as a Python
 #    function, on an image with no trimesh, manifold3d or scikit-image. The
-#    only things in there meant to be deployed are insights.js and
-#    contact.js.
+#    only things in there meant to be deployed are insights.js,
+#    contact.js and notify.js.
 # 2. The build only ever runs `npm --prefix web`, so none of the Python, the
 #    profiles, the corpus or the design masters is reachable from it anyway.
 api/*.py
