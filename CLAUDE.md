@@ -344,6 +344,15 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   `tests/test_local_parts.py`) both call it, so the checks run the app's own
   arithmetic, not a copy. Check poses by signed volume as well as size -- a
   mirror leaves the bounding box alone.
+- **A part can be mirrored on purpose now, and that turns it inside out**
+  (2026-10-26). `Mirror` (Left to right / Front to back / Top to bottom) sets a
+  part's own `mirror`, a slot in `pose.js` between the model and the part's
+  stretch -- kept apart from `shape` so a stretch never flips anything and
+  putting one back never un-mirrors. Baking a mirror into vertices runs every
+  triangle's corners the other way round: the viewer draws the inside and the
+  slicer gets negative volume, with the bounding box exactly right.
+  `posedGeometry` swaps two corners whenever `flips(matrix)` says so, before
+  the cut. `web/parts-check.mjs` fails 8 ways without that swap.
 
 - **An iPad out of memory does not throw -- it reloads the page**, which the
   person reads as a crash. Reported 2026-10-06 ("crashes shortly after

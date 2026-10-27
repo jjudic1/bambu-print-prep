@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { flips } from './pose.js'
 
 /**
  * Take the bottom off a model so it stands on a flat face.
@@ -268,6 +269,39 @@ export function cutBottom(geometry, depth) {
 }
 
 /**
+ * Geometry with a pose baked in, every triangle still facing out.
+ *
+ * A mirrored pose (pose.js `flips`) runs each triangle's corners the other way
+ * round, which turns the whole part inside out: the viewer draws its inside,
+ * the cap below would face into the part, and the slicer is handed a shape of
+ * negative volume. Swapping two corners of every triangle puts it right. Before
+ * the cut, so cutBottom only ever sees a part that faces out.
+ */
+function posed(geometry, matrix) {
+  const out = geometry.clone()
+  out.applyMatrix4(matrix)
+  if (!flips(matrix)) return out
+  const index = out.getIndex()
+  if (index) {
+    const a = index.array
+    for (let i = 0; i < a.length; i += 3) { const t = a[i + 1]; a[i + 1] = a[i + 2]; a[i + 2] = t }
+    index.needsUpdate = true
+  }
+  for (const name of index ? [] : Object.keys(out.attributes)) {
+    const attr = out.getAttribute(name)
+    const n = attr.itemSize
+    const a = attr.array
+    for (let i = 0; i < attr.count; i += 3) {
+      for (let k = 0; k < n; k++) {
+        const t = a[(i + 1) * n + k]; a[(i + 1) * n + k] = a[(i + 2) * n + k]; a[(i + 2) * n + k] = t
+      }
+    }
+    attr.needsUpdate = true
+  }
+  return out
+}
+
+/**
  * A part's geometry in its place on the plate: posed, then cut.
  *
  * The viewer and the writer both go through this, so what is drawn and what is
@@ -279,23 +313,18 @@ export function cutBottom(geometry, depth) {
  */
 export function posedGeometry(part, matrix) {
   const depth = part.cutMm || 0
-  if (depth <= 0) {
-    const posed = part.geometry.clone()
-    posed.applyMatrix4(matrix)
-    return posed
-  }
+  if (depth <= 0) return posed(part.geometry, matrix)
 
   const key = `${part.geometry.uuid}|${depth}|${
     matrix.elements.map((n) => n.toFixed(6)).join(',')}`
   let hit = cache.get(key)
   if (hit === undefined) {
-    const posed = part.geometry.clone()
-    posed.applyMatrix4(matrix)
+    const whole = posed(part.geometry, matrix)
     // A cut that leaves nothing is not silently the whole model: null is
     // remembered, and the caller falls back to the uncut shape so the user can
     // see what they did and drag the slider back.
-    hit = cutBottom(posed, depth)
-    if (hit === null) hit = posed
+    hit = cutBottom(whole, depth)
+    if (hit === null) hit = whole
     cache.set(key, hit)
     if (cache.size > CACHE_SIZE) cache.delete(cache.keys().next().value)
   }
