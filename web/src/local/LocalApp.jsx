@@ -25,7 +25,7 @@ import { plateImages, readModel, spoken, toArrays } from './mesh.js'
 import {
   arrangeInGroups, clash, footprint, fromProject, keepOuts, keepScale,
   modelSize, splitParts,
-  withPartBack, withoutPart, withoutPlate,
+  withCopy, withPartBack, withoutPart, withoutPlate,
 } from './parts.js'
 import {
   NO_STRETCH, mirrorAlong, mirrored, modelMatrix as modelTransform, modelPose, partMatrix,
@@ -617,6 +617,27 @@ export default function LocalApp() {
     setRemoved(out.removed)
     setSelectedId(null)
     setNote(`Removed ${short(out.removed.part.name)}.`)
+  }
+
+  /**
+   * A copy of the picked part, picked: beside it on its plate, or on a plate of
+   * its own when there is no room. Bambu Studio's Clone, one at a time.
+   */
+  function duplicatePart(id) {
+    const out = withCopy(parts, id, { sizeOf: sizeOfPart, printer, plateCount, newId: nextId++ })
+    if (!out) return
+    swapParts(out.parts)
+    if (out.plateCount !== plateCount) {
+      setPlateCount(out.plateCount)
+      // As movePartToPlate does: moving the view to the new plate is not
+      // somebody looking at both plates.
+      setSeenPlates([out.copy.plate])
+    }
+    setActivePlate(out.copy.plate)
+    setSelectedId(out.copy.id)
+    setNote(out.plateCount !== plateCount
+      ? `Added ${short(out.copy.name)} on a plate of its own - there was no room beside it.`
+      : `Added ${short(out.copy.name)}.`)
   }
 
   function putBack() {
@@ -1285,9 +1306,15 @@ export default function LocalApp() {
           {/* Only with a part picked, so it is always obvious which one goes,
               and never the last one -- that is Start over. The put-back stays
               until something else changes the set of parts, because on a touch
-              screen the mis-tap is the likely way to get here. */}
-          {(selected && parts.length > 1) || removed ? (
+              screen the mis-tap is the likely way to get here. Duplicate is
+              offered for any picked part, the only one included. */}
+          {selected || removed ? (
             <div className="nudges">
+              {selected && (
+                <button onClick={() => duplicatePart(selected.id)}>
+                  Duplicate {short(selected.name)}
+                </button>
+              )}
               {selected && parts.length > 1 && (
                 <button className="remove" onClick={() => removePart(selected.id)}>
                   Remove {short(selected.name)}
