@@ -16,3 +16,10 @@ export const BRAND = 'Handoff3D'
 
 /** Said under the name, on both landing screens. */
 export const TAGLINE = '3D print… no computer necessary'
+
+/**
+ * Pencil to Part, the iPad CAD app from the same maker, announced on the landing
+ * screen until it ships. The guides carry their own copy (web/guides.mjs) because
+ * they are built without the bundle. Becomes the App Store link at launch.
+ */
+export const PENCIL_URL = 'https://penciltopart-site.vercel.app/'

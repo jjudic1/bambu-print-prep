@@ -675,3 +675,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   margin: 0; font-size: .85rem;
   border-top: 1px solid var(--line); padding-top: .9rem;
 }
+
+/* Pencil to Part, coming soon: a card rather than a dim hint, because it is the
+   one thing on this screen that is news, but quieter than Choose a model. */
+.landing .soon {
+  max-width: 28rem; margin: 1.2rem auto .4rem; padding: .8rem 1rem;
+  border: 1px solid var(--line); border-radius: 12px;
+  color: var(--dim); font-size: .9rem; text-align: center;
+}
+.landing .soon b { color: var(--ink); }
+.landing .soon a { color: var(--accent); font-weight: 700; }
