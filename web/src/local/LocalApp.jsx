@@ -3,7 +3,7 @@ import * as THREE from 'three'
 
 import PlateViewer from './PlateViewer.jsx'
 import PlaneHero from '../PlaneHero.jsx'
-import { BRAND, TAGLINE } from '../brand.js'
+import { BRAND, PENCIL_URL, TAGLINE } from '../brand.js'
 import Contact from '../Contact.jsx'
 import Disclaimer from '../disclaimer.jsx'
 import { printers, warmSettings, withSettings } from '../data/profiles.js'
@@ -1080,6 +1080,19 @@ export default function LocalApp() {
           Choose a model, pick <b>Choose File</b>, and look in there.
         </p>
         {error && <p className="error">{error}</p>}
+        {/* The iPad CAD app from the same maker, announced here until it is on
+            the App Store; the same words are on every guide (PENCIL_LINE in
+            web/guides.mjs) and in the fallback markup in index.html. Its print
+            screen is a port of this app, hence "powered by". When it launches,
+            the link becomes the App Store one. */}
+        <p className="soon">
+          <b>Coming soon: Pencil to Part.</b> CAD for iPad from the makers of{' '}
+          {BRAND}. Draw a part with Apple Pencil, design it, and print it on your
+          Bambu Lab printer &mdash; idea to finished print on an iPad alone.{' '}
+          <a href={outward(PENCIL_URL)} {...outwardTab}>
+            See what it does
+          </a>
+        </p>
         {donationsEnabled() && (
           <p className="support">
             Free, and no account needed.{' '}

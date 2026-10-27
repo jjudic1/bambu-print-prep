@@ -1169,6 +1169,29 @@ function faqBlock(page) {
   return '<h2>Common questions</h2>\n' + items
 }
 
+/**
+ * Pencil to Part, the iPad CAD app from the same maker, announced at the foot of
+ * every page until it is on the App Store. Its print screen is a port of this
+ * site's code, which is what "powered by" means here and why the claim can be
+ * made at all. When it launches, PENCIL_URL becomes the App Store link and the
+ * "Coming soon" goes; the page itself is kept by penciltopart-site.
+ *
+ * The no-computer claim is the route these pages already describe: the app
+ * writes the Bambu file, MakerWorld takes it in Safari, Bambu Handy prints it.
+ */
+export const PENCIL_URL = 'https://penciltopart-site.vercel.app/'
+export const PENCIL_LINE =
+  'Pencil to Part is CAD for iPad, from the makers of ' + BRAND + '. Draw a part '
+  + 'with Apple Pencil, design it, and print it on your Bambu Lab printer: idea '
+  + 'to design to finished print on an iPad alone, no computer needed. Print '
+  + 'prep powered by ' + BRAND + '.'
+
+function pencilCard() {
+  return '<div class="card">\n<p><b>Coming soon: Pencil to Part</b></p>\n<p>'
+    + escape(PENCIL_LINE) + ' <a href="' + PENCIL_URL + '">See what it does'
+    + '</a></p>\n</div>'
+}
+
 function footerLinks(page) {
   const others = PAGES.filter((p) => p.slug !== page.slug)
     .map((p) => '<li><a href="/' + p.slug + '">' + escape(LABEL[p.slug])
@@ -1176,7 +1199,8 @@ function footerLinks(page) {
     .join('\n')
   return '<footer>\n<p><b>' + BRAND + '</b> is a free page that prepares 3D '
     + 'models for Bambu Lab printers on an iPad. Nothing is installed, and your '
-    + 'model is not uploaded.</p>\n<ul>\n' + others + '\n</ul>\n</footer>'
+    + 'model is not uploaded.</p>\n' + pencilCard() + '\n<ul>\n' + others
+    + '\n</ul>\n</footer>'
 }
 
 /** One page, as a complete HTML file. */
@@ -1296,7 +1320,9 @@ export function renderLlms() {
     + 'No third-party app can hand a file to a Bambu printer directly. The file\n'
     + 'is saved to the Files app, uploaded to MakerWorld as a private model, and\n'
     + 'printed from the Bambu Handy app.\n\n'
-    + `## Pages\n\n- [${BRAND}](${SITE}/): the app itself\n${links}\n`
+    + `## Pages\n\n- [${BRAND}](${SITE}/): the app itself\n${links}\n\n`
+    + '## Coming soon from the same maker\n\n'
+    + `- [Pencil to Part](${PENCIL_URL}): ${PENCIL_LINE}\n`
 }
 
 /**
@@ -1354,7 +1380,7 @@ export function renderNotFound() {
     + '</main>\n'
     + '<footer>\n<p><b>' + BRAND + '</b> is a free page that prepares 3D '
     + 'models for Bambu Lab printers on an iPad. Nothing is installed, and '
-    + 'your model is not uploaded.</p>\n</footer>\n'
+    + 'your model is not uploaded.</p>\n' + pencilCard() + '\n</footer>\n'
     + '</body>\n</html>\n'
 }
 

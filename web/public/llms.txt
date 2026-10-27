@@ -46,3 +46,7 @@ printed from the Bambu Handy app.
 - [MakerWorld on an iPad](https://bambu-print-prep.vercel.app/makerworld-on-ipad): Download a model from MakerWorld on an iPad, prepare it without a computer, upload it back as a private model, and print it through Bambu Handy.
 - [Which Bambu printer, and what fits on it](https://bambu-print-prep.vercel.app/bambu-printers-on-ipad): Build volumes, nozzles and materials for every current Bambu Lab printer, from the A1 mini to the H2D Pro, and how to prepare a file for any of them on an iPad.
 - [SimplyPrint on an iPad, and the hardware behind it](https://bambu-print-prep.vercel.app/simplyprint-on-ipad): SimplyPrint slices on an iPad, but sending the file to a Bambu printer needs its client on an always-on computer. What an iPad can do without it.
+
+## Coming soon from the same maker
+
+- [Pencil to Part](https://penciltopart-site.vercel.app/): Pencil to Part is CAD for iPad, from the makers of Handoff3D. Draw a part with Apple Pencil, design it, and print it on your Bambu Lab printer: idea to design to finished print on an iPad alone, no computer needed. Print prep powered by Handoff3D.
