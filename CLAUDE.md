@@ -353,6 +353,12 @@ Deploying, and the gcloud CLOUDSDK_PYTHON trap: `docs/deploy.md`.
   slicer gets negative volume, with the bounding box exactly right.
   `posedGeometry` swaps two corners whenever `flips(matrix)` says so, before
   the cut. `web/parts-check.mjs` fails 8 ways without that swap.
+- **Duplicate came from Pencil to Part, not the other way round** (2026-10-26).
+  `withCopy` / `freeSpot` in `parts.js` port `PrintPlan.duplicate` (its build
+  28): the copy keeps every per-part setting but the file's `home`, and goes to
+  the free spot nearest the original (1 mm grid, `COPY_GAP` 5 mm from other
+  parts, clear of keep-outs), else alone on a new plate. A fixed offset is what
+  it replaced there -- the second copy landed on the first.
 
 - **An iPad out of memory does not throw -- it reloads the page**, which the
   person reads as a crash. Reported 2026-10-06 ("crashes shortly after

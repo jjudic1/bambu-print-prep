@@ -20,8 +20,8 @@
 import * as THREE from 'three'
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
 import {
-  MAX_PARTS, arrange, arrangeInGroups, clash, fromProject, footprint, keepOuts, keepScale, modelSize, splitParts,
-  withPartBack, withoutPart, withoutPlate,
+  COPY_GAP, MAX_PARTS, arrange, arrangeInGroups, clash, copyName, fromProject, footprint, keepOuts, keepScale,
+  modelSize, splitParts, withCopy, withPartBack, withoutPart, withoutPlate,
 } from './src/local/parts.js'
 import { IDENTITY, sameOrientation, turn } from './src/orientation.js'
 import {
@@ -719,6 +719,65 @@ console.log('\n--- mirroring a part --------------------------------------------
   const looseBox = { ...tipped, geometry: new THREE.BoxGeometry(10, 20, 30).toNonIndexed() }
   check('an unindexed part mirrored faces out too',
     Math.round(signedVolume(placed(flip(looseBox, 0)))), Math.round(signedVolume(placed(looseBox))))
+}
+
+console.log('\n--- duplicating a part -------------------------------------------')
+{
+  // Pencil to Part's ArrangePlateTests, against the same numbers: a P1S bed,
+  // which has a keep-out in the front left corner, and plain boxes.
+  const p1s = { bed_mm: [256, 256], exclude_areas: [[[0, 0], [18, 0], [18, 28], [0, 28]]] }
+  const sizeOf = (p) => [p.w, p.d]
+  const box = (id, name, w, d, x, y, plate = 0) => ({ id, name, w, d, x, y, plate })
+  const apart = (a, b) => a.plate !== b.plate
+    || Math.abs(a.x - b.x) >= (a.w + b.w) / 2 + COPY_GAP - 1e-6
+    || Math.abs(a.y - b.y) >= (a.d + b.d) / 2 + COPY_GAP - 1e-6
+  const zones = keepOuts(p1s)
+  check('the test bed has the P1S corner keep-out', zones, [{ x0: 0, y0: 0, x1: 18, y1: 28 }])
+  const onBedAndClear = (p) => p.x - p.w / 2 >= 0 && p.y - p.d / 2 >= 0
+    && p.x + p.w / 2 <= 256 && p.y + p.d / 2 <= 256
+    && !clash(zones, p.x - p.w / 2, p.y - p.d / 2, p.w, p.d)
+
+  const one = [box(1, 'Body', 20, 10, 128, 128)]
+  const first = withCopy(one, 1, { sizeOf, printer: p1s, plateCount: 1, newId: 2 })
+  check('a copy is added, after the original, named Body 2',
+    first.parts.map((p) => [p.id, p.name]), [[1, 'Body'], [2, 'Body 2']])
+  check('on the same plate, clear of the original, with nothing new to plate',
+    [first.copy.plate, apart(first.copy, one[0]), first.plateCount], [0, true, 1])
+  check('and as close to it as COPY_GAP allows',
+    Math.min(Math.abs(first.copy.x - 128) - 20, Math.abs(first.copy.y - 128) - 10) <= COPY_GAP, true)
+  const second = withCopy(first.parts, 1, { sizeOf, printer: p1s, plateCount: 1, newId: 3 })
+  check('a second copy is Body 3 and does not land on the first',
+    [second.copy.name, apart(second.copy, one[0]), apart(second.copy, first.copy)], ['Body 3', true, true])
+
+  // Copies of a part in the corner never stand on the keep-out.
+  let list = [box(1, 'Peg', 15, 15, 30, 40)]
+  for (let id = 2; id <= 12; id++) {
+    list = withCopy(list, 1, { sizeOf, printer: p1s, plateCount: 1, newId: id }).parts
+  }
+  check('eleven copies of a part by the corner: all on the bed, none on the keep-out',
+    list.every(onBedAndClear), true)
+  check('and none overlapping another', list.every((a) => list.every((b) => a === b || apart(a, b))), true)
+
+  const big = [box(1, 'Big', 200, 200, 128, 128)]
+  const full = withCopy(big, 1, { sizeOf, printer: p1s, plateCount: 1, newId: 2 })
+  check('a plate with no room: the copy goes alone on a new plate, in the middle',
+    [full.copy.plate, full.copy.x, full.copy.y, full.plateCount], [1, 128, 128, 2])
+
+  const posed = { ...box(1, 'Arm', 20, 10, 128, 128), spin: turn(IDENTITY, [1, 0, 0], 90), yaw: 30,
+    scale: 0.5, shape: [2, 0, 0, 0, 1, 0, 0, 0, 1], mirror: [-1, 0, 0, 0, 1, 0, 0, 0, 1],
+    cutMm: 1.2, colour: 0xff0000, group: 3, home: [10, 20] }
+  const made = withCopy([posed], 1, { sizeOf, printer: p1s, plateCount: 1, newId: 2 }).copy
+  check('the copy is turned, sized, stretched, mirrored, cut and coloured the same',
+    ['spin', 'yaw', 'scale', 'shape', 'mirror', 'cutMm', 'colour', 'group'].map((k) => made[k]),
+    ['spin', 'yaw', 'scale', 'shape', 'mirror', 'cutMm', 'colour', 'group'].map((k) => posed[k]))
+  check('but does not take the original\'s spot from the file', made.home, null)
+
+  check('names count on from the stem',
+    [copyName('Bracket', ['Bracket']), copyName('Bracket 2', ['Bracket', 'Bracket 2']),
+     copyName('Part 1', ['Part 1', 'Part 2'])],
+    ['Bracket 2', 'Bracket 3', 'Part 3'])
+  check('a part that is not there is not copied',
+    withCopy(one, 9, { sizeOf, printer: p1s, plateCount: 1, newId: 2 }), null)
 }
 
 console.log('\n--- where each plate sits in the file ----------------------------')

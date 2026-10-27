@@ -508,6 +508,94 @@ export function withoutPart(parts, id) {
  * plate still exists -- on the last one if not. Refuses a part already there,
  * which is what "Put it back together" would otherwise make of it.
  */
+/** The clear space kept round a copy, mm. */
+export const COPY_GAP = 5
+
+/**
+ * "Bracket" -> "Bracket 2", "Bracket 2" -> "Bracket 3": the next number that
+ * is not taken. A name already ending in a number is counted on from its stem.
+ */
+export function copyName(name, names) {
+  const stem = /^(.*) \d+$/.exec(name)?.[1] ?? name
+  let n = 2
+  while (names.includes(`${stem} ${n}`)) n++
+  return `${stem} ${n}`
+}
+
+/**
+ * The centre nearest `near` where something `width` x `depth` stands inside
+ * the bed, COPY_GAP clear of every footprint in `others` and of every
+ * keep-out. Searched on a 1 mm grid. Null when there is nowhere.
+ *
+ * @param {{width: number, depth: number}} size
+ * @param {{x: number, y: number, width: number, depth: number}[]} others
+ *        centres and sizes of what already stands on the plate
+ * @param {number[]} bed       [x, y] in mm
+ * @param {object[]} zones     keepOuts(printer)
+ * @param {number[]} near      [x, y]
+ */
+export function freeSpot({ width, depth }, others, bed, zones, near) {
+  const [bx, by] = bed
+  if (width > bx || depth > by) return null
+  const g = COPY_GAP
+  const boxes = others.map((o) => ({
+    x0: o.x - o.width / 2 - g, y0: o.y - o.depth / 2 - g,
+    x1: o.x + o.width / 2 + g, y1: o.y + o.depth / 2 + g,
+  }))
+  let best = null
+  for (let y = depth / 2; y <= by - depth / 2 + 1e-9; y += 1) {
+    for (let x = width / 2; x <= bx - width / 2 + 1e-9; x += 1) {
+      const x0 = x - width / 2; const y0 = y - depth / 2
+      if (boxes.some((b) => x0 < b.x1 && x0 + width > b.x0 && y0 < b.y1 && y0 + depth > b.y0)) continue
+      if (clash(zones, x0, y0, width, depth)) continue
+      const d = (x - near[0]) ** 2 + (y - near[1]) ** 2
+      if (!best || d < best.d) best = { x, y, d }
+    }
+  }
+  return best && [best.x, best.y]
+}
+
+/**
+ * A copy of part `id`, turned, sized, mirrored, cut and coloured the same,
+ * put in the free place nearest it on its own plate -- or alone in the middle
+ * of a new plate when that plate is full. Pencil to Part's Duplicate (build
+ * 28), where the first version put every copy at the same offset and a second
+ * copy landed on the first.
+ *
+ * `sizeOf(part)` is the part's [width, depth, ...] on the bed. The copy goes
+ * in the list just after the original, and does not inherit a spot from the
+ * file it came from (`home`): that spot is the original's.
+ *
+ * @returns {{parts: object[], copy: object, plateCount: number} | null}
+ */
+export function withCopy(parts, id, { sizeOf, printer, plateCount, newId }) {
+  const index = parts.findIndex((p) => p.id === id)
+  if (index < 0) return null
+  const original = parts[index]
+  const [width, depth] = sizeOf(original)
+  const others = parts.filter((p) => p.plate === original.plate).map((p) => {
+    const [w, d] = sizeOf(p)
+    return { x: p.x, y: p.y, width: w, depth: d }
+  })
+  const spot = freeSpot({ width, depth }, others, printer.bed_mm, keepOuts(printer),
+    [original.x, original.y])
+  const [bx, by] = printer.bed_mm
+  const copy = {
+    ...original,
+    id: newId,
+    name: copyName(original.name, parts.map((p) => p.name)),
+    home: null,
+    ...(spot
+      ? { x: spot[0], y: spot[1] }
+      : { plate: plateCount, x: bx / 2, y: by / 2 }),
+  }
+  return {
+    parts: [...parts.slice(0, index + 1), copy, ...parts.slice(index + 1)],
+    copy,
+    plateCount: spot ? plateCount : plateCount + 1,
+  }
+}
+
 export function withPartBack(parts, removed, plateCount) {
   if (!removed || parts.some((p) => p.id === removed.part.id)) return null
   const part = { ...removed.part, plate: Math.min(removed.part.plate, plateCount - 1) }
