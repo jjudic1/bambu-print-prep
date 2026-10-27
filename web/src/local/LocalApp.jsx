@@ -1087,7 +1087,7 @@ export default function LocalApp() {
         {error && <p className="error">{error}</p>}
         {donationsEnabled() && (
           <p className="support">
-            Free, and no account needed.{' '}
+            {BRAND} is free, with no account needed.{' '}
             <a href={outward(DONATION_URL)} {...outwardTab}>
               {DONATION_LABEL}
             </a>{' '}
@@ -1889,7 +1889,9 @@ export default function LocalApp() {
             {donationsEnabled() && !hideReminder && (
               <div className="support">
                 <p>
-                  This is free and stays free.{' '}
+                  {/* Named, not "this": the Pencil to Part card sits just
+                      above, and that app is paid. */}
+                  {BRAND} is free and stays free.{' '}
                   <a href={outward(DONATION_URL)} {...outwardTab}>
                     {DONATION_LABEL}
                   </a>{' '}
