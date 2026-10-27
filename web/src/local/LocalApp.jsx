@@ -28,7 +28,8 @@ import {
   withPartBack, withoutPart, withoutPlate,
 } from './parts.js'
 import {
-  NO_STRETCH, modelMatrix as modelTransform, modelPose, partMatrix, stretchAlong, stretched,
+  NO_STRETCH, mirrorAlong, mirrored, modelMatrix as modelTransform, modelPose, partMatrix,
+  stretchAlong, stretched,
 } from './pose.js'
 import {
   DEFAULT_NOZZLE_MM, models, nozzlesFor, pick, startingPrinter,
@@ -72,6 +73,15 @@ const TIPS = [
   { label: 'Tip back', axis: [1, 0, 0], deg: -90 },
   { label: 'Roll left', axis: [0, 1, 0], deg: 90 },
   { label: 'Roll right', axis: [0, 1, 0], deg: -90 },
+]
+
+// Bambu Studio's mirror, along the bed's three directions as the part sits now.
+// Said as the way it flips rather than as X, Y and Z, which mean nothing to
+// somebody who has never opened a slicer.
+const MIRRORS = [
+  { label: 'Left to right', axis: 0 },
+  { label: 'Front to back', axis: 1 },
+  { label: 'Top to bottom', axis: 2 },
 ]
 
 /**
@@ -153,7 +163,7 @@ const straight = (part) => sameOrientation(part.spin, IDENTITY) && !part.yaw
 const resized = (part) => Math.abs((part.scale ?? 1) - 1) > 1e-6 || stretched(part.shape)
 const flattened = (part) => (part.cutMm ?? 0) > 0
 const untouched = (part) => straight(part) && !resized(part) && !flattened(part)
-  && part.colour == null
+  && !mirrored(part.mirror) && part.colour == null
 
 // Never offer to take more than this share of a part's height. Not a judgement
 // about how much anyone may remove -- prep/base.py has one of those, and it is
@@ -193,6 +203,7 @@ const freshPart = (geometry, name, x, y) => ({
   id: nextId++, geometry, name, plate: 0, x, y, spin: IDENTITY, yaw: 0,
   scale: 1, colour: null,       // null: follows the model's colour
   shape: null,                  // its own stretch, Across/Deep/Tall: pose.js
+  mirror: null,                 // its own mirror, kept apart from the stretch: pose.js
   cutMm: 0,                     // how much of the bottom to take off
 })
 
@@ -548,7 +559,7 @@ export default function LocalApp() {
       const untouched = sameOrientation(base, IDENTITY)
         && Math.abs(k - 1) < 0.002 && !stretched(shape)
         && named.every((p) => (p.scale ?? 1) === 1 && !p.yaw && !stretched(p.shape)
-                              && sameOrientation(p.spin, IDENTITY))
+                              && !mirrored(p.mirror) && sameOrientation(p.spin, IDENTITY))
       layOut(named, `Split into ${named.length} parts, laid out`, { keepHomes: untouched })
     } catch (e) {
       setError(e.message)
@@ -670,6 +681,24 @@ export default function LocalApp() {
   function setYaw(deg) {
     setParts((list) => list.map((p) => (
       !selected || p.id === selected.id ? { ...p, yaw: deg } : p)))
+  }
+
+  /**
+   * Mirror this part, or every part, along one of the bed's directions as it
+   * sits now -- each about its own middle, so a part stays where it is on the
+   * plate. Every part mirrored in place is the whole model mirrored: each piece
+   * is the other hand of itself, and they still go together.
+   */
+  function mirror(axis) {
+    setParts((list) => list.map((p) => (
+      !selected || p.id === selected.id
+        ? { ...p, mirror: mirrorAlong(p.mirror, matrixFor({ ...p, mirror: null, shape: null }), axis) }
+        : p)))
+  }
+
+  function unmirror() {
+    setParts((list) => list.map((p) => (
+      !selected || p.id === selected.id ? { ...p, mirror: null } : p)))
   }
 
   /**
@@ -807,6 +836,7 @@ export default function LocalApp() {
   const turned = selected
     ? !straight(selected)
     : !sameOrientation(base, IDENTITY) || parts.some((p) => !straight(p))
+  const flipped = selected ? mirrored(selected.mirror) : parts.some((p) => mirrored(p.mirror))
   const partColour = (part) => part.colour ?? colour
 
   async function build() {
@@ -1695,6 +1725,37 @@ export default function LocalApp() {
             type="range" min="0" max="360" value={yawValue}
             onChange={(e) => setYaw(Number(e.target.value))}
           />
+        </div>
+
+        <div className="field">
+          <span>
+            Mirror
+            <em>
+              {selected
+                ? ` ${short(selected.name)}`
+                : (parts.length > 1 ? ' every part' : '')}
+              {flipped ? ' (mirrored)' : ''}
+            </em>
+          </span>
+          <div className="nudges">
+            {MIRRORS.map((m) => (
+              <button key={m.label} onClick={() => mirror(m.axis)}>
+                {m.label}
+              </button>
+            ))}
+            {flipped && (
+              <button onClick={unmirror}>
+                {selected ? 'Unmirror this part' : 'Unmirror it'}
+              </button>
+            )}
+          </div>
+          <p className="reason">
+            Flips it in place, like its reflection: the way to get the left-hand
+            piece from a right-hand one.{' '}
+            {parts.length > 1 && (selected
+              ? 'This mirrors one part.'
+              : 'Every part flips where it sits, so the set still goes together.')}
+          </p>
         </div>
 
         <div className="field">

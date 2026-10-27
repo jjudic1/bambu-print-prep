@@ -25,8 +25,10 @@ import {
 } from './src/local/parts.js'
 import { IDENTITY, sameOrientation, turn } from './src/orientation.js'
 import {
-  NO_STRETCH, modelMatrix as modelTransform, modelPose, partMatrix, stretchAlong, stretched,
+  NO_STRETCH, flips, mirrorAlong, mirrored, modelMatrix as modelTransform, modelPose, partMatrix,
+  stretchAlong, stretched,
 } from './src/local/pose.js'
+import { posedGeometry } from './src/local/flatten.js'
 import { PLATE_STRIDE, plateColumns, plateOrigin } from './src/make3mf.js'
 
 // --- LocalApp's maths: pose.js, the same module the app calls -----------------
@@ -598,6 +600,125 @@ console.log('\n--- taking a part or a plate away -------------------------------
   check('the only plate is not removed', withoutPlate([], 0, 1), null)
   check('an empty last plate goes without moving anything',
     withoutPlate(spread, 3, 4)?.parts.map((p) => p.plate), [0, 0, 2])
+}
+
+console.log('\n--- mirroring a part ---------------------------------------------')
+{
+  // A shape with no mirror symmetry at all -- a bar and two blocks off it in
+  // different directions, all of different sizes -- so a mirror that came out
+  // as a turn would show. Apart, not touching: blocks welded face to face share
+  // no edges, and the shape would not be closed to begin with.
+  const chiral = () => soup(
+    new THREE.BoxGeometry(40, 10, 10),
+    new THREE.BoxGeometry(10, 30, 10).translate(15, 25, 0),
+    new THREE.BoxGeometry(10, 10, 20).translate(-15, 0, 20),
+  )
+  const model = modelMatrixOf(IDENTITY, 1.5)
+  const matrixFor = matrixForOf(model)
+  // What LocalApp's mirror() does: everything after the mirror is the outside.
+  const flip = (p, axis) => ({
+    ...p, mirror: mirrorAlong(p.mirror, matrixFor({ ...p, mirror: null, shape: null }), axis),
+  })
+  // What build() does: posed through the writer's own call, then dropped onto
+  // the plate about its middle.
+  const placed = (p) => {
+    const g = posedGeometry(p, matrixFor(p))
+    g.computeBoundingBox()
+    const c = g.boundingBox.getCenter(new THREE.Vector3())
+    g.translate(-c.x, -c.y, -g.boundingBox.min.z)
+    return g
+  }
+  // Every corner, rounded and sorted, to compare two shapes -- optionally
+  // reflected along one bed axis about the middle (or, for Tall, about half
+  // the height, since it stands on the plate).
+  const points = (g, axis = -1) => {
+    g.computeBoundingBox()
+    const top = g.boundingBox.max.z
+    const pos = g.getAttribute('position')
+    const out = []
+    for (let i = 0; i < pos.count; i++) {
+      const v = [pos.getX(i), pos.getY(i), pos.getZ(i)]
+      if (axis === 2) v[2] = top - v[2]
+      else if (axis >= 0) v[axis] = -v[axis]
+      out.push(v.map((n) => Math.round(n * 1000) / 1000 + 0).join(','))
+    }
+    return out.sort()
+  }
+  // Every edge used exactly once in each direction: closed, and every triangle
+  // turning the same way as its neighbours. A part turned wholly inside out
+  // still passes this -- signed volume is what catches that.
+  const closedAndConsistent = (g) => {
+    const idx = g.getIndex()
+    const pos = g.getAttribute('position')
+    const key = (i) => [pos.getX(i), pos.getY(i), pos.getZ(i)].map((n) => n.toFixed(4)).join(',')
+    const n = idx ? idx.count : pos.count
+    const at = (k) => (idx ? idx.getX(k) : k)
+    const seen = new Map()
+    for (let t = 0; t < n; t += 3) {
+      for (let e = 0; e < 3; e++) {
+        const d = `${key(at(t + e))}>${key(at(t + (e + 1) % 3))}`
+        seen.set(d, (seen.get(d) || 0) + 1)
+      }
+    }
+    for (const [d, count] of seen) {
+      const [a, b] = d.split('>')
+      if (count !== 1 || seen.get(`${b}>${a}`) !== 1) return false
+    }
+    return true
+  }
+
+  const tipped = {
+    id: 1, name: 'L', geometry: chiral(), plate: 0, x: 0, y: 0,
+    spin: turn(IDENTITY, [1, 0, 0], 90), yaw: 30, shape: null, mirror: null, cutMm: 0,
+  }
+  const before = placed(tipped)
+  const volume = signedVolume(before)
+  check('the part to mirror is closed to begin with', closedAndConsistent(before), true)
+  for (const [axis, label] of [[0, 'left to right'], [1, 'front to back'], [2, 'top to bottom']]) {
+    const after = placed(flip(tipped, axis))
+    check(`mirrored ${label}: it is the part's reflection along the bed, in place`,
+      points(after), points(before, axis))
+    check(`mirrored ${label}: and faces out -- the same volume, not its negative`,
+      Math.round(signedVolume(after)), Math.round(volume))
+    check(`mirrored ${label}: and is still closed, every triangle facing the same way`,
+      closedAndConsistent(after), true)
+  }
+  check('the pose baked in really is a mirror', flips(matrixFor(flip(tipped, 0))), true)
+  check('a mirrored part says so', mirrored(flip(tipped, 1).mirror), true)
+  check('the same mirror twice is no mirror at all', flip(flip(tipped, 0), 0).mirror, null)
+  check('two different mirrors make a turn, which is not a mirror',
+    mirrored(flip(flip(tipped, 0), 1).mirror), false)
+
+  // The mirror belongs to the part, like a stretch: turning it afterwards
+  // carries the mirror round with it.
+  const thenTipped = { ...flip(tipped, 0), spin: turn(tipped.spin, [0, 1, 0], 90) }
+  const turnedOnly = { ...tipped, spin: turn(tipped.spin, [0, 1, 0], 90) }
+  check('tipping a mirrored part keeps it the other hand, facing out',
+    [Math.round(signedVolume(placed(thenTipped))), flips(matrixFor(thenTipped)),
+     flips(matrixFor(turnedOnly))],
+    [Math.round(volume), true, false])
+
+  // A stretch after a mirror: the side set is the side that comes out.
+  const m = flip(tipped, 0)
+  const tall = extents(m.geometry, matrixFor(m))[2]
+  const pulled = {
+    ...m, shape: stretchAlong(m.shape, matrixFor({ ...m, shape: null }), 2, 33 / tall),
+  }
+  check('a mirrored part stretched to 33 mm tall is 33 mm tall',
+    extents(pulled.geometry, matrixFor(pulled))[2], 33)
+  check('and is still mirrored, facing out',
+    [mirrored(pulled.mirror), signedVolume(placed(pulled)) > 0], [true, true])
+
+  // The cut runs on the mirrored part, so its cap has to face out too.
+  const cut = placed({ ...flip(tipped, 2), cutMm: 2 })
+  check('a mirrored part with its bottom cut off faces out',
+    signedVolume(cut) > 0 && signedVolume(cut) < volume, true)
+  check('and is still closed', closedAndConsistent(cut), true)
+
+  // A loose triangle soup, no index: the corners are swapped in the attributes.
+  const looseBox = { ...tipped, geometry: new THREE.BoxGeometry(10, 20, 30).toNonIndexed() }
+  check('an unindexed part mirrored faces out too',
+    Math.round(signedVolume(placed(flip(looseBox, 0)))), Math.round(signedVolume(placed(looseBox))))
 }
 
 console.log('\n--- where each plate sits in the file ----------------------------')
